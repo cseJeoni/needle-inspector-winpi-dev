@@ -1,0 +1,26 @@
+{
+  "name": "electron-ws-template",
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "concurrently \"npm run dev:react\" \"wait-on tcp:5173 && electron electron/main.js\"",
+    "dev:react": "vite",
+    "start": "electron electron/main.js"
+  },
+  "dependencies": {
+    "electron-reload": "^2.0.0-alpha.1",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
+  },
+  "devDependencies": {
+    "@types/react": "^18.2.55",
+    "@types/react-dom": "^18.2.19",
+    "@vitejs/plugin-react": "^4.2.1",
+    "concurrently": "^8.2.2",
+    "electron": "^28.2.1",
+    "eslint": "^8.56.0",
+    "eslint-plugin-react-hooks": "^4.6.0",
+    "eslint-plugin-react-refresh": "^0.4.5",
+    "vite": "^5.1.0",
+    "wait-on": "^7.2.0"
+  }
+}
