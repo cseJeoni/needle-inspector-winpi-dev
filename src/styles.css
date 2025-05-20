@@ -1,0 +1,343 @@
+@import"reset.css";
+
+
+* {
+    font-size: 14px;
+}
+
+main {
+    background-color: rgb(255, 242, 140);
+}
+
+.nav {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background-color: rgb(255, 255, 255);
+    width: 40px;
+    border: 1px solid #000;
+}
+
+.nav > a {
+    margin: 0 auto;
+}
+
+
+.Motor{
+    flex-grow: 1;
+    margin: 15px 15px 15px 10px;
+    background-color: rgb(255, 202, 202);
+    width: 30vw;
+    /* height: 100vh; */
+}
+
+.Rf { 
+    flex-grow: 1;
+    margin: 15px 15px;
+    background-color: rgb(199, 255, 179);
+    width: 30vw;
+}
+
+.Camera {
+    flex-grow: 1;
+    margin: 15px;
+    background-color: rgb(198, 240, 255);
+    width: 20vw;
+}
+
+
+
+
+
+
+
+.second_text {
+    font-size: 14px;
+    font-weight: bold;
+    margin-top: 15px;
+    margin-bottom: 5px;
+    padding: 0px 10px;
+}
+
+
+
+.second_text_right {
+    padding: 0px 10px;
+}
+
+.border_bottom {
+    border-bottom: solid 1px #bcbcbc;
+}
+
+.title {
+    font-size: 24px;
+    font-weight: bold;
+    margin-bottom: 10px;
+    padding: 0px 10px;
+}
+
+.container {
+    display: flex;
+    margin: 0 auto;
+}
+
+.horizontality {
+    display: flex;
+    justify-content: flex-start;
+    padding: 3px 10px;
+}
+
+
+
+/* 서보 모드 지피티 코드 여기서부터 */
+
+.Motor-port-div {
+    margin: 10px 10px;
+}
+
+.motor-port {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+}
+
+label {
+    font-size: 14px;
+    font-weight: normal;
+}
+
+.current-status {
+    width: 50px;
+    text-align: center;
+    font-size: 16px;
+}
+
+#servo-slider {
+    width: 100%;
+    margin: 10px 0;
+}
+
+.button-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.number-button, #confirm-button {
+    padding: 5px 10px;
+    font-size: 14px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
+#custom-value {
+    width: 60px;
+    text-align: center;
+    font-size: 14px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+}
+
+
+
+/* 지피티 코드 여기까지 */
+
+
+
+
+/* body {
+    background-color: #f0f0f0;
+    font-family: Arial, sans-serif;
+} */
+
+.Motor_Port {
+    /* background: #e6e6e6; */
+    /* padding: 15px; */
+    margin-bottom: 10px;
+    border-radius: 5px;
+    /* border: 1px solid #ccc; */
+}
+
+.input-container {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+
+
+input[type="number"], textarea {
+    width: 60px;
+    padding: 5px;
+    font-size: 14px;
+    text-align: center;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+}
+
+.send-button {
+    background: #f2f2f2;
+    border: 1px solid #aaa;
+    padding: 5px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.send-button:hover {
+    background: #d9d9d9;
+}
+
+#force-slider {
+    width: 100%;
+    margin-top: 10px;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+/* 
+.Motor_Port_button {
+    flex-direction: row;
+}
+
+button {
+    width: 100%;
+}
+
+.horizontality > .left {
+    width: 100%;
+    margin-right: 10px;
+}
+
+.horizontality > .right {
+    width: 100%;
+}
+
+.number_button_Confirm {
+    width: 55%;
+}
+
+.number_button {
+    width: 30%;
+} */
+
+
+
+h6 {
+    margin: 10px 10px 0px auto;
+}
+.left {
+    margin-right: auto;
+}
+
+.left > p {
+    font-size: 14px;
+    color: rgb(52, 52, 52);
+} 
+
+.right {
+    margin-left: auto;
+    font-size: 14px;
+}
+
+.right > select {
+    width: 8vw;
+}
+
+
+
+/* 모터 시작 */
+
+
+.Motor_title {
+    padding: 15px 0px 0px;
+}
+
+.Current_Status {
+    width: 50px;
+    height: 30px;
+    border: 1px solid #000;
+}
+
+.horizontal_alignment {
+    display: flex;
+    flex-wrap: wrap;
+
+}
+
+.horizontal_alignment > li {
+
+}
+
+
+
+
+
+
+
+
+/* RF 시작 */
+.Rf_title {
+    padding: 15px 0px 0px;
+}
+
+.Camera_title {
+    padding: 15px 0px 0px;
+}
+
+
+
+.div_left {
+    margin-right: auto;
+}
+
+/* .left {
+    margin-right: auto;
+}
+
+.right {
+    margin-left: auto;
+} */
+
+
+
+
+
+.div_right {
+    margin-left: auto;
+}
+
+
+
+
+
+
+
+/* CAMERA 시작 */
+
+.Camera_Sending {
+    width: 100wh;
+    height: 40vh;
+    background-color: blue;
+    margin-top: 10px;
+    margin-bottom: 10px;
+}
+
+
+
+
+
+textarea {
+    width: 90%;
+}
