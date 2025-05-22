@@ -2,7 +2,14 @@ import serial
 import time
 from threading import Thread, Lock
 from queue import Queue, Empty
-from motor_utils import generate_servo_mode_command
+from motor_utils import generate_motor_command
+from motor_mode_generators import (
+    generate_servo_mode_command,
+    generate_position_mode_command,
+    generate_speed_mode_command,
+    generate_force_mode_command,
+    generate_speed_force_mode_command
+)
 
 class MotorThreadedController:
     def __init__(self):
@@ -35,8 +42,8 @@ class MotorThreadedController:
 
             stopbits_map = {
                 "1": serial.STOPBITS_ONE,
-                "1.5": serial.STOPBITS_ONE_POINT_FIVE,
-                "2": serial.STOPBITS_TWO
+                "2": serial.STOPBITS_ONE_POINT_FIVE,
+                "3": serial.STOPBITS_TWO
             }
 
             self.serial = serial.Serial(
@@ -67,12 +74,49 @@ class MotorThreadedController:
     def is_connected(self):
         return self.serial and self.serial.is_open
 
-    def move_to_position(self, pos: int):
+    def move_to_position(self, pos: int, mode="servo"):
         try:
-            cmd = generate_servo_mode_command(pos)
+            if mode == "servo":
+                cmd = generate_servo_mode_command(pos)
+            elif mode == "position":
+                cmd = generate_position_mode_command(pos)
+            else:
+                return f"❌ 지원하지 않는 모드입니다: {mode}"
+
             with self.lock:
                 self.last_command = cmd
             return f"📤 위치 이동 명령 큐잉 완료: {cmd.hex().upper()}"
+        except Exception as e:
+            return f"❌ 명령 생성 실패: {str(e)}"
+
+    def move_with_speed(self, speed: int, position: int):
+        try:
+            cmd = generate_speed_mode_command(speed, position)
+            with self.lock:
+                self.last_command = cmd
+            return f"📤 속도/위치 이동 명령 큐잉 완료: {cmd.hex().upper()}"
+        except Exception as e:
+            return f"❌ 명령 생성 실패: {str(e)}"
+
+    def set_force(self, force: float):
+        try:
+            # N을 g로 변환 (1N = 101.97g)
+            force_g = int(force * 101.97)
+            cmd = generate_force_mode_command(force_g)
+            with self.lock:
+                self.last_command = cmd
+            return f"📤 힘 제어 명령 큐잉 완료: {cmd.hex().upper()}"
+        except Exception as e:
+            return f"❌ 명령 생성 실패: {str(e)}"
+
+    def move_with_speed_force(self, force: float, speed: int, position: int):
+        try:
+            # N을 g로 변환 (1N = 101.97g)
+            force_g = int(force * 101.97)
+            cmd = generate_speed_force_mode_command(force_g, speed, position)
+            with self.lock:
+                self.last_command = cmd
+            return f"📤 속도/힘/위치 이동 명령 큐잉 완료: {cmd.hex().upper()}"
         except Exception as e:
             return f"❌ 명령 생성 실패: {str(e)}"
 
