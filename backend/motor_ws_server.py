@@ -36,65 +36,70 @@ async def handler(websocket):
                     }))
 
                 elif data["cmd"] == "move":
-                    position = data.get("position")
                     mode = data.get("mode", "servo")
-                    print(f"[INFO] 모터 이동 명령 수신: position={position}, mode={mode}")
-                    if position is not None:
-                        result = motor.move_to_position(position, mode)
-                        print(f"[INFO] 모터 이동 결과: {result}")
-                        await websocket.send(json.dumps({
-                            "type": "serial",
-                            "result": result
-                        }))
-                    else:
-                        await websocket.send(json.dumps({
-                            "type": "error",
-                            "msg": "위치 값이 없습니다."
-                        }))
-
-                elif data["cmd"] == "move_with_speed":
-                    speed = data.get("speed")
                     position = data.get("position")
-                    if speed is not None and position is not None:
-                        result = motor.move_with_speed(speed, position)
-                        await websocket.send(json.dumps({
-                            "type": "serial",
-                            "result": result
-                        }))
-                    else:
-                        await websocket.send(json.dumps({
-                            "type": "error",
-                            "msg": "속도 또는 위치 값이 없습니다."
-                        }))
-
-                elif data["cmd"] == "set_force":
-                    force = data.get("force")
-                    if force is not None:
-                        result = motor.set_force(force)
-                        await websocket.send(json.dumps({
-                            "type": "serial",
-                            "result": result
-                        }))
-                    else:
-                        await websocket.send(json.dumps({
-                            "type": "error",
-                            "msg": "힘 값이 없습니다."
-                        }))
-
-                elif data["cmd"] == "move_with_speed_force":
-                    force = data.get("force")
                     speed = data.get("speed")
-                    position = data.get("position")
-                    if all(v is not None for v in [force, speed, position]):
-                        result = motor.move_with_speed_force(force, speed, position)
-                        await websocket.send(json.dumps({
-                            "type": "serial",
-                            "result": result
-                        }))
+                    force = data.get("force")
+                    
+                    print(f"[INFO] 모터 이동 명령 수신: mode={mode}, position={position}, speed={speed}, force={force}")
+                    
+                    if mode == "servo" or mode == "position":
+                        if position is not None:
+                            result = motor.move_to_position(position, mode)
+                            print(f"[INFO] 모터 이동 결과: {result}")
+                            await websocket.send(json.dumps({
+                                "type": "serial",
+                                "result": result
+                            }))
+                        else:
+                            await websocket.send(json.dumps({
+                                "type": "error",
+                                "result": "위치 값이 없습니다."
+                            }))
+                    
+                    elif mode == "speed":
+                        if speed is not None and position is not None:
+                            result = motor.move_with_speed(speed, position)
+                            await websocket.send(json.dumps({
+                                "type": "serial",
+                                "result": result
+                            }))
+                        else:
+                            await websocket.send(json.dumps({
+                                "type": "error",
+                                "result": "속도 또는 위치 값이 없습니다."
+                            }))
+                    
+                    elif mode == "speed_force":
+                        if all(v is not None for v in [force, speed, position]):
+                            result = motor.move_with_speed_force(force, speed, position)
+                            await websocket.send(json.dumps({
+                                "type": "serial",
+                                "result": result
+                            }))
+                        else:
+                            await websocket.send(json.dumps({
+                                "type": "error",
+                                "result": "힘, 속도, 또는 위치 값이 없습니다."
+                            }))
+                    
+                    elif mode == "force":
+                        if force is not None:
+                            result = motor.set_force(force)
+                            await websocket.send(json.dumps({
+                                "type": "serial",
+                                "result": result
+                            }))
+                        else:
+                            await websocket.send(json.dumps({
+                                "type": "error",
+                                "result": "힘 값이 없습니다."
+                            }))
+                    
                     else:
                         await websocket.send(json.dumps({
                             "type": "error",
-                            "msg": "힘, 속도, 또는 위치 값이 없습니다."
+                            "result": f"❌ 지원하지 않는 모드입니다: {mode}"
                         }))
 
                 elif data["cmd"] == "check":

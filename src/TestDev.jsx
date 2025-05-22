@@ -15,6 +15,8 @@ function TestDev() {
     actPos: 0,
   });
   const [currentPosition, setCurrentPosition] = useState(0);
+  const [speedValue, setSpeedValue] = useState(0);
+  const [forceValue, setForceValue] = useState(0);
 
   useEffect(() => {
     // 시리얼 포트 목록을 가져오는 함수
@@ -148,94 +150,9 @@ function TestDev() {
     }
   };
 
-  const handleServoSliderChange = (e) => {
-    const value = parseInt(e.target.value);
-    setCurrentPosition(value);
-
-    // 슬라이더 값이 변경될 때마다 모터 이동 명령 전송
-    if (ws && ws.readyState === WebSocket.OPEN) {
-      const msg = {
-        cmd: "move",
-        position: value,
-      };
-      console.log("📤 모터 이동 명령 전송:", msg);
-      ws.send(JSON.stringify(msg));
-    }
-  };
-
-  const handlePositionButtonClick = (e) => {
-    const value = parseInt(e.target.dataset.value);
-    setCurrentPosition(value);
-
-    // 모터 이동 명령 전송 (position 모드)
-    if (ws && ws.readyState === WebSocket.OPEN) {
-      const msg = {
-        cmd: "move",
-        position: value,
-        mode: "position", // position 모드로 설정
-      };
-      console.log("📤 모터 이동 명령 전송 (position 모드):", msg);
-      ws.send(JSON.stringify(msg));
-    } else {
-      console.error("❌ WebSocket 연결 안됨");
-      setError("WebSocket이 연결되지 않았습니다.");
-    }
-  };
-
-  const handleCustomPositionConfirm = () => {
-    const input = document.getElementById("custom-value");
-    const value = parseInt(input.value);
-    if (!isNaN(value)) {
-      setCurrentPosition(value);
-
-      // 모터 이동 명령 전송
-      if (ws && ws.readyState === WebSocket.OPEN) {
-        const msg = {
-          cmd: "move",
-          position: value,
-          mode: "position", // position 모드로 설정
-        };
-        console.log("📤 모터 이동 명령 전송 (position 모드):", msg);
-        ws.send(JSON.stringify(msg));
-      } else {
-        console.error("❌ WebSocket 연결 안됨");
-        setError("WebSocket이 연결되지 않았습니다.");
-      }
-    }
-  };
-
-  const handleSpeedModeSend = () => {
-    const speed = parseInt(
-      document.getElementById("speedmode-speed-input").value
-    );
-    const position = parseInt(
-      document.getElementById("speedmode-position-input").value
-    );
-
-    if (isNaN(speed) || isNaN(position)) {
-      setError("속도와 위치 값을 모두 입력해주세요.");
-      return;
-    }
-
-    if (ws && ws.readyState === WebSocket.OPEN) {
-      const msg = {
-        cmd: "move_with_speed",
-        speed: speed,
-        position: position,
-      };
-      console.log("📤 속도/위치 이동 명령 전송:", msg);
-      ws.send(JSON.stringify(msg));
-    } else {
-      console.error("❌ WebSocket 연결 안됨");
-      setError("WebSocket이 연결되지 않았습니다.");
-    }
-  };
-
   // 서보 모드 핸들러
-  const handleServoMode = (e) => {
-    const value = parseInt(e.target.dataset.value);
+  const handleServoMode = (value) => {
     setCurrentPosition(value);
-
     if (ws && ws.readyState === WebSocket.OPEN) {
       const msg = {
         cmd: "move",
@@ -245,16 +162,13 @@ function TestDev() {
       console.log("📤 서보 모드 명령 전송:", msg);
       ws.send(JSON.stringify(msg));
     } else {
-      console.error("❌ WebSocket 연결 안됨");
       setError("WebSocket이 연결되지 않았습니다.");
     }
   };
 
   // 포지션 모드 핸들러
-  const handlePositionMode = (e) => {
-    const value = parseInt(e.target.dataset.value);
+  const handlePositionMode = (value) => {
     setCurrentPosition(value);
-
     if (ws && ws.readyState === WebSocket.OPEN) {
       const msg = {
         cmd: "move",
@@ -264,93 +178,97 @@ function TestDev() {
       console.log("📤 포지션 모드 명령 전송:", msg);
       ws.send(JSON.stringify(msg));
     } else {
-      console.error("❌ WebSocket 연결 안됨");
       setError("WebSocket이 연결되지 않았습니다.");
     }
   };
 
   // 스피드 모드 핸들러
   const handleSpeedMode = () => {
-    const speed = parseInt(
-      document.getElementById("speedmode-speed-input").value
-    );
-    const position = parseInt(
-      document.getElementById("speedmode-position-input").value
-    );
+    const speedInput = document.getElementById("speedmode-speed-input").value;
+    const positionInput = document.getElementById(
+      "speedmode-position-input"
+    ).value;
 
+    // 입력값 검증
+    if (!speedInput || !positionInput) {
+      setError("스피드와 목표 위치를 모두 입력해주세요.");
+      return;
+    }
+
+    const speed = parseInt(speedInput);
+    const position = parseInt(positionInput);
+
+    // 숫자 변환 검증
     if (isNaN(speed) || isNaN(position)) {
-      setError("속도와 위치 값을 모두 입력해주세요.");
+      setError("유효한 숫자를 입력해주세요.");
       return;
     }
 
     if (ws && ws.readyState === WebSocket.OPEN) {
       const msg = {
-        cmd: "move_with_speed",
+        cmd: "move",
         speed: speed,
         position: position,
+        mode: "speed",
       };
       console.log("📤 스피드 모드 명령 전송:", msg);
       ws.send(JSON.stringify(msg));
     } else {
-      console.error("❌ WebSocket 연결 안됨");
-      setError("WebSocket이 연결되지 않았습니다.");
-    }
-  };
-
-  // 힘 제어 모드 핸들러
-  const handleForceMode = () => {
-    const force = parseFloat(
-      document.getElementById("forcemode-force-input").value
-    );
-
-    if (isNaN(force)) {
-      setError("힘 값을 입력해주세요.");
-      return;
-    }
-
-    if (ws && ws.readyState === WebSocket.OPEN) {
-      const msg = {
-        cmd: "set_force",
-        force: force,
-      };
-      console.log("📤 힘 제어 모드 명령 전송:", msg);
-      ws.send(JSON.stringify(msg));
-    } else {
-      console.error("❌ WebSocket 연결 안됨");
       setError("WebSocket이 연결되지 않았습니다.");
     }
   };
 
   // 스피드+힘 모드 핸들러
-  const handleSpeedForceMode = () => {
+  const handleSpeedForceMode = (speed, position, force) => {
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      const msg = {
+        cmd: "move",
+        speed: speed,
+        position: position,
+        force: force,
+        mode: "speed_force",
+      };
+      console.log("📤 스피드+힘 모드 명령 전송:", msg);
+      ws.send(JSON.stringify(msg));
+    } else {
+      setError("WebSocket이 연결되지 않았습니다.");
+    }
+  };
+
+  // 힘 모드 핸들러
+  const handleForceMode = (force) => {
+    setForceValue(force);
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      const msg = {
+        cmd: "move",
+        force: force,
+        mode: "force",
+      };
+      console.log("📤 힘 모드 명령 전송:", msg);
+      ws.send(JSON.stringify(msg));
+    } else {
+      setError("WebSocket이 연결되지 않았습니다.");
+    }
+  };
+
+  // 스피드+힘 모드 전송 핸들러
+  const handleSpeedPowerSend = () => {
     const speed = parseInt(
       document.getElementById("speedpower-speed-input").value
     );
     const position = parseInt(
       document.getElementById("speedpower-position-input").value
     );
-    const force = parseFloat(
+    const force = parseInt(
       document.getElementById("speedpower-force-input").value
     );
+    handleSpeedForceMode(speed, position, force);
+  };
 
-    if (isNaN(speed) || isNaN(position) || isNaN(force)) {
-      setError("속도, 위치, 힘 값을 모두 입력해주세요.");
-      return;
-    }
-
-    if (ws && ws.readyState === WebSocket.OPEN) {
-      const msg = {
-        cmd: "move_with_speed_force",
-        speed: speed,
-        position: position,
-        force: force,
-      };
-      console.log("📤 스피드+힘 모드 명령 전송:", msg);
-      ws.send(JSON.stringify(msg));
-    } else {
-      console.error("❌ WebSocket 연결 안됨");
-      setError("WebSocket이 연결되지 않았습니다.");
-    }
+  // 힘 모드 슬라이더 변경 핸들러
+  const handleForceSliderChange = (e) => {
+    const value = parseFloat(e.target.value);
+    handleForceMode(value);
   };
 
   return (
@@ -514,7 +432,7 @@ function TestDev() {
                 max={2000}
                 step={1}
                 value={currentPosition}
-                onChange={handleServoSliderChange}
+                onChange={(e) => handleServoMode(parseInt(e.target.value))}
               />
               <div className="button-container">
                 {[0, 300, 500, 700, 1000, 1300, 1500, 1700, 2000].map(
@@ -523,7 +441,9 @@ function TestDev() {
                       key={value}
                       className="number-button"
                       data-value={value}
-                      onClick={handlePositionMode}
+                      onClick={(e) =>
+                        handlePositionMode(parseInt(e.target.dataset.value))
+                      }
                     >
                       {value}
                     </button>
@@ -532,7 +452,14 @@ function TestDev() {
                 <input type="text" id="custom-value" placeholder="Custom" />
                 <button
                   id="confirm-button"
-                  onClick={handleCustomPositionConfirm}
+                  onClick={() => {
+                    const value = parseInt(
+                      document.getElementById("custom-value").value
+                    );
+                    if (!isNaN(value)) {
+                      handlePositionMode(value);
+                    }
+                  }}
                 >
                   CONFIRM
                 </button>
@@ -547,17 +474,9 @@ function TestDev() {
               <label htmlFor="speed-mode">스피드 모드</label>
               <div className="input-container">
                 <label>스피드</label>
-                <input
-                  id="speedmode-speed-input"
-                  type="number"
-                  defaultValue={0}
-                />
+                <input id="speedmode-speed-input" type="number" />
                 <label>목표 위치</label>
-                <input
-                  id="speedmode-position-input"
-                  type="number"
-                  defaultValue={0}
-                />
+                <input id="speedmode-position-input" type="number" />
                 <button
                   className="speedmode-send-button"
                   onClick={handleSpeedMode}
@@ -592,7 +511,7 @@ function TestDev() {
                 />
                 <button
                   className="speedpower-send-button"
-                  onClick={handleSpeedForceMode}
+                  onClick={handleSpeedPowerSend}
                 >
                   전송
                 </button>
@@ -607,12 +526,13 @@ function TestDev() {
                 <input
                   id="forcemode-force-input"
                   type="number"
-                  defaultValue={0.0}
+                  value={forceValue}
+                  onChange={(e) => handleForceMode(parseFloat(e.target.value))}
                 />
                 <span>N</span>
                 <button
                   className="forcemode-send-button"
-                  onClick={handleForceMode}
+                  onClick={() => handleForceMode(forceValue)}
                 >
                   전송
                 </button>
@@ -623,7 +543,8 @@ function TestDev() {
                 min={0}
                 max={100}
                 step="0.1"
-                defaultValue={0.0}
+                value={forceValue}
+                onChange={handleForceSliderChange}
               />
             </div>
             <div className="border_bottom" />

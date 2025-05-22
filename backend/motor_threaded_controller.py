@@ -2,7 +2,6 @@ import serial
 import time
 from threading import Thread, Lock
 from queue import Queue, Empty
-from motor_utils import generate_motor_command
 from motor_mode_generators import (
     generate_servo_mode_command,
     generate_position_mode_command,
