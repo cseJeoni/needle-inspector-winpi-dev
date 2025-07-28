@@ -29,9 +29,9 @@ function getBackendPath() {
 // 파이썬 서버 시작
 function startBackendServer() {
   const backendPath = getBackendPath();
-  const serverScriptPath = path.join(backendPath, 'motor_ws_server.py');
+  const serverScriptPath = path.join(backendPath, 'camera_server.py');
 
-  console.log(`[INFO] 백엔드 서버 시작 시도: ${serverScriptPath}`);
+  console.log(`[INFO] 카메라 서버 시작 시도: ${serverScriptPath}`);
   
   if (!fs.existsSync(serverScriptPath)) {
     console.error(`[ERROR] 서버 스크립트를 찾을 수 없음: ${serverScriptPath}`);
@@ -44,8 +44,15 @@ function startBackendServer() {
   serverProcess = spawn(pythonExecutable, [serverScriptPath]);
 
   serverProcess.stdout.on('data', (data) => {
-    console.log(`[PY-OUT] ${data.toString().trim()}`);
-    if (data.toString().includes('WebSocket 모터 서버 실행 중')) {
+    const output = data.toString().trim();
+    console.log(`[PY-OUT] ${output}`);
+    
+    // Flask 서버 시작 메시지들을 감지
+    if (output.includes('Running on http://') || 
+        output.includes('* Running on') || 
+        output.includes('Flask app') ||
+        output.includes('Debug mode: on')) {
+      console.log(`[INFO] Flask 서버 시작 감지됨 (stdout): ${output}`);
       serverStarted = true;
       if (win) {
         win.webContents.send('backend-ready');
@@ -54,11 +61,24 @@ function startBackendServer() {
   });
 
   serverProcess.stderr.on('data', (data) => {
-    console.error(`[PY-ERR] ${data.toString().trim()}`);
+    const output = data.toString().trim();
+    console.error(`[PY-ERR] ${output}`);
+    
+    // Flask 서버 시작 메시지들을 stderr에서도 감지
+    if (output.includes('Running on http://') || 
+        output.includes('* Running on') || 
+        output.includes('Flask app') ||
+        output.includes('Debug mode: on')) {
+      console.log(`[INFO] Flask 서버 시작 감지됨 (stderr): ${output}`);
+      serverStarted = true;
+      if (win) {
+        win.webContents.send('backend-ready');
+      }
+    }
   });
 
   serverProcess.on('close', (code) => {
-    console.log(`[INFO] 백엔드 서버 종료됨 (코드: ${code})`);
+    console.log(`[INFO] 카메라 서버 종료됨 (코드: ${code})`);
     serverStarted = false;
     serverProcess = null;
   });
@@ -71,7 +91,7 @@ function waitForBackend() {
   return new Promise((resolve, reject) => {
     const timeout = setTimeout(() => {
       reject(new Error('Backend start timeout'));
-    }, 10000);
+    }, 30000); // 타임아웃 시간을 30초로 늘림
 
     const checkInterval = setInterval(() => {
       if (serverStarted) {

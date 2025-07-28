@@ -1,0 +1,158 @@
+/* ControlPanel 컴포넌트 스타일 */
+
+.control-panel {
+    display: flex;
+    flex-direction: column;
+
+    align-items: center;
+    height: 100vh;
+    width: 100vw;
+    padding: 20px;
+    box-sizing: border-box;
+}
+
+.camera-feeds {
+    display: flex;
+    flex-direction: row; /* 가로 배치 */
+    width: 70%; /* 전체화면의 70% */
+    height: 70%; /* 높이도 70%로 설정 */
+    overflow: hidden;
+    border-radius: 8px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.camera-view {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    border: 1px solid #ddd;
+    margin: 0;
+}
+
+.camera-feed-container {
+    flex: 1;
+    position: relative;
+    overflow: hidden;
+}
+
+.camera-image {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.camera-canvas {
+    position: absolute;
+    top: 0;
+    left: 0;
+}
+
+.hardware-controls {
+    padding: 5px;
+    background-color: #f0f0f0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 20px;
+    flex-shrink: 0;
+}
+
+.control-section {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.control-section h2 {
+    margin: 0;
+    font-size: 14px;
+    white-space: nowrap;
+}
+
+.control-button {
+    padding: 2px 8px;
+    font-size: 12px;
+}
+
+.camera-controls {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 5px;
+    background-color: #f8f8f8;
+    border-bottom: 1px solid #ddd;
+}
+
+.camera-controls button {
+    padding: 4px 8px;
+    font-size: 12px;
+    border: 1px solid #ccc;
+    background-color: #fff;
+    cursor: pointer;
+}
+
+.camera-controls button:hover {
+    background-color: #e0e0e0;
+}
+
+.camera-controls button:disabled {
+    background-color: #f5f5f5;
+    color: #999;
+    cursor: not-allowed;
+}
+
+.camera-controls span {
+    font-size: 12px;
+    color: #666;
+}
+
+.button-container {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.number-button {
+    padding: 4px 8px;
+    font-size: 12px;
+    border: 1px solid #ccc;
+    background-color: #fff;
+    cursor: pointer;
+    min-width: 40px;
+}
+
+.number-button:hover {
+    background-color: #e0e0e0;
+}
+
+.button-container input {
+    padding: 4px 8px;
+    font-size: 12px;
+    border: 1px solid #ccc;
+    width: 80px;
+}
+
+.button-container #confirm-button {
+    padding: 4px 12px;
+    font-size: 12px;
+    border: 1px solid #007bff;
+    background-color: #007bff;
+    color: white;
+    cursor: pointer;
+}
+
+.button-container #confirm-button:hover {
+    background-color: #0056b3;
+}
+
+.message {
+    padding: 10px;
+    background-color: #d4edda;
+    border: 1px solid #c3e6cb;
+    color: #155724;
+    margin: 10px;
+    border-radius: 4px;
+}

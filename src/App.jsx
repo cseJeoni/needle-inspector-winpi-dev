@@ -1,10 +1,11 @@
-import TestDev from "./TestDev";
+import TestDev from "./components/TestDev";
+import ControlPanel from "./components/ControlPanel";
 import "./index.css";
 
 function App() {
   return (
     <div>
-      <TestDev />
+      <ControlPanel />
     </div>
   );
 }

@@ -1,6 +1,6 @@
-import right_arrow from "./assets/icon/arrow_right.png";
+import right_arrow from "../assets/icon/arrow_right.png";
 import { useState, useEffect } from "react";
-import "./styles.css";
+import "../css/styles.css";
 
 function TestDev() {
   const [availablePorts, setAvailablePorts] = useState([]);
@@ -859,95 +859,6 @@ function TestDev() {
               </div>
             </div>
           </div>
-        </section>
-        {/* 여기부터 카메라 */}
-        <section className="Camera">
-          <div className="Camera_title">
-            <h1 className="title">CAMERA</h1>
-            <div className="border_bottom" />
-          </div>
-          <div className="Camera_Sending" />
-          <div className="border_bottom" />
-          <h6 className="second_text">EPROM</h6>
-          <ul className="horizontality">
-            <li className="left">
-              <p>START ADDRESS</p>
-            </li>
-            <li className="right">
-              <select>
-                <option value={1}>0x10 (Default Address)</option>
-                <option value={1}>COM1</option>
-                <option value={1}>COM1</option>
-                <option value={1}>COM1</option>
-              </select>
-            </li>
-          </ul>
-          <ul className="horizontality">
-            <li className="left">
-              <p>TIP ID</p>
-            </li>
-            <li className="right">
-              <select>
-                <option value={1}>230 (Type A)</option>
-                <option value={1}>COM1</option>
-                <option value={1}>COM1</option>
-                <option value={1}>COM1</option>
-              </select>
-            </li>
-          </ul>
-          <ul className="horizontality">
-            <li className="left">
-              <p>SHOT COUNT</p>
-            </li>
-            <li className="right">
-              <textarea defaultValue={""} />
-            </li>
-          </ul>
-          <ul className="horizontality">
-            <li className="left">
-              <p>제조년/월/일</p>
-            </li>
-            <li className="right">
-              <input type="date" name="startday" />
-            </li>
-          </ul>
-          <ul className="horizontality">
-            <li className="left">
-              <p>MANUFACTURE CODE</p>
-            </li>
-            <li className="right">
-              <select>
-                <option value={1}>1</option>
-                <option value={1}>COM1</option>
-                <option value={1}>COM1</option>
-                <option value={1}>COM1</option>
-              </select>
-            </li>
-          </ul>
-          <ul className="horizontality">
-            <li className="left">
-              <p>EXTENDED FLAG</p>
-            </li>
-            <li className="right">
-              <textarea defaultValue={""} />
-            </li>
-          </ul>
-          <ul className="horizontality">
-            <li className="left">
-              <p>결과값</p>
-            </li>
-            <li className="right">
-              <textarea defaultValue={""} />
-            </li>
-          </ul>
-          <ul className="horizontality">
-            <li className="left">
-              <button>WRITE</button>
-            </li>
-            <li className="right">
-              <button>READ</button>
-            </li>
-          </ul>
         </section>
         <section className="nav">
           <a href="">
