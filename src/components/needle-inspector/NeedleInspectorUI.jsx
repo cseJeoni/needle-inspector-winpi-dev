@@ -8,11 +8,28 @@ import "../../css/NeedleInspector.css"
 
 const PX_TO_MM = 1 / 3.78; // 1px 당 mm
 
+// 모터 연결 기본 설정값
+const MOTOR_CONFIG = {
+  device: 'usb-motor',
+  baudrate: 19200,
+  parity: 'none',
+  dataBits: 8,
+  stopBits: 1
+};
+
 export default function NeedleInspectorUI() {
   const [mode, setMode] = useState("생산")
   
   // 비디오 서버 URL (실제 환경에 맞게 수정 필요)
   const videoServerUrl = "http://localhost:5000"
+  
+  // 모터 관련 상태
+  const [ws, setWs] = useState(null)
+  const [isWsConnected, setIsWsConnected] = useState(false)
+  const [isMotorConnected, setIsMotorConnected] = useState(false)
+  const [motorError, setMotorError] = useState(null)
+  const [currentPosition, setCurrentPosition] = useState(0)
+  const [needlePosition, setNeedlePosition] = useState('UNKNOWN') // UP, DOWN, UNKNOWN
   
   // Camera 1 상태
   const [drawMode1, setDrawMode1] = useState(false)
@@ -312,6 +329,163 @@ export default function NeedleInspectorUI() {
     redrawCanvas2()
   }, [lines2, selectedIndex2])
 
+  // 모터 WebSocket 연결 및 자동 연결
+  useEffect(() => {
+    console.log('🔧 모터 WebSocket 연결 시도...')
+    const socket = new WebSocket("ws://192.168.0.82:8765")
+
+    socket.onopen = () => {
+      console.log("✅ 모터 WebSocket 연결 성공")
+      setIsWsConnected(true)
+      setMotorError(null)
+      
+      // WebSocket 연결 후 자동으로 모터 연결 시도
+      setTimeout(() => {
+        connectMotor(socket)
+      }, 1000)
+    }
+
+    socket.onclose = () => {
+      console.log("❌ 모터 WebSocket 연결 끊김")
+      setIsWsConnected(false)
+      setIsMotorConnected(false)
+      setMotorError("WebSocket 연결이 끊어졌습니다.")
+    }
+
+    socket.onerror = (err) => {
+      console.error("❌ 모터 WebSocket 오류:", err)
+      setMotorError("WebSocket 연결 오류가 발생했습니다.")
+    }
+
+    socket.onmessage = (e) => {
+      try {
+        const res = JSON.parse(e.data)
+        console.log("📨 모터 응답:", res)
+
+        if (res.type === "serial") {
+          if (res.result.includes("성공") || 
+              res.result.includes("완료") || 
+              res.result.includes("전송 완료")) {
+            console.log("✅ 모터 연결 성공")
+            setIsMotorConnected(true)
+            setMotorError(null)
+          } else if (res.result.includes("실패") || 
+                     res.result.includes("오류")) {
+            console.error("❌ 모터 연결 실패:", res.result)
+            setIsMotorConnected(false)
+            setMotorError(res.result)
+          }
+        } else if (res.type === "status") {
+          // 상태 업데이트
+          const { position } = res.data
+          setCurrentPosition(position)
+          
+          // 니들 위치 판단 (840: UP, 0: DOWN)
+          if (position >= 800) {
+            setNeedlePosition('UP')
+          } else if (position <= 50) {
+            setNeedlePosition('DOWN')
+          } else {
+            setNeedlePosition('MOVING')
+          }
+          
+          console.log("📊 모터 위치 업데이트:", position)
+        } else if (res.type === "error") {
+          console.error("❌ 모터 오류:", res.result)
+          setMotorError(res.result)
+        }
+      } catch (err) {
+        console.error("❌ 모터 메시지 파싱 오류:", err)
+      }
+    }
+
+    setWs(socket)
+
+    // 컴포넌트 언마운트 시 정리
+    return () => {
+      if (socket.readyState === WebSocket.OPEN) {
+        console.log("🔧 모터 포트 닫기 및 WebSocket 연결 종료...")
+        socket.send(JSON.stringify({ cmd: "disconnect" }))
+        setTimeout(() => {
+          socket.close()
+          console.log("✅ 모터 연겴 정리 완료")
+        }, 500)
+      }
+    }
+  }, [])
+
+  // 앱 종료 시 정리 (window beforeunload 이벤트)
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        console.log("🔧 앱 종료 - 모터 포트 닫기...")
+        ws.send(JSON.stringify({ cmd: "disconnect" }))
+      }
+    }
+
+    window.addEventListener('beforeunload', handleBeforeUnload)
+    
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload)
+    }
+  }, [ws])
+
+  // 모터 자동 연결 함수
+  const connectMotor = (socket) => {
+    if (!socket || socket.readyState !== WebSocket.OPEN) {
+      console.error("❌ WebSocket이 연결되지 않았습니다.")
+      setMotorError("WebSocket이 연결되지 않았습니다.")
+      return
+    }
+
+    const msg = {
+      cmd: "connect",
+      port: MOTOR_CONFIG.device,
+      baudrate: MOTOR_CONFIG.baudrate,
+      parity: MOTOR_CONFIG.parity,
+      databits: MOTOR_CONFIG.dataBits,
+      stopbits: MOTOR_CONFIG.stopBits,
+    }
+
+    console.log("🔧 모터 자동 연결 시도:", msg)
+    socket.send(JSON.stringify(msg))
+  }
+
+  // 니들 위치 제어 함수
+  const handleNeedlePosition = (targetPosition) => {
+    if (!ws || ws.readyState !== WebSocket.OPEN) {
+      console.error("❌ WebSocket이 연결되지 않았습니다.")
+      setMotorError("WebSocket이 연결되지 않았습니다.")
+      return
+    }
+
+    if (!isMotorConnected) {
+      console.error("❌ 모터가 연결되지 않았습니다.")
+      setMotorError("모터가 연결되지 않았습니다.")
+      return
+    }
+
+    const msg = {
+      cmd: "move",
+      position: targetPosition,
+      mode: "position",
+    }
+
+    console.log(`🎯 니들 ${targetPosition === 840 ? 'UP' : 'DOWN'} 명령 전송:`, msg)
+    ws.send(JSON.stringify(msg))
+    setMotorError(null)
+  }
+
+  // 니들 UP 함수
+  const handleNeedleUp = () => {
+    handleNeedlePosition(840)
+  }
+
+  // 니들 DOWN 함수
+  const handleNeedleDown = () => {
+    handleNeedlePosition(0)
+  }
+
   useEffect(() => {
     const img1 = document.querySelector('#camera-feed-1 img')
     const img2 = document.querySelector('#camera-feed-2 img')
@@ -331,6 +505,35 @@ export default function NeedleInspectorUI() {
 
   return (
     <div className="bg-[#171C26] min-h-screen text-white font-sans p-4 flex flex-col gap-4">
+      {/* 모터 연결 상태 표시 */}
+      <div style={{
+        position: 'fixed',
+        top: '20px',
+        right: '20px',
+        zIndex: 1000
+      }}>
+        <div style={{
+          padding: '8px 12px',
+          borderRadius: '4px',
+          fontSize: '12px',
+          fontWeight: 'bold',
+          backgroundColor: isMotorConnected ? '#d4edda' : '#f8d7da',
+          color: isMotorConnected ? '#155724' : '#721c24',
+          border: `1px solid ${isMotorConnected ? '#c3e6cb' : '#f5c6cb'}`,
+          textAlign: 'center'
+        }}>
+          모터: {isMotorConnected ? '연결됨' : '연결 안됨'}
+          <div style={{ fontSize: '10px', marginTop: '2px' }}>
+            위치: {currentPosition} | 니들: {needlePosition}
+          </div>
+          {motorError && (
+            <div style={{ fontSize: '10px', marginTop: '2px', opacity: 0.8 }}>
+              {motorError}
+            </div>
+          )}
+        </div>
+      </div>
+      
       <main className="flex flex-col flex-1 gap-4">
         {/* Top Camera Views */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 h-[60vh]">
@@ -368,7 +571,13 @@ export default function NeedleInspectorUI() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 flex-1">
           <StatusPanel mode={mode} />
           <DataSettingsPanel />
-          <NeedleCheckPanel mode={mode} />
+          <NeedleCheckPanel 
+            mode={mode} 
+            isMotorConnected={isMotorConnected}
+            needlePosition={needlePosition}
+            onNeedleUp={handleNeedleUp}
+            onNeedleDown={handleNeedleDown}
+          />
           <ModePanel mode={mode} setMode={setMode} />
         </div>
       </main>
