@@ -3,6 +3,19 @@ import websockets
 import json
 from motor_threaded_controller import MotorThreadedController
 
+# GPIO 초기화 (gpiozero 사용)
+gpio_available = False
+pin18 = None
+try:
+    from gpiozero import DigitalInputDevice
+    pin18 = DigitalInputDevice(18)
+    gpio_available = True
+    print("[OK] GPIO 18번 핀 입력 모드로 초기화 완료 (gpiozero)")
+except ImportError:
+    print("[ERROR] gpiozero 모듈을 찾을 수 없습니다. GPIO 기능이 비활성화됩니다.")
+except Exception as e:
+    print(f"[ERROR] GPIO 초기화 오류: {e}")
+
 motor = MotorThreadedController()
 connected_clients = set()
 
@@ -109,6 +122,22 @@ async def handler(websocket):
                         "result": "연결됨" if connected else "연결 안됨"
                     }))
 
+                elif data["cmd"] == "gpio_read":
+                    if gpio_available and pin18:
+                        gpio_value = pin18.value
+                        state_text = "HIGH" if gpio_value else "LOW"
+                        print(f"[INFO] GPIO 18번 상태: {state_text} (value: {gpio_value})")
+                        await websocket.send(json.dumps({
+                            "type": "gpio",
+                            "pin": 18,
+                            "state": state_text
+                        }))
+                    else:
+                        await websocket.send(json.dumps({
+                            "type": "error",
+                            "result": "GPIO 기능이 비활성화되어 있습니다."
+                        }))
+
                 else:
                     await websocket.send(json.dumps({
                         "type": "error",
@@ -129,13 +158,20 @@ async def push_motor_status():
     while True:
         await asyncio.sleep(0.05)
         if motor.is_connected():
+            # GPIO 상태 읽기
+            gpio_state = "UNKNOWN"
+            if gpio_available and pin18:
+                gpio_value = pin18.value
+                gpio_state = "HIGH" if gpio_value else "LOW"
+            
             data = {
                 "type": "status",
                 "data": {
                     "position": motor.position,
                     "force": motor.force,
                     "sensor": motor.sensor,
-                    "setPos": motor.setPos
+                    "setPos": motor.setPos,
+                    "gpio18": gpio_state  # GPIO 상태 추가
                 }
             }
             for ws in connected_clients.copy():
