@@ -1,10 +1,15 @@
 {
   "name": "electron-ws-template",
   "version": "1.0.0",
+  "description": "Electron 모터 제어 애플리케이션",
+  "author": "YBH",
+  "main": "electron/main.js",
   "scripts": {
     "dev": "concurrently \"npm run dev:react\" \"wait-on tcp:5173 && electron electron/main.js\"",
     "dev:react": "vite",
-    "start": "electron electron/main.js"
+    "start": "electron electron/main.js",
+    "build": "vite build && electron-builder",
+    "build:linux": "vite build && electron-builder --linux"
   },
   "dependencies": {
     "electron-reload": "^2.0.0-alpha.1",
@@ -17,10 +22,34 @@
     "@vitejs/plugin-react": "^4.2.1",
     "concurrently": "^8.2.2",
     "electron": "^28.2.1",
+    "electron-builder": "^24.9.1",
     "eslint": "^8.56.0",
     "eslint-plugin-react-hooks": "^4.6.0",
     "eslint-plugin-react-refresh": "^0.4.5",
     "vite": "^5.1.0",
     "wait-on": "^7.2.0"
+  },
+  "build": {
+    "appId": "com.electron.ws.template",
+    "productName": "ElectronWsTemplate",
+    "files": [
+      "dist/**/*",
+      "electron/**/*",
+      "package.json"
+    ],
+    "directories": {
+      "output": "dist",
+      "buildResources": "assets"
+    },
+    "extraResources": [
+      {
+        "from": "backend",
+        "to": "backend"
+      }
+    ],
+    "linux": {
+      "target": ["AppImage"],
+      "category": "Utility"
+    }
   }
 }

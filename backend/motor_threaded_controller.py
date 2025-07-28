@@ -1,5 +1,7 @@
 import serial
 import time
+import os
+import platform
 from threading import Thread, Lock
 from queue import Queue, Empty
 from motor_mode_generators import (
@@ -26,11 +28,28 @@ class MotorThreadedController:
         self.sensor = 0
 
 
+    def get_platform_port(self, port):
+        """플랫폼에 따라 적절한 포트 이름을 반환합니다."""
+        system = platform.system().lower()
+        
+        # 리눅스 환경에서 'usb-motor' 심볼릭 링크 사용
+        if system == 'linux':
+            if port.lower() == 'auto':
+                return '/dev/usb-motor'
+            elif not port.startswith('/dev/'):
+                # return f'/dev/{port}'
+                return '/dev/usb-motor'
+        
+        return port
+
     def connect(self, port, baudrate, parity, databits, stopbits):
         if self.serial and self.serial.is_open:
             return "이미 연결되어 있습니다."
 
         try:
+            # 플랫폼에 맞는 포트 이름 가져오기
+            port = self.get_platform_port(port)
+            
             parity_map = {
                 "none": serial.PARITY_NONE,
                 "even": serial.PARITY_EVEN,
@@ -41,17 +60,24 @@ class MotorThreadedController:
 
             stopbits_map = {
                 "1": serial.STOPBITS_ONE,
-                "2": serial.STOPBITS_ONE_POINT_FIVE,
-                "3": serial.STOPBITS_TWO
+                "1.5": serial.STOPBITS_ONE_POINT_FIVE,
+                "2": serial.STOPBITS_TWO
             }
+
+            # 사용자가 문자열로 입력했을 경우 처리
+            stopbits_key = str(stopbits)
+            if stopbits_key == "2" or stopbits_key == "3":
+                stopbits_key = "2"
+            elif stopbits_key not in stopbits_map:
+                stopbits_key = "1"
 
             self.serial = serial.Serial(
                 port=port,
                 baudrate=int(baudrate),
                 bytesize=int(databits),
                 parity=parity_map[parity.lower()],
-                stopbits=stopbits_map[str(stopbits)],
-                timeout=0
+                stopbits=stopbits_map[stopbits_key],
+                timeout=0.1  # 0에서 0.1로 변경하여 리눅스 환경에서 더 안정적으로 작동
             )
             self.running = True
             self.sender_thread = Thread(target=self.send_loop, daemon=True)
@@ -125,16 +151,29 @@ class MotorThreadedController:
                 time.sleep(0.05)
                 with self.lock:
                     if self.last_command:
-                        self.serial.write(self.last_command)
+                        bytes_written = self.serial.write(self.last_command)
+                        # 리눅스에서는 명시적으로 flush 호출이 필요할 수 있음
+                        self.serial.flush()
+                        # 디버깅 정보 추가
+                        if bytes_written != len(self.last_command):
+                            print(f"[Warning] 전송된 바이트 수 불일치: {bytes_written}/{len(self.last_command)}")
             except Exception as e:
                 print(f"[SendThread Error] {str(e)}")
+                # 리눅스 환경에서 시리얼 통신 에러 발생 시 짧은 시간 대기
+                time.sleep(0.1)
 
     def read_loop(self):
         buffer = bytearray()
         while self.running:
             try:
                 time.sleep(0.01)
-                data = self.serial.read(1024)
+                # 리눅스에서는 in_waiting 속성이 더 안정적
+                if hasattr(self.serial, 'in_waiting') and self.serial.in_waiting > 0:
+                    data = self.serial.read(self.serial.in_waiting)
+                else:
+                    # 기존 방식 유지(읽을 데이터가 없으면 빈 바이트 배열 반환)
+                    data = self.serial.read(1024)
+                
                 if data:
                     buffer += data
 
@@ -156,12 +195,18 @@ class MotorThreadedController:
                             buffer.pop(0)
             except Exception as e:
                 print(f"[ReadThread Error] {str(e)}")
+                # 리눅스 환경에서 시리얼 통신 에러 발생 시 짧은 시간 대기
+                time.sleep(0.1)
 
     def find_next_header(self, buffer):
-        for i in range(2, len(buffer) - 1):
-            if buffer[i] == 0xAA and buffer[i+1] == 0x55:
-                return i
-        return None
+        try:
+            for i in range(2, len(buffer) - 1):
+                if buffer[i] == 0xAA and buffer[i+1] == 0x55:
+                    return i
+            return None
+        except Exception as e:
+            print(f"[FindHeader Error] {str(e)}")
+            return None
 
     def parse_response(self, frame):
         try:

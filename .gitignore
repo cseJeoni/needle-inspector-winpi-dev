@@ -33,3 +33,7 @@ __pycache__/
 *.njsproj
 *.sln
 *.sw?
+
+
+# windsurf rules
+.windsurfrules

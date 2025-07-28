@@ -36,7 +36,7 @@ function TestDev() {
 
   // WebSocket 연결 설정
   useEffect(() => {
-    const socket = new WebSocket("ws://localhost:8765");
+    const socket = new WebSocket("ws://192.168.0.82:8765");
 
     socket.onopen = () => {
       console.log("✅ WebSocket 연결됨");
@@ -287,13 +287,8 @@ function TestDev() {
               </li>
               <li className="right">
                 <select name="serialDevice">
-                  <option value="COM1">COM1</option>
-                  <option value="COM2">COM2</option>
-                  <option value="COM3">COM3</option>
-                  <option value="COM4">COM4</option>
-                  <option value="COM5">COM5</option>
-                  <option value="COM6">COM6</option>
-                  <option value="COM7">COM7</option>
+                  <option value="usb-motor">usb-motor</option>
+                  <option value="usb-rf">usb-rf</option>
                 </select>
               </li>
             </ul>
@@ -503,7 +498,7 @@ function TestDev() {
                   type="number"
                   defaultValue={0}
                 />
-                <label>힘 임계점 (g)</label>
+                <label>힘 임계점 (N)</label>
                 <input
                   id="speedpower-force-input"
                   type="number"

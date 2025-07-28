@@ -146,8 +146,8 @@ async def push_motor_status():
                     connected_clients.discard(ws)
 
 async def main():
-    async with websockets.serve(handler, "localhost", 8765):
-        print("[INFO] WebSocket 모터 서버 실행 중 (ws://localhost:8765)")
+    async with websockets.serve(handler, "0.0.0.0", 8765):
+        print("[INFO] WebSocket 모터 서버 실행 중 (ws://0.0.0.0:8765)")
         await push_motor_status()  # 상태 주기 전송 루프 시작
 
 if __name__ == "__main__":
