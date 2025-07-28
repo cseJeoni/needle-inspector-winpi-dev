@@ -1,4 +1,5 @@
 import React from 'react';
+import './CameraView.css';
 
 /**
  * CameraView 컴포넌트 - NeedleInspector용 개별 카메라 뷰와 컨트롤을 담당
@@ -33,58 +34,49 @@ export default function CameraView({
   videoContainerRef 
 }) {
   return (
-    <div className="bg-[#3B3E46] rounded-lg p-3 flex flex-col">
-      <div className="flex items-center justify-between mb-2">
-        <div className="flex items-center gap-2">
-          <span className="h-2.5 w-2.5 bg-[#0CB56C] rounded-full"></span>
-          <h2 className="text-sm text-gray-600">{title}</h2>
+    <div className="camera-view">
+      <div className="camera-header">
+        <div className="camera-title-container">
+          <span className="camera-status"></span>
+          <h2 className="camera-title">{title}</h2>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="controls-container">
           <button 
             onClick={onDrawModeToggle}
-            className={`px-3 py-1 text-xs rounded ${
-              drawMode 
-                ? 'bg-orange-500 text-white' 
-                : 'bg-blue-500 text-white hover:bg-blue-600'
-            }`}
+            className={`control-button draw-button ${drawMode ? 'active' : ''}`}
+            style={{ color: '#000000' }}
           >
             {drawMode ? '취소' : '선 추가'}
           </button>
           <button 
             onClick={onDeleteLine} 
             disabled={selectedIndex === -1}
-            className={`px-3 py-1 text-xs rounded ${
-              selectedIndex === -1 
-                ? 'bg-gray-500 text-gray-300 cursor-not-allowed' 
-                : 'bg-red-500 text-white hover:bg-red-600'
-            }`}
+            className={`control-button delete-button`}
+            style={{ color: selectedIndex === -1 ? '#D1D5DB' : '#000000' }}
           >
             선 삭제
           </button>
         </div>
       </div>
-      <div className="text-xs text-gray-400 mb-2">{lineInfo}</div>
+      <div className="line-info">{lineInfo}</div>
       <div 
         id={`camera-feed-${cameraId}`} 
         ref={videoContainerRef} 
-        className="bg-[#171C26] flex-1 rounded-md relative overflow-hidden"
-        style={{ minHeight: '300px' }}
+        className="camera-feed-container"
       >
         {videoServerUrl && videoEndpoint && (
           <img 
             src={`${videoServerUrl}${videoEndpoint}`} 
             alt={title} 
-            className="w-full h-full object-cover" 
-            style={{ position: 'absolute', top: 0, left: 0 }}
+            className="camera-image"
           />
         )}
         <canvas 
           ref={canvasRef} 
-          className="absolute top-0 left-0 w-full h-full cursor-crosshair" 
+          className="camera-canvas"
           onMouseDown={handlers?.handleMouseDown} 
           onMouseMove={handlers?.handleMouseMove} 
           onMouseUp={handlers?.handleMouseUp}
-          style={{ zIndex: 10 }}
         />
       </div>
     </div>
