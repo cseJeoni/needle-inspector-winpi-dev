@@ -156,7 +156,27 @@ app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
     // 백엔드 서버 종료
     if (serverProcess) {
-      serverProcess.kill();
+      console.log('[INFO] 카메라 서버 종료 중...');
+      
+      try {
+        // Windows에서는 프로세스 트리 전체 종료
+        if (process.platform === 'win32') {
+          const { spawn } = require('child_process');
+          spawn('taskkill', ['/pid', serverProcess.pid, '/T', '/F'], { stdio: 'ignore' });
+        } else {
+          // Linux/Mac에서는 SIGTERM 후 SIGKILL
+          serverProcess.kill('SIGTERM');
+          setTimeout(() => {
+            if (serverProcess && !serverProcess.killed) {
+              console.log('[WARN] 카메라 서버 강제 종료');
+              serverProcess.kill('SIGKILL');
+            }
+          }, 1000); // 1초로 단축
+        }
+      } catch (error) {
+        console.error('[ERROR] 서버 종료 중 오류:', error);
+      }
+      
       serverProcess = null;
     }
     app.quit();

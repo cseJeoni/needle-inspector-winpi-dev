@@ -5,7 +5,7 @@
   "author": "YBH",
   "main": "electron/main.js",
   "scripts": {
-    "dev": "concurrently \"npm run dev:react\" \"wait-on tcp:5173 && electron electron/main.js\"",
+    "dev": "concurrently --kill-others \"npm run dev:react\" \"wait-on tcp:5173 && electron electron/main.js\"",
     "dev:react": "vite",
     "start": "electron electron/main.js",
     "build": "vite build && electron-builder",
