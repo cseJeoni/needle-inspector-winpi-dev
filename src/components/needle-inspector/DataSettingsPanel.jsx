@@ -184,16 +184,16 @@ export default function DataSettingsPanel({ makerCode, onWorkStatusChange }) {
 
     ws.onopen = () => {
       console.log("WebSocket for READ opened");
-      ws.send(JSON.stringify({ command: "read_eeprom" }));
+      ws.send(JSON.stringify({ cmd: "eeprom_read" }));
     };
 
     ws.onmessage = (event) => {
       const response = JSON.parse(event.data);
       console.log("EEPROM Read Response:", response);
-      if (response.status === "success" && response.data) {
+      if (response.type === "eeprom_read" && response.result.success) {
         onWorkStatusChange("connected");
-        setReadEepromData(response.data);
-        console.log("EEPROM Data:", response.data);
+        setReadEepromData(response.result);
+        console.log("EEPROM Data:", response.result);
       } else {
         onWorkStatusChange("disconnected");
         setReadEepromData(null);
@@ -223,7 +223,7 @@ export default function DataSettingsPanel({ makerCode, onWorkStatusChange }) {
       year: parseInt(selectedYear),
       month: parseInt(selectedMonth),
       day: parseInt(selectedDay),
-      makerCode: parseInt(makerCode)
+      makerCode: 4
     }
     
     console.log('EEPROM에 쓸 데이터:', eepromData)
@@ -258,8 +258,6 @@ export default function DataSettingsPanel({ makerCode, onWorkStatusChange }) {
           if (response.result.success) {
             console.log('EEPROM 쓰기 성공:', response.result)
             onWorkStatusChange && onWorkStatusChange('write_success')
-            // 쓰기 후 해당 주소들을 읽어서 검증
-            await readEEPROMData(ws)
           } else {
             console.error('EEPROM 쓰기 실패:', response.result.error)
             onWorkStatusChange && onWorkStatusChange('write_failed')
@@ -281,61 +279,6 @@ export default function DataSettingsPanel({ makerCode, onWorkStatusChange }) {
     }
   }
   
-  // EEPROM 데이터 읽기 함수 (WebSocket 통신)
-  const readEEPROMData = async (websocket = null) => {
-    try {
-      let ws = websocket
-      
-      if (!ws) {
-        // 새로운 WebSocket 연결 생성
-        ws = new WebSocket('ws://192.168.1.100:8765') // 라즈베리파이 IP 주소로 수정 필요
-        
-        ws.onopen = () => {
-          console.log('EEPROM 읽기를 위한 WebSocket 연결 성공')
-          ws.send(JSON.stringify({ cmd: "eeprom_read" }))
-        }
-      } else {
-        // 기존 WebSocket 연결 사용
-        ws.send(JSON.stringify({ cmd: "eeprom_read" }))
-      }
-      
-      ws.onmessage = (event) => {
-        const response = JSON.parse(event.data)
-        
-        if (response.type === 'eeprom_read') {
-          if (response.result.success) {
-            const data = response.result
-            console.log('EEPROM 읽기 결과:')
-            console.log('- TIP TYPE (0x10):', data.tipType)
-            console.log('- SHOT COUNT (0x11~0x12):', data.shotCount)
-            console.log('- 제조일 (0x19~0x1B):', `${data.year}-${data.month.toString().padStart(2, '0')}-${data.day.toString().padStart(2, '0')}`)
-            console.log('- 제조사 코드 (0x1C):', data.makerCode)
-          } else {
-            console.error('EEPROM 읽기 실패:', response.result.error)
-          }
-          
-          // 읽기 완료 후 WebSocket 연결 종료 (기존 연결이 아닌 경우만)
-          if (!websocket) {
-            ws.close()
-          }
-        }
-      }
-      
-      if (!websocket) {
-        ws.onerror = (error) => {
-          console.error('EEPROM 읽기 WebSocket 오류:', error)
-        }
-        
-        ws.onclose = () => {
-          console.log('EEPROM 읽기 WebSocket 연결 종료')
-        }
-      }
-      
-    } catch (error) {
-      console.error('EEPROM 읽기 오류:', error)
-    }
-  }
-
   const handleToggle = async () => {
     const tipType = calculateTipType()
     console.log('TIP TYPE:', tipType)
@@ -374,8 +317,9 @@ export default function DataSettingsPanel({ makerCode, onWorkStatusChange }) {
     setSelectedDay(value)
   }
 
-  const { country: readCountry, needle: readNeedle } = readEepromData ? getInfoFromTipType(readEepromData.tip_type) : { country: '', needle: '' };
-  const readDate = readEepromData ? readEepromData.mfg_date : '';
+  const readTipType = readEepromData?.tipType ?? '';
+  const readShotCount = readEepromData?.shotCount ?? '';
+  const readRawDate = readEepromData ? `Y:${readEepromData.year} M:${readEepromData.month} D:${readEepromData.day}` : '';
 
   return (
     <Panel title="저장 데이터 설정">
@@ -471,18 +415,15 @@ export default function DataSettingsPanel({ makerCode, onWorkStatusChange }) {
         </Button>
         <Button
           onClick={readFromEEPROM}
-          disabled={isStarted}
           style={{
-            width: '100%',
-            fontWeight: 'bold',
-            padding: '0.8dvh 0',
-            fontSize: '1.8dvh',
-            backgroundColor: '#171C26',
+            flex: 1,
+            backgroundColor: '#3B82F6',
             color: '#ffffff',
             border: '1px solid #ffffff',
             borderRadius: '0.375rem',
-            cursor: isStarted ? 'not-allowed' : 'pointer',
-            opacity: isStarted ? 0.5 : 1
+            fontWeight: 'bold',
+            padding: '0.8dvh 0',
+            fontSize: '1.8dvh',
           }}
         >
           READ
@@ -492,17 +433,17 @@ export default function DataSettingsPanel({ makerCode, onWorkStatusChange }) {
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5dvh', borderTop: '1px solid #374151' }}>
           <div style={{ display: 'flex', gap: '2dvw' }}>
             <div style={{ display: 'flex', alignItems: 'center', flex: 1, gap: '0.5dvw' }}>
-              <label style={{ width: '30%', fontSize: '1.5dvh', color: '#D1D5DB' }}>국가</label>
-              <Input readOnly value={readCountry} style={{ backgroundColor: '#171C26', border: 'none', color: 'white', textAlign: 'center', fontSize: '1.2dvh', width: '100%', height: '3.5dvh', borderRadius: '0.375rem' }} />
+              <label style={{ width: '3dvw', fontSize: '1.5dvh', color: '#D1D5DB' }}>TIP TYPE</label>
+              <Input type="text" value={readTipType} readOnly style={{ backgroundColor: '#171C26', border: 'none', width: '5dvw', color: 'white', fontSize: '1.2dvh', height: '3.5dvh' }} />
             </div>
             <div style={{ display: 'flex', alignItems: 'center', flex: 1, gap: '1dvw' }}>
-              <label style={{ width: '30%', fontSize: '1.5dvh', color: '#D1D5DB' }}>니들</label>
-              <Input readOnly value={readNeedle} style={{ backgroundColor: '#171C26', border: 'none', color: 'white', textAlign: 'center', fontSize: '1.2dvh', width: '100%', height: '3.5dvh', borderRadius: '0.375rem' }} />
+              <label style={{ width: '5dvw', fontSize: '1.5dvh', color: '#D1D5DB' }}>SHOT COUNT</label>
+              <Input type="text" value={readShotCount} readOnly style={{ backgroundColor: '#171C26', width: '5dvw', border: 'none', color: 'white', fontSize: '1.2dvh', height: '3.5dvh' }} />
             </div>
           </div>
           <div style={{ display: 'flex', alignItems: 'center' }}>
-            <label style={{ width: '15%', fontSize: '1.5dvh', color: '#D1D5DB' }}>날짜</label>
-            <Input readOnly value={readDate} style={{ backgroundColor: '#171C26', border: 'none', color: 'white', textAlign: 'center', fontSize: '1.2dvh', width: '100%', height: '3.5dvh', borderRadius: '0.375rem' }} />
+            <label style={{ width: '15%', fontSize: '1.5dvh', color: '#D1D5DB' }}>제조일</label>
+            <Input type="text" value={readRawDate} readOnly style={{ flex: 1, backgroundColor: '#171C26', border: 'none', color: 'white', fontSize: '1.2dvh', height: '3.5dvh' }} />
           </div>
         </div>
       
