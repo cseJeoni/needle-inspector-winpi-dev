@@ -36,6 +36,9 @@ export default function NeedleInspectorUI() {
   const [gpioState, setGpioState] = useState('LOW') // HIGH, LOW (초기값 LOW로 설정)
   const prevGpioRef = useRef('LOW') // 이전 GPIO 상태 추적용 (useRef로 즉시 업데이트)
   
+  // StatusPanel 상태 관리
+  const [workStatus, setWorkStatus] = useState('waiting') // waiting, connected, disconnected, write_success, write_failed
+  
   // Camera 1 상태
   const [drawMode1, setDrawMode1] = useState(false)
   const [selectedIndex1, setSelectedIndex1] = useState(-1)
@@ -670,8 +673,8 @@ export default function NeedleInspectorUI() {
 
         {/* Bottom Control Panels */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 flex-1">
-          <StatusPanel mode={mode} />
-          <DataSettingsPanel makerCode={makerCode} />
+          <StatusPanel mode={mode} workStatus={workStatus} />
+          <DataSettingsPanel makerCode={makerCode} onWorkStatusChange={setWorkStatus} />
           <NeedleCheckPanel 
             mode={mode} 
             isMotorConnected={isMotorConnected}

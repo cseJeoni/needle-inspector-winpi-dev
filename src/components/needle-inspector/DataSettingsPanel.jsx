@@ -5,7 +5,7 @@ import Panel from "./Panel"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./Select"
 import { Button } from "./Button"
 
-export default function DataSettingsPanel({ makerCode }) {
+export default function DataSettingsPanel({ makerCode, onWorkStatusChange }) {
   const [isStarted, setIsStarted] = useState(false)
   const [selectedYear, setSelectedYear] = useState("")
   const [selectedMonth, setSelectedMonth] = useState("")
@@ -37,6 +37,33 @@ export default function DataSettingsPanel({ makerCode }) {
     return Array.from({ length: daysInMonth }, (_, i) => String(i + 1).padStart(2, "0"))
   }
 
+  // 니들 옵션 생성
+  const getNeedleOptions = () => {
+    const options = {
+      cutera: [
+        { value: "25&16", label: "25 & 16 PIN" },
+        { value: "1&10", label: "1 & 10 PIN" },
+        { value: "10", label: "10 PIN" },
+        { value: "64", label: "64 PIN" },
+      ],
+      ilooda: [
+        { value: "25&16", label: "25 & 16 PIN" },
+        { value: "1&10", label: "1 & 10 PIN" },
+        { value: "10", label: "10 PIN" },
+        { value: "64", label: "64 PIN" },
+        { value: "25", label: "25 PIN" },
+      ],
+      ilooda_export: [
+        { value: "25&16", label: "25 & 16 PIN" },
+        { value: "1&10", label: "1 & 10 PIN" },
+        { value: "10", label: "10 PIN" },
+        { value: "64", label: "64 PIN" },
+        { value: "25", label: "25 PIN" },
+      ],
+    };
+    return options[selectedCountry] || [];
+  };
+
   // TIP TYPE 계산 함수
   const calculateTipType = () => {
     const tipTypeMap = {
@@ -47,6 +74,13 @@ export default function DataSettingsPanel({ makerCode }) {
         "64": 211
       },
       "ilooda": {
+        "25&16": 216,
+        "1&10": 217,
+        "10": 218,
+        "64": 219,
+        "25": 230
+      },
+      "ilooda_export": { // 해외향 추가
         "25&16": 216,
         "1&10": 217,
         "10": 218,
@@ -64,6 +98,19 @@ export default function DataSettingsPanel({ makerCode }) {
     setSelectedMonth(currentMonth)
     setSelectedDay(currentDay)
   }, [])
+
+  // 국가가 변경될 때 니들 종류 초기화
+  useEffect(() => {
+    const options = getNeedleOptions();
+    if (options.length > 0) {
+      // 현재 선택된 니들이 새 옵션에 없으면 첫번째 옵션으로 설정
+      if (!options.find(opt => opt.value === selectedNeedleType)) {
+        setSelectedNeedleType(options[0].value);
+      }
+    } else {
+      setSelectedNeedleType("");
+    }
+  }, [selectedCountry]);
 
   // 월이 변경될 때 일 옵션 재설정
   useEffect(() => {
@@ -99,26 +146,41 @@ export default function DataSettingsPanel({ makerCode }) {
       
       ws.onopen = () => {
         console.log('WebSocket 연결 성공')
-        ws.send(JSON.stringify(eepromData))
+        // EEPROM 읽기 시도 (니들팁 체결 여부 확인)
+        ws.send(JSON.stringify({ cmd: "eeprom_read" }))
       }
       
       ws.onmessage = async (event) => {
         const response = JSON.parse(event.data)
-        console.log('EEPROM 쓰기 응답:', response)
+        console.log('EEPROM 응답:', response)
         
-        if (response.type === 'eeprom_write') {
+        if (response.type === 'eeprom_read') {
+          if (response.result.success) {
+            console.log('EEPROM 읽기 성공 - 니들팁 체결됨')
+            onWorkStatusChange && onWorkStatusChange('connected')
+            // 읽기 성공 후 쓰기 진행
+            ws.send(JSON.stringify(eepromData))
+          } else {
+            console.log('EEPROM 읽기 실패 - 니들팁 없음')
+            onWorkStatusChange && onWorkStatusChange('disconnected')
+            ws.close()
+          }
+        } else if (response.type === 'eeprom_write') {
           if (response.result.success) {
             console.log('EEPROM 쓰기 성공:', response.result)
+            onWorkStatusChange && onWorkStatusChange('write_success')
             // 쓰기 후 해당 주소들을 읽어서 검증
             await readEEPROMData(ws)
           } else {
             console.error('EEPROM 쓰기 실패:', response.result.error)
+            onWorkStatusChange && onWorkStatusChange('write_failed')
           }
         }
       }
       
       ws.onerror = (error) => {
         console.error('WebSocket 오류:', error)
+        onWorkStatusChange && onWorkStatusChange('disconnected')
       }
       
       ws.onclose = () => {
@@ -192,8 +254,12 @@ export default function DataSettingsPanel({ makerCode }) {
     console.log('Maker Code:', makerCode)
     
     if (!isStarted) {
-      // START 버튼을 눌렀을 때 EEPROM에 쓰기
+      // START 버튼을 눌렀을 때 상태 초기화 후 EEPROM에 쓰기
+      onWorkStatusChange && onWorkStatusChange('waiting')
       await writeToEEPROM()
+    } else {
+      // STOP 버튼을 눌렀을 때 대기 상태로 복귀
+      onWorkStatusChange && onWorkStatusChange('waiting')
     }
     
     setIsStarted(!isStarted)
@@ -222,33 +288,35 @@ export default function DataSettingsPanel({ makerCode }) {
   return (
     <Panel title="저장 데이터 설정">
       <div style={{ display: 'flex', flexDirection: 'column', gap: '3dvh' }}>
-        <div style={{ display: 'flex', alignItems: 'center' }}>
-          <label style={{ width: '25%', fontSize: '1.5dvh', color: '#D1D5DB' }}>국가 선택</label>
-          <Select value={selectedCountry} onValueChange={handleCountryChange} disabled={isStarted}>
-            <SelectTrigger style={{ backgroundColor: '#171C26', border: 'none', color: 'white', fontSize: '1.2dvh', height: '3.5dvh' }}>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="cutera">CUTERA</SelectItem>
-              <SelectItem value="ilooda">ILOODA (국내)</SelectItem>
-              <SelectItem value="ilooda">ILOODA (해외)</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center' }}>
-          <label style={{ width: '25%', fontSize: '1.5dvh', color: '#D1D5DB' }}>니들 종류</label>
-          <Select value={selectedNeedleType} onValueChange={handleNeedleTypeChange} disabled={isStarted}>
-            <SelectTrigger style={{ backgroundColor: '#171C26', border: 'none', color: 'white', fontSize: '1.2dvh', height: '3.5dvh' }}>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="25&16">25 & 16 PIN</SelectItem>
-              <SelectItem value="1&10">1 & 10 PIN</SelectItem>
-              <SelectItem value="10">10 PIN</SelectItem>
-              <SelectItem value="64">64 PIN</SelectItem>
-              <SelectItem value="25">25 PIN </SelectItem>
-            </SelectContent>
-          </Select>
+        <div style={{ display: 'flex', gap: '1dvw' }}>
+          <div style={{ display: 'flex', alignItems: 'center', flex: 1 }}>
+            <label style={{ width: '20%', fontSize: '1.5dvh', color: '#D1D5DB' }}>국가</label>
+            <Select value={selectedCountry} onValueChange={handleCountryChange} disabled={isStarted}>
+              <SelectTrigger style={{ backgroundColor: '#171C26', border: 'none', color: 'white', fontSize: '1.2dvh', height: '3.5dvh' }}>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="cutera">CUTERA</SelectItem>
+                <SelectItem value="ilooda">ILOODA (국내)</SelectItem>
+                <SelectItem value="ilooda_export">ILOODA (해외)</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', flex: 1 }}>
+            <label style={{ width: '20%', fontSize: '1.5dvh', color: '#D1D5DB' }}>니들</label>
+            <Select value={selectedNeedleType} onValueChange={handleNeedleTypeChange} disabled={isStarted}>
+              <SelectTrigger style={{ backgroundColor: '#171C26', border: 'none', color: 'white', fontSize: '1.2dvh', height: '3.5dvh' }}>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {getNeedleOptions().map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         </div>
         <div style={{ display: 'flex', alignItems: 'center' }}>
           <label style={{ width: '25%', fontSize: '1.5dvh', color: '#D1D5DB' }}>날짜</label>
