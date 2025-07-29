@@ -8,7 +8,7 @@ import sys
 app = Flask(__name__)
 CORS(app) # CORS 지원 추가
 
-# 사용자가 언급한 카메라 인덱스 0번과 1번으로 수정
+# 사용자가 언급한 카메라 인덱스 0번과 2번으로 설정
 cap = cv2.VideoCapture(0)
 cap.set(cv2.CAP_PROP_FRAME_WIDTH, 960)
 cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)

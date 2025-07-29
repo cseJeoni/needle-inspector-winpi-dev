@@ -41,6 +41,46 @@ export default function NeedleCheckPanel({ mode, isMotorConnected, needlePositio
     // MOVING 상태일 때는 버튼 비활성화
   }
 
+  const handleUpDown = async () => {
+    if (!isMotorConnected) {
+      console.error("❌ 모터가 연결되지 않았습니다.")
+      return
+    }
+
+    if (needleStatus === 'MOVING') {
+      console.error("❌ 니들이 이미 움직이고 있습니다.")
+      return
+    }
+
+    console.log(`🔄 니들 UP & DOWN ${repeatCount}회 시작 (명령어 큐 방식)`)
+    
+    for (let i = 0; i < repeatCount; i++) {
+      console.log(`🔄 ${i + 1}/${repeatCount} 사이클 시작`)
+      
+      // UP 명령 (840)
+      console.log("🎯 니들 UP 명령 실행 (840)")
+      onNeedleUp()
+      
+      // UP 동작 완료 대기 (고정 시간)
+      await new Promise(resolve => setTimeout(resolve, 90))
+      
+      // DOWN 명령 (0)
+      console.log("🎯 니들 DOWN 명령 실행 (0)")
+      onNeedleDown()
+      
+      // DOWN 동작 완료 대기 (고정 시간)
+      await new Promise(resolve => setTimeout(resolve, 90))
+      
+      // 다음 사이클 전 잠시 대기
+      if (i < repeatCount - 1) {
+        console.log(`⏳ 다음 사이클 대기 중...`)
+        await new Promise(resolve => setTimeout(resolve, 90))
+      }
+    }
+    
+    console.log(`✅ 니들 UP & DOWN ${repeatCount}회 완료`)
+  }
+
   // 1.0부터 20.0까지 0.1 간격으로 생성
   const needleLengthOptions = Array.from({ length: 191 }, (_, i) => (1 + i * 0.1).toFixed(1))
 
@@ -101,7 +141,7 @@ export default function NeedleCheckPanel({ mode, isMotorConnected, needlePositio
           />
           <span style={{ color: '#D1D5DB', fontSize: '1.5dvh' }}>회</span>
           <Button
-            // onClick={handleUpDown}
+            onClick={handleUpDown}
             disabled={!isMotorConnected || needleStatus === 'MOVING'}
             style={{
               backgroundColor: '#171C26',

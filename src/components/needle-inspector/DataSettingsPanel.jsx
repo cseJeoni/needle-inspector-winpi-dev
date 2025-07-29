@@ -417,7 +417,7 @@ export default function DataSettingsPanel({ makerCode, onWorkStatusChange }) {
           onClick={readFromEEPROM}
           style={{
             flex: 1,
-            backgroundColor: '#3B82F6',
+            backgroundColor: '#171C26',
             color: '#ffffff',
             border: '1px solid #ffffff',
             borderRadius: '0.375rem',
