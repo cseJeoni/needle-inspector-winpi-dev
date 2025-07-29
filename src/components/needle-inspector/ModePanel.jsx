@@ -5,7 +5,7 @@ import Panel from "./Panel"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./Select"
 import { Button } from "./Button"
 
-export default function ModePanel({ mode, setMode }) {
+export default function ModePanel({ mode, setMode, makerCode, setMakerCode }) {
   const [isLocked, setIsLocked] = useState(true)
   const timerRef = useRef(null)
 
@@ -33,6 +33,10 @@ export default function ModePanel({ mode, setMode }) {
     setMode(value)
   }
 
+  const handleMakerChange = (value) => {
+    setMakerCode(value)
+  }
+
   return (
     <Panel
       title="MODE"
@@ -57,7 +61,7 @@ export default function ModePanel({ mode, setMode }) {
         </div>
         <div style={{ display: 'flex', alignItems: 'center' }}>
           <label style={{ width: '50%', fontSize: '1.5dvh', color: '#D1D5DB' }}>MAKER</label>
-          <Select defaultValue="4" disabled={isLocked}>
+          <Select value={makerCode} onValueChange={handleMakerChange} disabled={isLocked}>
             <SelectTrigger style={{ backgroundColor: '#171C26', border: 'none', color: 'white', fontSize: '1.2dvh', height: '3.5dvh' }}>
               <SelectValue />
             </SelectTrigger>

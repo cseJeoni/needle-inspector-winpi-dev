@@ -5,11 +5,13 @@ import Panel from "./Panel"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./Select"
 import { Button } from "./Button"
 
-export default function DataSettingsPanel() {
+export default function DataSettingsPanel({ makerCode }) {
   const [isStarted, setIsStarted] = useState(false)
   const [selectedYear, setSelectedYear] = useState("")
   const [selectedMonth, setSelectedMonth] = useState("")
   const [selectedDay, setSelectedDay] = useState("")
+  const [selectedCountry, setSelectedCountry] = useState("ilooda")
+  const [selectedNeedleType, setSelectedNeedleType] = useState("25&16")
 
   // 현재 날짜 정보
   const currentDate = new Date()
@@ -35,6 +37,27 @@ export default function DataSettingsPanel() {
     return Array.from({ length: daysInMonth }, (_, i) => String(i + 1).padStart(2, "0"))
   }
 
+  // TIP TYPE 계산 함수
+  const calculateTipType = () => {
+    const tipTypeMap = {
+      "cutera": {
+        "25&16": 208,
+        "1&10": 209,
+        "10": 210,
+        "64": 211
+      },
+      "ilooda": {
+        "25&16": 216,
+        "1&10": 217,
+        "10": 218,
+        "64": 219,
+        "25": 230
+      }
+    }
+    
+    return tipTypeMap[selectedCountry]?.[selectedNeedleType] || null
+  }
+
   // 초기값 설정
   useEffect(() => {
     setSelectedYear(String(currentYear))
@@ -53,8 +76,135 @@ export default function DataSettingsPanel() {
     }
   }, [selectedYear, selectedMonth])
 
-  const handleToggle = () => {
+  // EEPROM에 데이터 쓰기 함수 (WebSocket 통신)
+  const writeToEEPROM = async () => {
+    const tipType = calculateTipType()
+    
+    const eepromData = {
+      cmd: "eeprom_write",
+      tipType: tipType,
+      shotCount: 0, // 무조건 0
+      year: parseInt(selectedYear),
+      month: parseInt(selectedMonth),
+      day: parseInt(selectedDay),
+      makerCode: parseInt(makerCode)
+    }
+    
+    console.log('EEPROM에 쓸 데이터:', eepromData)
+    
+    try {
+      // WebSocket을 통해 라즈베리파이에 데이터 전송
+      // 주의: 실제 구현에서는 기존 WebSocket 연결을 사용해야 합니다
+      const ws = new WebSocket('ws://192.168.0.122:8765') // 실제 라즈베리파이 IP 주소로 변경하세요
+      
+      ws.onopen = () => {
+        console.log('WebSocket 연결 성공')
+        ws.send(JSON.stringify(eepromData))
+      }
+      
+      ws.onmessage = async (event) => {
+        const response = JSON.parse(event.data)
+        console.log('EEPROM 쓰기 응답:', response)
+        
+        if (response.type === 'eeprom_write') {
+          if (response.result.success) {
+            console.log('EEPROM 쓰기 성공:', response.result)
+            // 쓰기 후 해당 주소들을 읽어서 검증
+            await readEEPROMData(ws)
+          } else {
+            console.error('EEPROM 쓰기 실패:', response.result.error)
+          }
+        }
+      }
+      
+      ws.onerror = (error) => {
+        console.error('WebSocket 오류:', error)
+      }
+      
+      ws.onclose = () => {
+        console.log('WebSocket 연결 종료')
+      }
+      
+    } catch (error) {
+      console.error('EEPROM 쓰기 오류:', error)
+    }
+  }
+  
+  // EEPROM 데이터 읽기 함수 (WebSocket 통신)
+  const readEEPROMData = async (websocket = null) => {
+    try {
+      let ws = websocket
+      
+      if (!ws) {
+        // 새로운 WebSocket 연결 생성
+        ws = new WebSocket('ws://192.168.1.100:8765') // 라즈베리파이 IP 주소로 수정 필요
+        
+        ws.onopen = () => {
+          console.log('EEPROM 읽기를 위한 WebSocket 연결 성공')
+          ws.send(JSON.stringify({ cmd: "eeprom_read" }))
+        }
+      } else {
+        // 기존 WebSocket 연결 사용
+        ws.send(JSON.stringify({ cmd: "eeprom_read" }))
+      }
+      
+      ws.onmessage = (event) => {
+        const response = JSON.parse(event.data)
+        
+        if (response.type === 'eeprom_read') {
+          if (response.result.success) {
+            const data = response.result
+            console.log('EEPROM 읽기 결과:')
+            console.log('- TIP TYPE (0x10):', data.tipType)
+            console.log('- SHOT COUNT (0x11~0x12):', data.shotCount)
+            console.log('- 제조일 (0x19~0x1B):', `${data.year}-${data.month.toString().padStart(2, '0')}-${data.day.toString().padStart(2, '0')}`)
+            console.log('- 제조사 코드 (0x1C):', data.makerCode)
+          } else {
+            console.error('EEPROM 읽기 실패:', response.result.error)
+          }
+          
+          // 읽기 완료 후 WebSocket 연결 종료 (기존 연결이 아닌 경우만)
+          if (!websocket) {
+            ws.close()
+          }
+        }
+      }
+      
+      if (!websocket) {
+        ws.onerror = (error) => {
+          console.error('EEPROM 읽기 WebSocket 오류:', error)
+        }
+        
+        ws.onclose = () => {
+          console.log('EEPROM 읽기 WebSocket 연결 종료')
+        }
+      }
+      
+    } catch (error) {
+      console.error('EEPROM 읽기 오류:', error)
+    }
+  }
+
+  const handleToggle = async () => {
+    const tipType = calculateTipType()
+    console.log('TIP TYPE:', tipType)
+    console.log('Country:', selectedCountry, 'Needle Type:', selectedNeedleType)
+    console.log('Maker Code:', makerCode)
+    
+    if (!isStarted) {
+      // START 버튼을 눌렀을 때 EEPROM에 쓰기
+      await writeToEEPROM()
+    }
+    
     setIsStarted(!isStarted)
+  }
+
+  const handleCountryChange = (value) => {
+    setSelectedCountry(value)
+  }
+
+  const handleNeedleTypeChange = (value) => {
+    setSelectedNeedleType(value)
   }
 
   const handleYearChange = (value) => {
@@ -74,25 +224,29 @@ export default function DataSettingsPanel() {
       <div style={{ display: 'flex', flexDirection: 'column', gap: '3dvh' }}>
         <div style={{ display: 'flex', alignItems: 'center' }}>
           <label style={{ width: '25%', fontSize: '1.5dvh', color: '#D1D5DB' }}>국가 선택</label>
-          <Select defaultValue="ilooda" disabled={isStarted}>
+          <Select value={selectedCountry} onValueChange={handleCountryChange} disabled={isStarted}>
             <SelectTrigger style={{ backgroundColor: '#171C26', border: 'none', color: 'white', fontSize: '1.2dvh', height: '3.5dvh' }}>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="ilooda">ILOODA(국내)</SelectItem>
-              <SelectItem value="global">Global</SelectItem>
+              <SelectItem value="cutera">CUTERA</SelectItem>
+              <SelectItem value="ilooda">ILOODA (국내)</SelectItem>
+              <SelectItem value="ilooda">ILOODA (해외)</SelectItem>
             </SelectContent>
           </Select>
         </div>
         <div style={{ display: 'flex', alignItems: 'center' }}>
           <label style={{ width: '25%', fontSize: '1.5dvh', color: '#D1D5DB' }}>니들 종류</label>
-          <Select defaultValue="25&16" disabled={isStarted}>
+          <Select value={selectedNeedleType} onValueChange={handleNeedleTypeChange} disabled={isStarted}>
             <SelectTrigger style={{ backgroundColor: '#171C26', border: 'none', color: 'white', fontSize: '1.2dvh', height: '3.5dvh' }}>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="25&16">25&16 PIN</SelectItem>
-              <SelectItem value="49">49 PIN</SelectItem>
+              <SelectItem value="25&16">25 & 16 PIN</SelectItem>
+              <SelectItem value="1&10">1 & 10 PIN</SelectItem>
+              <SelectItem value="10">10 PIN</SelectItem>
+              <SelectItem value="64">64 PIN</SelectItem>
+              <SelectItem value="25">25 PIN </SelectItem>
             </SelectContent>
           </Select>
         </div>

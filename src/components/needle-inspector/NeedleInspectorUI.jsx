@@ -19,6 +19,7 @@ const MOTOR_CONFIG = {
 
 export default function NeedleInspectorUI() {
   const [mode, setMode] = useState("생산")
+  const [makerCode, setMakerCode] = useState("4")
   
   // 비디오 서버 URL (실제 환경에 맞게 수정 필요)
   const videoServerUrl = "http://localhost:5000"
@@ -30,6 +31,10 @@ export default function NeedleInspectorUI() {
   const [motorError, setMotorError] = useState(null)
   const [currentPosition, setCurrentPosition] = useState(0)
   const [needlePosition, setNeedlePosition] = useState('UNKNOWN') // UP, DOWN, UNKNOWN
+  
+  // GPIO 18번 관련 상태
+  const [gpioState, setGpioState] = useState('LOW') // HIGH, LOW (초기값 LOW로 설정)
+  const prevGpioRef = useRef('LOW') // 이전 GPIO 상태 추적용 (useRef로 즉시 업데이트)
   
   // Camera 1 상태
   const [drawMode1, setDrawMode1] = useState(false)
@@ -332,7 +337,7 @@ export default function NeedleInspectorUI() {
   // 모터 WebSocket 연결 및 자동 연결
   useEffect(() => {
     console.log('🔧 모터 WebSocket 연결 시도...')
-    const socket = new WebSocket("ws://192.168.0.82:8765")
+    const socket = new WebSocket("ws://192.168.0.122:8765")
 
     socket.onopen = () => {
       console.log("✅ 모터 WebSocket 연결 성공")
@@ -363,6 +368,8 @@ export default function NeedleInspectorUI() {
         console.log("📨 모터 응답:", res)
 
         if (res.type === "serial") {
+          console.log("🔍 Serial 응답 분석:", res.result)
+          
           if (res.result.includes("성공") || 
               res.result.includes("완료") || 
               res.result.includes("전송 완료")) {
@@ -374,10 +381,17 @@ export default function NeedleInspectorUI() {
             console.error("❌ 모터 연결 실패:", res.result)
             setIsMotorConnected(false)
             setMotorError(res.result)
+          } else {
+            // 다른 serial 응답도 로그로 확인
+            console.log("🔍 기타 Serial 응답:", res.result)
+            // 만약 모터가 이미 연결되어 있고 명령이 정상 처리되면 연결 상태 유지
+            if (isMotorConnected && res.result && !res.result.includes("실패") && !res.result.includes("오류")) {
+              console.log("🔄 모터 연결 상태 유지 (명령 처리 중)")
+            }
           }
         } else if (res.type === "status") {
-          // 상태 업데이트
-          const { position } = res.data
+          // 상태 업데이트 (모터 + GPIO)
+          const { position, gpio18 } = res.data
           setCurrentPosition(position)
           
           // 니들 위치 판단 (840: UP, 0: DOWN)
@@ -389,7 +403,25 @@ export default function NeedleInspectorUI() {
             setNeedlePosition('MOVING')
           }
           
-          console.log("📊 모터 위치 업데이트:", position)
+          // GPIO 18번 상태 업데이트 및 토글 감지
+          if (gpio18 && gpio18 !== "UNKNOWN") {
+            const prevGpioState = prevGpioRef.current // useRef로 이전 상태 가져오기
+            
+            // GPIO 상태가 변경되었을 때 토글 실행 (HIGH↔LOW 변화)
+            if (prevGpioState !== gpio18) {
+              console.log(`🔄 GPIO 18 상태 토글 감지: ${prevGpioState} → ${gpio18}`)
+              console.log("🎯 현재 모터 상태:", needlePosition, "- 반대 명령 전송")
+              handleAutoToggle()
+            }
+            
+            // 상태 업데이트 (즉시 반영)
+            prevGpioRef.current = gpio18
+            setGpioState(gpio18)
+            
+            console.log("🔧 GPIO 18 상태 업데이트:", prevGpioState, "→", gpio18)
+          }
+          
+          console.log("📊 모터 위치 업데이트:", position, "GPIO 18:", gpio18)
         } else if (res.type === "error") {
           console.error("❌ 모터 오류:", res.result)
           setMotorError(res.result)
@@ -453,17 +485,17 @@ export default function NeedleInspectorUI() {
 
   // 니들 위치 제어 함수
   const handleNeedlePosition = (targetPosition) => {
+    console.log("🔍 handleNeedlePosition 호출 - 목표 위치:", targetPosition)
+    console.log("🔍 연결 상태 - WebSocket:", ws?.readyState, "Motor:", isMotorConnected)
+    
     if (!ws || ws.readyState !== WebSocket.OPEN) {
       console.error("❌ WebSocket이 연결되지 않았습니다.")
       setMotorError("WebSocket이 연결되지 않았습니다.")
       return
     }
 
-    if (!isMotorConnected) {
-      console.error("❌ 모터가 연결되지 않았습니다.")
-      setMotorError("모터가 연결되지 않았습니다.")
-      return
-    }
+    // 수동 버튼 클릭은 모터 연결 상태 무시하고 실행 (테스트용)
+    console.log("🔍 모터 연결 상태 무시하고 명령 전송")
 
     const msg = {
       cmd: "move",
@@ -484,6 +516,72 @@ export default function NeedleInspectorUI() {
   // 니들 DOWN 함수
   const handleNeedleDown = () => {
     handleNeedlePosition(0)
+  }
+
+  // GPIO 18번 자동 토글 함수 (모터 상태 기반 반대 명령)
+  const handleAutoToggle = () => {
+    console.log("🔄 GPIO 토글 감지 - 모터 상태 기반 명령 전송!")
+    console.log("🔍 디버그 정보 - currentPosition:", currentPosition, "needlePosition:", needlePosition)
+    
+    // MOVING 상태 확인
+    if (needlePosition === 'MOVING') {
+      console.log("⚠️ 니들이 이동 중 - 자동 명령 대기")
+      return
+    }
+
+    // 현재 모터 상태에 따라 반대 명령 결정
+    let targetPosition
+    let commandDirection
+    
+    if (needlePosition === 'DOWN') {
+      targetPosition = 840 // UP 명령
+      commandDirection = 'UP'
+      console.log("✅ DOWN 상태 감지 - UP 명령 준비")
+    } else if (needlePosition === 'UP') {
+      targetPosition = 0 // DOWN 명령
+      commandDirection = 'DOWN'
+      console.log("✅ UP 상태 감지 - DOWN 명령 준비")
+    } else {
+      console.log("⚠️ 모터 상태 불명 (", needlePosition, ") - 기본 UP 명령 전솨")
+      targetPosition = 840 // 기본값: UP
+      commandDirection = 'UP'
+    }
+    
+    console.log(`🎯 모터 상태: ${needlePosition} (position: ${currentPosition}) → ${commandDirection} 명령 (위치: ${targetPosition})`)
+
+    // 직접 모터 명령 WebSocket 생성
+    console.log("🔗 모터 명령용 WebSocket 연결 생성...")
+    const autoSocket = new WebSocket('ws://192.168.0.122:8765')
+    
+    autoSocket.onopen = () => {
+      console.log("✅ 모터 명령용 WebSocket 연결 성공")
+      
+      // 백엔드 cmd: "move" 명령 사용
+      const command = { 
+        cmd: 'move',
+        mode: 'servo',
+        position: targetPosition
+      }
+      
+      console.log(`📦 전송할 명령:`, JSON.stringify(command))
+      autoSocket.send(JSON.stringify(command))
+      
+      console.log(`🚀 GPIO 자동 명령 전송 완료: ${commandDirection} (위치: ${targetPosition})`)
+      
+      // 명령 전송 후 연결 종료
+      setTimeout(() => {
+        autoSocket.close()
+        console.log("🔗 모터 명령용 WebSocket 연결 종료")
+      }, 1000)
+    }
+    
+    autoSocket.onerror = (err) => {
+      console.error("❌ 모터 명령용 WebSocket 연결 실패:", err)
+    }
+    
+    autoSocket.onclose = () => {
+      console.log("🔗 모터 명령용 WebSocket 연겴 종료됨")
+    }
   }
 
   useEffect(() => {
@@ -525,6 +623,9 @@ export default function NeedleInspectorUI() {
           모터: {isMotorConnected ? '연결됨' : '연결 안됨'}
           <div style={{ fontSize: '10px', marginTop: '2px' }}>
             위치: {currentPosition} | 니들: {needlePosition}
+          </div>
+          <div style={{ fontSize: '10px', marginTop: '2px' }}>
+            GPIO 18: {gpioState}
           </div>
           {motorError && (
             <div style={{ fontSize: '10px', marginTop: '2px', opacity: 0.8 }}>
@@ -570,7 +671,7 @@ export default function NeedleInspectorUI() {
         {/* Bottom Control Panels */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 flex-1">
           <StatusPanel mode={mode} />
-          <DataSettingsPanel />
+          <DataSettingsPanel makerCode={makerCode} />
           <NeedleCheckPanel 
             mode={mode} 
             isMotorConnected={isMotorConnected}
@@ -578,7 +679,7 @@ export default function NeedleInspectorUI() {
             onNeedleUp={handleNeedleUp}
             onNeedleDown={handleNeedleDown}
           />
-          <ModePanel mode={mode} setMode={setMode} />
+          <ModePanel mode={mode} setMode={setMode} makerCode={makerCode} setMakerCode={setMakerCode} />
         </div>
       </main>
       <footer className="text-right text-xs text-gray-400 pr-2">SAVE MODE v1</footer>

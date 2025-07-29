@@ -1,7 +1,21 @@
 import asyncio
 import websockets
 import json
+import time
 from motor_threaded_controller import MotorThreadedController
+
+# EEPROM 관련 import
+try:
+    import smbus2
+    eeprom_available = True
+    print("[OK] EEPROM 기능 활성화 (smbus2)")
+except ImportError:
+    eeprom_available = False
+    print("[ERROR] smbus2 모듈을 찾을 수 없습니다. EEPROM 기능이 비활성화됩니다.")
+
+# EEPROM 설정
+I2C_BUS = 1
+EEPROM_ADDRESS = 0x50
 
 # GPIO 초기화 (gpiozero 사용)
 gpio_available = False
@@ -18,6 +32,92 @@ except Exception as e:
 
 motor = MotorThreadedController()
 connected_clients = set()
+
+# EEPROM 관련 함수들
+def write_eeprom_data(tip_type, shot_count, year, month, day, maker_code):
+    """
+    EEPROM에 데이터 쓰기
+    """
+    if not eeprom_available:
+        return {"success": False, "error": "EEPROM 기능이 비활성화되어 있습니다."}
+    
+    try:
+        bus = smbus2.SMBus(I2C_BUS)
+        
+        # TIP TYPE 쓰기 (0x10)
+        bus.write_byte_data(EEPROM_ADDRESS, 0x10, tip_type)
+        time.sleep(0.1)
+        
+        # SHOT COUNT 쓰기 (0x11~0x12) - 2바이트
+        bus.write_i2c_block_data(EEPROM_ADDRESS, 0x11, [shot_count >> 8, shot_count & 0xFF])
+        time.sleep(0.1)
+        
+        # 제조일 쓰기 (0x19~0x1B) - 년도는 2000년 기준으로 오프셋
+        bus.write_i2c_block_data(EEPROM_ADDRESS, 0x19, [year - 2000, month, day])
+        time.sleep(0.1)
+        
+        # 제조사 코드 쓰기 (0x1C)
+        bus.write_byte_data(EEPROM_ADDRESS, 0x1C, maker_code)
+        time.sleep(0.1)
+        
+        bus.close()
+        
+        return {
+            "success": True,
+            "message": "EEPROM 쓰기 성공",
+            "data": {
+                "tipType": tip_type,
+                "shotCount": shot_count,
+                "year": year,
+                "month": month,
+                "day": day,
+                "makerCode": maker_code
+            }
+        }
+        
+    except Exception as e:
+        return {"success": False, "error": f"EEPROM 쓰기 실패: {str(e)}"}
+
+def read_eeprom_data():
+    """
+    EEPROM에서 데이터 읽기
+    """
+    if not eeprom_available:
+        return {"success": False, "error": "EEPROM 기능이 비활성화되어 있습니다."}
+    
+    try:
+        bus = smbus2.SMBus(I2C_BUS)
+        
+        # TIP TYPE 읽기 (0x10)
+        tip_type = bus.read_byte_data(EEPROM_ADDRESS, 0x10)
+        
+        # SHOT COUNT 읽기 (0x11~0x12)
+        shot_count_bytes = bus.read_i2c_block_data(EEPROM_ADDRESS, 0x11, 2)
+        shot_count = shot_count_bytes[0] << 8 | shot_count_bytes[1]
+        
+        # 제조일 읽기 (0x19~0x1B)
+        manufacture_date = bus.read_i2c_block_data(EEPROM_ADDRESS, 0x19, 3)
+        year = 2000 + manufacture_date[0]
+        month = manufacture_date[1]
+        day = manufacture_date[2]
+        
+        # 제조사 코드 읽기 (0x1C)
+        maker_code = bus.read_byte_data(EEPROM_ADDRESS, 0x1C)
+        
+        bus.close()
+        
+        return {
+            "success": True,
+            "tipType": tip_type,
+            "shotCount": shot_count,
+            "year": year,
+            "month": month,
+            "day": day,
+            "makerCode": maker_code
+        }
+        
+    except Exception as e:
+        return {"success": False, "error": f"EEPROM 읽기 실패: {str(e)}"}
 
 async def handler(websocket):
     print("[INFO] 클라이언트 연결됨")
@@ -137,6 +237,36 @@ async def handler(websocket):
                             "type": "error",
                             "result": "GPIO 기능이 비활성화되어 있습니다."
                         }))
+
+                elif data["cmd"] == "eeprom_write":
+                    tip_type = data.get("tipType")
+                    shot_count = data.get("shotCount", 0)
+                    year = data.get("year")
+                    month = data.get("month")
+                    day = data.get("day")
+                    maker_code = data.get("makerCode")
+                    
+                    print(f"[INFO] EEPROM 쓰기 요청: TIP_TYPE={tip_type}, SHOT_COUNT={shot_count}, DATE={year}-{month}-{day}, MAKER={maker_code}")
+                    
+                    if tip_type is None or year is None or month is None or day is None or maker_code is None:
+                        await websocket.send(json.dumps({
+                            "type": "error",
+                            "result": "필수 데이터가 누락되었습니다."
+                        }))
+                    else:
+                        result = write_eeprom_data(tip_type, shot_count, year, month, day, maker_code)
+                        await websocket.send(json.dumps({
+                            "type": "eeprom_write",
+                            "result": result
+                        }))
+
+                elif data["cmd"] == "eeprom_read":
+                    print(f"[INFO] EEPROM 읽기 요청")
+                    result = read_eeprom_data()
+                    await websocket.send(json.dumps({
+                        "type": "eeprom_read",
+                        "result": result
+                    }))
 
                 else:
                     await websocket.send(json.dumps({
