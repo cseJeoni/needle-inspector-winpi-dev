@@ -288,6 +288,19 @@ export default function DataSettingsPanel({ makerCode, onWorkStatusChange }) {
     if (!isStarted) {
       // START 버튼을 눌렀을 때 상태 초기화 후 EEPROM에 쓰기
       onWorkStatusChange && onWorkStatusChange('waiting')
+      
+      // 니들 UP 명령 전송
+      try {
+        const needleWs = new WebSocket('ws://192.168.0.122:8765')
+        needleWs.onopen = () => {
+          console.log('니들 UP 명령 전송')
+          needleWs.send(JSON.stringify({ cmd: "move", position: 840, mode: "position" })) // 니듡 UP
+          needleWs.close()
+        }
+      } catch (error) {
+        console.error('니들 UP 명령 전송 실패:', error)
+      }
+      
       await writeToEEPROM()
     } else {
       // STOP 버튼을 눌렀을 때 대기 상태로 복귀
