@@ -40,6 +40,10 @@ export default function NeedleInspectorUI() {
   // StatusPanel 상태 관리
   const [workStatus, setWorkStatus] = useState('waiting') // waiting, connected, disconnected, write_success, write_failed
   
+  // DataSettingsPanel 상태 관리
+  const [isStarted, setIsStarted] = useState(false) // START/STOP 상태
+  const [readEepromData, setReadEepromData] = useState(null) // EEPROM 읽기 데이터
+  
   // Camera 1 상태
   const [drawMode1, setDrawMode1] = useState(false)
   const [selectedIndex1, setSelectedIndex1] = useState(-1)
@@ -522,6 +526,22 @@ export default function NeedleInspectorUI() {
     handleNeedlePosition(0)
   }
 
+  // 판정 후 상태 초기화 함수
+  const handleJudgeReset = () => {
+    console.log('🔄 판정 후 상태 초기화 시작')
+    
+    // 1. EEPROM 읽기 데이터 초기화
+    setReadEepromData(null)
+    
+    // 2. START/STOP 상태 초기화 (STOP → START)
+    setIsStarted(false)
+    
+    // 3. 작업 상태를 대기로 변경
+    setWorkStatus('waiting')
+    
+    console.log('✅ 판정 후 상태 초기화 완료')
+  }
+
   // GPIO 18번 자동 토글 함수 (모터 상태 기반 반대 명령)
   const handleAutoToggle = () => {
     console.log("🔄 GPIO 토글 감지 - 모터 상태 기반 명령 전송!")
@@ -675,7 +695,14 @@ export default function NeedleInspectorUI() {
         {/* Bottom Control Panels */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 flex-1 min-h-0 overflow-y-auto">
           <StatusPanel mode={mode} workStatus={workStatus} />
-          <DataSettingsPanel makerCode={makerCode} onWorkStatusChange={setWorkStatus} />
+          <DataSettingsPanel 
+            makerCode={makerCode} 
+            onWorkStatusChange={setWorkStatus}
+            isStarted={isStarted}
+            onStartedChange={setIsStarted}
+            readEepromData={readEepromData}
+            onReadEepromDataChange={setReadEepromData}
+          />
           <NeedleCheckPanel 
             mode={mode} 
             isMotorConnected={isMotorConnected}
@@ -683,7 +710,11 @@ export default function NeedleInspectorUI() {
             onNeedleUp={handleNeedleUp}
             onNeedleDown={handleNeedleDown}
           />
-          <JudgePanel onJudge={(result) => console.log(`판정 결과: ${result}`)} />
+          <JudgePanel 
+            onJudge={(result) => console.log(`판정 결과: ${result}`)}
+            isStarted={isStarted}
+            onReset={handleJudgeReset}
+          />
         </div>
       </main>
       <footer className="text-right text-xs text-gray-400 pr-2">SAVE MODE v1</footer>

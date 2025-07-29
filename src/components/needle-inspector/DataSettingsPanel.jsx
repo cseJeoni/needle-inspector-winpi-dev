@@ -6,9 +6,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 import { Button } from "./Button"
 import { Input } from "./Input"
 
-export default function DataSettingsPanel({ makerCode, onWorkStatusChange }) {
-  const [isStarted, setIsStarted] = useState(false)
-  const [readEepromData, setReadEepromData] = useState(null)
+export default function DataSettingsPanel({ makerCode, onWorkStatusChange, isStarted, onStartedChange, readEepromData, onReadEepromDataChange }) {
+  // isStarted와 readEepromData는 이제 props로 받아서 사용
   const [selectedYear, setSelectedYear] = useState("")
   const [selectedMonth, setSelectedMonth] = useState("")
   const [selectedDay, setSelectedDay] = useState("")
@@ -192,11 +191,11 @@ export default function DataSettingsPanel({ makerCode, onWorkStatusChange }) {
       console.log("EEPROM Read Response:", response);
       if (response.type === "eeprom_read" && response.result.success) {
         // onWorkStatusChange("connected"); // READ 버튼 클릭 시 상태 변경하지 않음
-        setReadEepromData(response.result);
+        onReadEepromDataChange && onReadEepromDataChange(response.result);
         console.log("EEPROM Data:", response.result);
       } else {
         // onWorkStatusChange("disconnected"); // READ 버튼 클릭 시 상태 변경하지 않음
-        setReadEepromData(null);
+        onReadEepromDataChange && onReadEepromDataChange(null);
       }
       ws.close();
     };
@@ -307,7 +306,7 @@ export default function DataSettingsPanel({ makerCode, onWorkStatusChange }) {
       onWorkStatusChange && onWorkStatusChange('waiting')
     }
     
-    setIsStarted(!isStarted)
+    onStartedChange && onStartedChange(!isStarted)
   }
 
   const handleCountryChange = (value) => {
