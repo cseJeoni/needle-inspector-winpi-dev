@@ -4,6 +4,7 @@ import StatusPanel from "./StatusPanel"
 import DataSettingsPanel from "./DataSettingsPanel"
 import NeedleCheckPanel from "./NeedleCheckPanel"
 import ModePanel from "./ModePanel"
+import JudgePanel from "./JudgePanel" // Import JudgePanel
 import "../../css/NeedleInspector.css"
 
 const PX_TO_MM = 1 / 3.78; // 1px 당 mm
@@ -672,7 +673,7 @@ export default function NeedleInspectorUI() {
         </div>
 
         {/* Bottom Control Panels */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 flex-1">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 flex-1 min-h-0 overflow-y-auto">
           <StatusPanel mode={mode} workStatus={workStatus} />
           <DataSettingsPanel makerCode={makerCode} onWorkStatusChange={setWorkStatus} />
           <NeedleCheckPanel 
@@ -682,7 +683,7 @@ export default function NeedleInspectorUI() {
             onNeedleUp={handleNeedleUp}
             onNeedleDown={handleNeedleDown}
           />
-          <ModePanel mode={mode} setMode={setMode} makerCode={makerCode} setMakerCode={setMakerCode} />
+          <JudgePanel onJudge={(result) => console.log(`판정 결과: ${result}`)} />
         </div>
       </main>
       <footer className="text-right text-xs text-gray-400 pr-2">SAVE MODE v1</footer>
