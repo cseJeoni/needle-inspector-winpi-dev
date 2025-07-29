@@ -179,7 +179,7 @@ export default function DataSettingsPanel({ makerCode, onWorkStatusChange }) {
 
   // EEPROM 읽기 함수 (WebSocket 통신)
   const readFromEEPROM = async () => {
-    onWorkStatusChange("waiting");
+    // onWorkStatusChange("waiting"); // READ 버튼 클릭 시 상태 변경하지 않음
     const ws = new WebSocket("ws://192.168.0.122:8765");
 
     ws.onopen = () => {
@@ -191,11 +191,11 @@ export default function DataSettingsPanel({ makerCode, onWorkStatusChange }) {
       const response = JSON.parse(event.data);
       console.log("EEPROM Read Response:", response);
       if (response.type === "eeprom_read" && response.result.success) {
-        onWorkStatusChange("connected");
+        // onWorkStatusChange("connected"); // READ 버튼 클릭 시 상태 변경하지 않음
         setReadEepromData(response.result);
         console.log("EEPROM Data:", response.result);
       } else {
-        onWorkStatusChange("disconnected");
+        // onWorkStatusChange("disconnected"); // READ 버튼 클릭 시 상태 변경하지 않음
         setReadEepromData(null);
       }
       ws.close();
@@ -203,7 +203,7 @@ export default function DataSettingsPanel({ makerCode, onWorkStatusChange }) {
 
     ws.onerror = (error) => {
       console.error("WebSocket error:", error);
-      onWorkStatusChange("disconnected");
+      // onWorkStatusChange("disconnected"); // READ 버튼 클릭 시 상태 변경하지 않음
       ws.close();
     };
 
@@ -246,7 +246,7 @@ export default function DataSettingsPanel({ makerCode, onWorkStatusChange }) {
         if (response.type === 'eeprom_read') {
           if (response.result.success) {
             console.log('EEPROM 읽기 성공 - 니들팁 체결됨')
-            onWorkStatusChange && onWorkStatusChange('connected')
+            // onWorkStatusChange && onWorkStatusChange('connected') // 니들팁 있음 상태는 UI에 표시하지 않음
             // 읽기 성공 후 쓰기 진행
             ws.send(JSON.stringify(eepromData))
           } else {
