@@ -20,13 +20,13 @@ export default function Panel({
         display: 'flex', 
         flexDirection: 'column',
         padding: '1.8dvh', 
-        gap: '3.5dvh' 
+        gap: '2dvh' 
       }}
     >
       <h2
         className={titleClassName}
         style={{ 
-          fontSize: '2.5dvh',
+          fontSize: '1.7dvh',
           fontWeight: 'bold',
           color: '#D1D5DB',
           margin: 0

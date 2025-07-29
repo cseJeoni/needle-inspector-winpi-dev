@@ -638,7 +638,7 @@ export default function NeedleInspectorUI() {
         </div>
       </div>
       
-      <main className="flex flex-col flex-1 gap-4">
+      <main className="flex flex-col flex-1 gap-4 overflow-hidden">
         {/* Top Camera Views */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 h-[60vh]">
           <CameraView 

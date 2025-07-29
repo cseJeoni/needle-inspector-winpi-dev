@@ -4,9 +4,11 @@ import { useState, useEffect } from "react"
 import Panel from "./Panel"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./Select"
 import { Button } from "./Button"
+import { Input } from "./Input"
 
 export default function DataSettingsPanel({ makerCode, onWorkStatusChange }) {
   const [isStarted, setIsStarted] = useState(false)
+  const [readEepromData, setReadEepromData] = useState(null)
   const [selectedYear, setSelectedYear] = useState("")
   const [selectedMonth, setSelectedMonth] = useState("")
   const [selectedDay, setSelectedDay] = useState("")
@@ -29,6 +31,58 @@ export default function DataSettingsPanel({ makerCode, onWorkStatusChange }) {
   const getDaysInMonth = (year, month) => {
     return new Date(year, month, 0).getDate()
   }
+
+  // Tip Type으로부터 정보 역매핑
+  const getInfoFromTipType = (tipType) => {
+    const tipTypeMap = {
+      "cutera": {
+        "25&16": 208,
+        "1&10": 209,
+        "10": 210,
+        "64": 211
+      },
+      "ilooda": {
+        "25&16": 216,
+        "1&10": 217,
+        "10": 218,
+        "64": 219,
+        "25": 230
+      },
+      "ilooda_export": {
+        "25&16": 216,
+        "1&10": 217,
+        "10": 218,
+        "64": 219,
+        "25": 230
+      }
+    };
+
+    const countryDisplayMap = {
+      "cutera": "CUTERA",
+      "ilooda": "ILOODA (국내)",
+      "ilooda_export": "ILOODA (해외)"
+    };
+
+    const needleDisplayMap = {
+      "25&16": "25 & 16 PIN",
+      "1&10": "1 & 10 PIN",
+      "10": "10 PIN",
+      "64": "64 PIN",
+      "25": "25 PIN"
+    };
+
+    for (const country in tipTypeMap) {
+      for (const needle in tipTypeMap[country]) {
+        if (tipTypeMap[country][needle] === tipType) {
+          return {
+            country: countryDisplayMap[country],
+            needle: needleDisplayMap[needle]
+          };
+        }
+      }
+    }
+    return { country: "알 수 없음", needle: "알 수 없음" };
+  };
 
   // 일 옵션 생성
   const getDayOptions = () => {
@@ -122,6 +176,41 @@ export default function DataSettingsPanel({ makerCode, onWorkStatusChange }) {
       }
     }
   }, [selectedYear, selectedMonth])
+
+  // EEPROM 읽기 함수 (WebSocket 통신)
+  const readFromEEPROM = async () => {
+    onWorkStatusChange("waiting");
+    const ws = new WebSocket("ws://192.168.0.122:8765");
+
+    ws.onopen = () => {
+      console.log("WebSocket for READ opened");
+      ws.send(JSON.stringify({ command: "read_eeprom" }));
+    };
+
+    ws.onmessage = (event) => {
+      const response = JSON.parse(event.data);
+      console.log("EEPROM Read Response:", response);
+      if (response.status === "success" && response.data) {
+        onWorkStatusChange("connected");
+        setReadEepromData(response.data);
+        console.log("EEPROM Data:", response.data);
+      } else {
+        onWorkStatusChange("disconnected");
+        setReadEepromData(null);
+      }
+      ws.close();
+    };
+
+    ws.onerror = (error) => {
+      console.error("WebSocket error:", error);
+      onWorkStatusChange("disconnected");
+      ws.close();
+    };
+
+    ws.onclose = () => {
+      console.log("WebSocket for READ closed");
+    };
+  };
 
   // EEPROM에 데이터 쓰기 함수 (WebSocket 통신)
   const writeToEEPROM = async () => {
@@ -285,14 +374,17 @@ export default function DataSettingsPanel({ makerCode, onWorkStatusChange }) {
     setSelectedDay(value)
   }
 
+  const { country: readCountry, needle: readNeedle } = readEepromData ? getInfoFromTipType(readEepromData.tip_type) : { country: '', needle: '' };
+  const readDate = readEepromData ? readEepromData.mfg_date : '';
+
   return (
     <Panel title="저장 데이터 설정">
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '3dvh' }}>
-        <div style={{ display: 'flex', gap: '1dvw' }}>
-          <div style={{ display: 'flex', alignItems: 'center', flex: 1 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5dvh' }}>
+        <div style={{ display: 'flex', gap: '0.5dvw' }}>
+          <div style={{ display: 'flex', alignItems: 'center', flex: 1, gap: '0.5dvw' }}>
             <label style={{ width: '20%', fontSize: '1.5dvh', color: '#D1D5DB' }}>국가</label>
             <Select value={selectedCountry} onValueChange={handleCountryChange} disabled={isStarted}>
-              <SelectTrigger style={{ backgroundColor: '#171C26', border: 'none', color: 'white', fontSize: '1.2dvh', height: '3.5dvh' }}>
+              <SelectTrigger style={{ backgroundColor: '#171C26', border: 'none', color: 'white', fontSize: '1.2dvh', width: '100%', height: '3.5dvh' }}>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -302,10 +394,10 @@ export default function DataSettingsPanel({ makerCode, onWorkStatusChange }) {
               </SelectContent>
             </Select>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', flex: 1 }}>
+          <div style={{ display: 'flex', alignItems: 'center', flex: 1, gap: '1dvw' }}>
             <label style={{ width: '20%', fontSize: '1.5dvh', color: '#D1D5DB' }}>니들</label>
             <Select value={selectedNeedleType} onValueChange={handleNeedleTypeChange} disabled={isStarted}>
-              <SelectTrigger style={{ backgroundColor: '#171C26', border: 'none', color: 'white', fontSize: '1.2dvh', height: '3.5dvh' }}>
+              <SelectTrigger style={{ backgroundColor: '#171C26', border: 'none', color: 'white', fontSize: '1.2dvh', width: '100%', height: '3.5dvh' }}>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -360,23 +452,60 @@ export default function DataSettingsPanel({ makerCode, onWorkStatusChange }) {
           </div>
         </div>
       </div>
-      <div style={{ flexGrow: 1 }} />
-      <Button
-        onClick={handleToggle}
-        style={{
-          width: '100%',
-          fontWeight: 'bold',
-          padding: '1dvh 0',
-          fontSize: '1.8dvh',
-          backgroundColor: '#171C26',
-          color: isStarted ? '#FF5455' : '#4ADE80',
-          border: isStarted ? '1px solid #FF5455' : '1px solid #4ADE80',
-          borderRadius: '0.375rem',
-          cursor: 'pointer'
-        }}
-      >
-        {isStarted ? "STOP" : "START"}
-      </Button>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '1dvh' }}>
+        <Button
+          onClick={handleToggle}
+          style={{
+            width: '100%',
+            fontWeight: 'bold',
+            padding: '0.8dvh 0',
+            fontSize: '1.8dvh',
+            backgroundColor: '#171C26',
+            color: isStarted ? '#FF5455' : '#4ADE80',
+            border: isStarted ? '1px solid #FF5455' : '1px solid #4ADE80',
+            borderRadius: '0.375rem',
+            cursor: 'pointer'
+          }}
+        >
+          {isStarted ? "STOP" : "START"}
+        </Button>
+        <Button
+          onClick={readFromEEPROM}
+          disabled={isStarted}
+          style={{
+            width: '100%',
+            fontWeight: 'bold',
+            padding: '0.8dvh 0',
+            fontSize: '1.8dvh',
+            backgroundColor: '#171C26',
+            color: '#ffffff',
+            border: '1px solid #ffffff',
+            borderRadius: '0.375rem',
+            cursor: isStarted ? 'not-allowed' : 'pointer',
+            opacity: isStarted ? 0.5 : 1
+          }}
+        >
+          READ
+        </Button>
+      </div>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5dvh', borderTop: '1px solid #374151' }}>
+          <div style={{ display: 'flex', gap: '2dvw' }}>
+            <div style={{ display: 'flex', alignItems: 'center', flex: 1, gap: '0.5dvw' }}>
+              <label style={{ width: '30%', fontSize: '1.5dvh', color: '#D1D5DB' }}>국가</label>
+              <Input readOnly value={readCountry} style={{ backgroundColor: '#171C26', border: 'none', color: 'white', textAlign: 'center', fontSize: '1.2dvh', width: '100%', height: '3.5dvh', borderRadius: '0.375rem' }} />
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', flex: 1, gap: '1dvw' }}>
+              <label style={{ width: '30%', fontSize: '1.5dvh', color: '#D1D5DB' }}>니들</label>
+              <Input readOnly value={readNeedle} style={{ backgroundColor: '#171C26', border: 'none', color: 'white', textAlign: 'center', fontSize: '1.2dvh', width: '100%', height: '3.5dvh', borderRadius: '0.375rem' }} />
+            </div>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center' }}>
+            <label style={{ width: '15%', fontSize: '1.5dvh', color: '#D1D5DB' }}>날짜</label>
+            <Input readOnly value={readDate} style={{ backgroundColor: '#171C26', border: 'none', color: 'white', textAlign: 'center', fontSize: '1.2dvh', width: '100%', height: '3.5dvh', borderRadius: '0.375rem' }} />
+          </div>
+        </div>
+      
     </Panel>
   )
 }
