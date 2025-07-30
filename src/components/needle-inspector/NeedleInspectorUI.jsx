@@ -50,6 +50,7 @@ export default function NeedleInspectorUI() {
   const [lineInfo1, setLineInfo1] = useState('선 정보: 없음')
   const canvasRef1 = useRef(null)
   const videoContainerRef1 = useRef(null)
+  const cameraViewRef1 = useRef(null) // CameraView ref 추가
 
   // Camera 2 상태
   const [drawMode2, setDrawMode2] = useState(false)
@@ -57,6 +58,7 @@ export default function NeedleInspectorUI() {
   const [lineInfo2, setLineInfo2] = useState('선 정보: 없음')
   const canvasRef2 = useRef(null)
   const videoContainerRef2 = useRef(null)
+  const cameraViewRef2 = useRef(null) // CameraView ref 추가
 
   // 공통 상태
   const [lines1, setLines1] = useState([])
@@ -675,6 +677,7 @@ export default function NeedleInspectorUI() {
             handlers={handlers1}
             canvasRef={canvasRef1}
             videoContainerRef={videoContainerRef1}
+            ref={cameraViewRef1} // CameraView ref 추가
           />
           <CameraView 
             title="Camera 2" 
@@ -689,6 +692,7 @@ export default function NeedleInspectorUI() {
             handlers={handlers2}
             canvasRef={canvasRef2}
             videoContainerRef={videoContainerRef2}
+            ref={cameraViewRef2} // CameraView ref 추가
           />
         </div>
 
@@ -714,6 +718,7 @@ export default function NeedleInspectorUI() {
             onJudge={(result) => console.log(`판정 결과: ${result}`)}
             isStarted={isStarted}
             onReset={handleJudgeReset}
+            captureImage={() => cameraViewRef1.current.captureImage()} // captureImage 함수 전달
           />
         </div>
       </main>

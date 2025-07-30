@@ -1,7 +1,7 @@
 import Panel from "./Panel"
 import { Button } from "./Button"
 
-export default function JudgePanel({ onJudge, isStarted, onReset }) {
+export default function JudgePanel({ onJudge, isStarted, onReset, captureImage }) {
   // 니들 DOWN 명령 전송 함수
   const sendNeedleDown = () => {
     try {
@@ -16,7 +16,7 @@ export default function JudgePanel({ onJudge, isStarted, onReset }) {
     }
   }
 
-  // 카메라 프레임 캡처 함수
+  // 카메라 프레임 캡처 함수 (CameraView의 captureImage 사용)
   const saveScreenshot = async (result) => {
     console.log(`📷 카메라 프레임 캡처 시작: ${result}`)
     
@@ -24,25 +24,19 @@ export default function JudgePanel({ onJudge, isStarted, onReset }) {
       const fs = window.require('fs')
       const path = window.require('path')
       
-      console.log('📸 카메라 서버에서 직접 프레임 가져오기...')
+      // CameraView의 captureImage 함수 호출 (선과 텍스트 포함)
+      const dataURL = await captureImage()
       
-      let imageBuffer
-      
-      // 가장 간단하고 확실한 방법: 카메라 서버에서 직접 가져오기
-      const cameraResponse = await fetch('http://localhost:5000/capture', {
-        method: 'GET',
-        headers: {
-          'Accept': 'image/jpeg'
-        }
-      })
-      
-      if (cameraResponse.ok) {
-        const arrayBuffer = await cameraResponse.arrayBuffer()
-        imageBuffer = Buffer.from(arrayBuffer)
-        console.log(`✅ 카메라 프레임 캡처 성공 (${imageBuffer.length} bytes)`)
-      } else {
-        throw new Error(`Camera server response: ${cameraResponse.status}`)
+      if (!dataURL) {
+        console.error('❌ 캡처 이미지 데이터를 가져올 수 없음')
+        return
       }
+      
+      console.log('✅ 캡처 이미지 데이터 획득 성공')
+      
+      // Base64 데이터를 Buffer로 변환
+      const base64Data = dataURL.replace(/^data:image\/png;base64,/, '')
+      const imageBuffer = Buffer.from(base64Data, 'base64')
       
       console.log(`💾 이미지 데이터 크기: ${imageBuffer.length} bytes`)
       
@@ -58,11 +52,11 @@ export default function JudgePanel({ onJudge, isStarted, onReset }) {
       }
       
       // 기존 파일 개수 확인하여 다음 번호 결정
-      const files = fs.readdirSync(baseDir).filter(file => file.endsWith('.jpg'))
+      const files = fs.readdirSync(baseDir).filter(file => file.endsWith('.png'))
       const nextNumber = files.length + 1
       console.log(`📊 기존 파일 개수: ${files.length}, 다음 번호: ${nextNumber}`)
       
-      const filename = `${nextNumber}.jpg`
+      const filename = `${nextNumber}.png`
       const filepath = path.join(baseDir, filename)
       console.log(`💾 저장할 파일 경로: ${filepath}`)
       
@@ -87,11 +81,11 @@ export default function JudgePanel({ onJudge, isStarted, onReset }) {
   const handleNGClick = async () => {
     console.log("NG 판정")
     
-    // 1. 니들 DOWN
-    sendNeedleDown()
-    
-    // 2. 카메라 프레임 캡처
+    // 1. 카메라 프레임 캡처 (니들 내리기 전에 먼저!)
     await saveScreenshot('NG')
+    
+    // 2. 니들 DOWN
+    sendNeedleDown()
     
     // 3. 상태 초기화
     if (onReset) onReset()
@@ -103,11 +97,11 @@ export default function JudgePanel({ onJudge, isStarted, onReset }) {
   const handlePassClick = async () => {
     console.log("PASS 판정")
     
-    // 1. 니들 DOWN
-    sendNeedleDown()
-    
-    // 2. 카메라 프레임 캡처
+    // 1. 카메라 프레임 캡처 (니들 내리기 전에 먼저!)
     await saveScreenshot('PASS')
+    
+    // 2. 니들 DOWN
+    sendNeedleDown()
     
     // 3. 상태 초기화
     if (onReset) onReset()

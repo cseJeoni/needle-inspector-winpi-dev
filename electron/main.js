@@ -105,10 +105,10 @@ function waitForBackend() {
 
 async function createWindow() {
   try {
-    // 백엔드 서버 시작
+    // 백엔드 서버 시작 (테스트를 위해 주석처리)
     startBackendServer();
     
-    // 서버가 시작될 때까지 대기
+    // 서버가 시작될 때까지 대기 (테스트를 위해 주석처리)
     await waitForBackend();
     
     // 웹소켓 서버가 실행된 후 창 생성

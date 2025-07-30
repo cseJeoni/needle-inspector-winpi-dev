@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useImperativeHandle, forwardRef } from 'react';
 import './CameraView.css';
 
 /**
@@ -19,7 +19,7 @@ import './CameraView.css';
  * @param {Object} props.videoContainerRef - 비디오 컨테이너 ref
  * @returns {React.Component} React 컴포넌트
  */
-export default function CameraView({ 
+const CameraView = forwardRef(({ 
   title, 
   cameraId, 
   videoServerUrl, 
@@ -32,7 +32,81 @@ export default function CameraView({
   handlers, 
   canvasRef, 
   videoContainerRef 
-}) {
+}, ref) => {
+
+  // 카메라 이미지 + 캔버스 오버레이 + 시간 텍스트를 포함한 이미지 캡처
+  const captureImage = async () => {
+    try {
+      console.log(`📸 ${title} 이미지 캡처 시작...`);
+      
+      const imgElement = videoContainerRef.current?.querySelector('.camera-image');
+      const overlayCanvas = canvasRef.current;
+      
+      if (!imgElement || !overlayCanvas) {
+        console.error('❌ 이미지 또는 캔버스 요소를 찾을 수 없음');
+        return null;
+      }
+
+      // 캡처용 캔버스 생성
+      const captureCanvas = document.createElement("canvas");
+      const containerRect = videoContainerRef.current.getBoundingClientRect();
+      captureCanvas.width = containerRect.width || 640;
+      captureCanvas.height = containerRect.height || 480;
+      const ctx = captureCanvas.getContext("2d");
+
+      // 1. 카메라 이미지 그리기
+      await new Promise((resolve, reject) => {
+        const tempImg = new Image();
+        tempImg.crossOrigin = "anonymous";
+        tempImg.onload = () => {
+          ctx.drawImage(tempImg, 0, 0, captureCanvas.width, captureCanvas.height);
+          resolve();
+        };
+        tempImg.onerror = reject;
+        tempImg.src = imgElement.src;
+      });
+
+      // 2. 캔버스 오버레이(선들) 그리기
+      ctx.drawImage(overlayCanvas, 0, 0);
+
+      // 3. 현재 시간 텍스트 추가
+      const now = new Date();
+      const timeText = now.toLocaleString();
+      
+      // 텍스트 스타일 설정
+      ctx.fillStyle = "yellow";
+      ctx.font = "bold 16px Arial";
+      ctx.strokeStyle = "black";
+      ctx.lineWidth = 1;
+      
+      // 시간 텍스트 그리기 (좌상단)
+      const textX = 10;
+      const textY = 30;
+      ctx.strokeText(timeText, textX, textY);
+      ctx.fillText(timeText, textX, textY);
+      
+      // 카메라 제목도 추가
+      const titleY = 50;
+      ctx.strokeText(title, textX, titleY);
+      ctx.fillText(title, textX, titleY);
+
+      // 4. 이미지 데이터 반환 (저장은 호출하는 쪽에서 처리)
+      const dataURL = captureCanvas.toDataURL("image/png");
+      console.log(`✅ ${title} 이미지 캡처 완료`);
+      
+      return dataURL;
+      
+    } catch (error) {
+      console.error(`❌ ${title} 이미지 캡처 실패:`, error);
+      return null;
+    }
+  };
+
+  // ref를 통해 captureImage 함수를 외부에 노출
+  useImperativeHandle(ref, () => ({
+    captureImage
+  }));
+
   return (
     <div className="camera-view">
       <div className="camera-header">
@@ -81,4 +155,8 @@ export default function CameraView({
       </div>
     </div>
   )
-}
+});
+
+CameraView.displayName = 'CameraView';
+
+export default CameraView;
