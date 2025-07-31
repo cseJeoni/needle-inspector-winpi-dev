@@ -301,6 +301,10 @@ export default function DataSettingsPanel({ makerCode, onWorkStatusChange, isSta
       }
       
       await writeToEEPROM()
+      // EEPROM 쓰기 완료 후 읽기 수행
+      setTimeout(() => {
+        readFromEEPROM()
+      }, 1000) // 1초 후 읽기 수행 (쓰기 완료 대기)
     } else {
       // STOP 버튼을 눌렀을 때 대기 상태로 복귀
       onWorkStatusChange && onWorkStatusChange('waiting')
@@ -425,21 +429,7 @@ export default function DataSettingsPanel({ makerCode, onWorkStatusChange, isSta
         >
           {isStarted ? "STOP" : "START"}
         </Button>
-        <Button
-          onClick={readFromEEPROM}
-          style={{
-            flex: 1,
-            backgroundColor: '#171C26',
-            color: '#ffffff',
-            border: '1px solid #ffffff',
-            borderRadius: '0.375rem',
-            fontWeight: 'bold',
-            padding: '0.8dvh 0',
-            fontSize: '1.8dvh',
-          }}
-        >
-          READ
-        </Button>
+
       </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5dvh', borderTop: '1px solid #374151' }}>
