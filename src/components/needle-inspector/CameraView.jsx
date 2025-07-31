@@ -35,7 +35,10 @@ const CameraView = forwardRef(({
 }, ref) => {
 
   // 카메라 이미지 + 캔버스 오버레이 + 시간 텍스트를 포함한 이미지 캡처
-  const captureImage = async () => {
+  const captureImage = async (judgeResult = null, eepromData = null) => {
+    // eepromData의 실제 구조를 확인하기 위한 로그
+    console.log(`[CameraView] captureImage called with:`, { judgeResult, eepromData });
+
     try {
       console.log(`📸 ${title} 이미지 캡처 시작...`);
       
@@ -55,40 +58,101 @@ const CameraView = forwardRef(({
       const ctx = captureCanvas.getContext("2d");
 
       // 1. 카메라 이미지 그리기
-      await new Promise((resolve, reject) => {
-        const tempImg = new Image();
-        tempImg.crossOrigin = "anonymous";
-        tempImg.onload = () => {
-          ctx.drawImage(tempImg, 0, 0, captureCanvas.width, captureCanvas.height);
-          resolve();
-        };
-        tempImg.onerror = reject;
-        tempImg.src = imgElement.src;
-      });
+      try {
+        await new Promise((resolve, reject) => {
+          const tempImg = new Image();
+          tempImg.crossOrigin = "anonymous";
+          tempImg.onload = () => {
+            ctx.drawImage(tempImg, 0, 0, captureCanvas.width, captureCanvas.height);
+            console.log('✅ 카메라 이미지 로딩 성공');
+            resolve();
+          };
+          tempImg.onerror = (error) => {
+            console.error('❌ 카메라 이미지 로딩 실패:', error);
+            // 카메라 이미지 로딩 실패 시 검은색 배경으로 대체
+            ctx.fillStyle = "black";
+            ctx.fillRect(0, 0, captureCanvas.width, captureCanvas.height);
+            console.log('🔄 검은색 배경으로 대체');
+            resolve();
+          };
+          tempImg.src = imgElement.src;
+        });
+      } catch (error) {
+        console.error('❌ 카메라 이미지 처리 중 오류:', error);
+        // 에러 발생 시 검은색 배경으로 대체
+        ctx.fillStyle = "black";
+        ctx.fillRect(0, 0, captureCanvas.width, captureCanvas.height);
+      }
 
       // 2. 캔버스 오버레이(선들) 그리기
       ctx.drawImage(overlayCanvas, 0, 0);
 
-      // 3. 현재 시간 텍스트 추가
+      // 3. 텍스트 정보 추가
       const now = new Date();
       const timeText = now.toLocaleString();
       
       // 텍스트 스타일 설정
-      ctx.fillStyle = "yellow";
+      ctx.font = "bold 20px Arial";
+      ctx.lineWidth = 2;
+      
+      const textX = 10;
+      let currentY = 30;
+      
+      // EEPROM 정보와 판정 결과 표시 (최상단)
+      if (judgeResult) {
+        let eepromText;
+        
+        if (eepromData) {
+          // EEPROM 데이터가 있는 경우
+          eepromText = `EEPROM TIP:${eepromData.tipType} SHOT:${eepromData.shotCount} DATE:${eepromData.year}-${String(eepromData.month).padStart(2, '0')}-${String(eepromData.day).padStart(2, '0')} MAKER:${eepromData.makerCode} ${judgeResult}`;
+        } else {
+          // EEPROM 데이터가 없는 경우
+          eepromText = `EEPROM 데이터 읽기 실패 ${judgeResult}`;
+        }
+        
+        console.log(`🎨 EEPROM 텍스트 그리기: ${eepromText}`);
+        
+        // 텍스트 크기 측정
+        const textMetrics = ctx.measureText(eepromText);
+        const textWidth = textMetrics.width;
+        const textHeight = 25;
+        
+        
+        // 판정 결과에 따른 색상 설정
+        if (judgeResult === 'PASS') {
+          ctx.fillStyle = "lime";
+          ctx.strokeStyle = "darkgreen";
+        } else if (judgeResult === 'NG') {
+          ctx.fillStyle = "red";
+          ctx.strokeStyle = "darkred";
+        } else {
+          ctx.fillStyle = "yellow";
+          ctx.strokeStyle = "black";
+        }
+        
+        // 텍스트 그리기 (테두리 + 채우기)
+        ctx.strokeText(eepromText, textX, currentY);
+        ctx.fillText(eepromText, textX, currentY);
+        currentY += 35;
+        
+        console.log(`✅ EEPROM 텍스트 그리기 완료`);
+      } else {
+        console.log(`❌ 판정 결과 없음: judgeResult=${judgeResult}`);
+      }
+      
+      // 카메라 제목 (EEPROM 정보 아래)
       ctx.font = "bold 16px Arial";
+      ctx.fillStyle = "yellow";
       ctx.strokeStyle = "black";
       ctx.lineWidth = 1;
       
-      // 시간 텍스트 그리기 (좌상단)
-      const textX = 10;
-      const textY = 30;
-      ctx.strokeText(timeText, textX, textY);
-      ctx.fillText(timeText, textX, textY);
+      ctx.strokeText(title, textX, currentY);
+      ctx.fillText(title, textX, currentY);
+      currentY += 20;
       
-      // 카메라 제목도 추가
-      const titleY = 50;
-      ctx.strokeText(title, textX, titleY);
-      ctx.fillText(title, textX, titleY);
+      // 시간 텍스트 (카메라 제목 아래)
+      ctx.strokeText(timeText, textX, currentY);
+      ctx.fillText(timeText, textX, currentY);
 
       // 4. 이미지 데이터 반환 (저장은 호출하는 쪽에서 처리)
       const dataURL = captureCanvas.toDataURL("image/png");
@@ -104,7 +168,8 @@ const CameraView = forwardRef(({
 
   // ref를 통해 captureImage 함수를 외부에 노출
   useImperativeHandle(ref, () => ({
-    captureImage
+    captureImage,
+    getTitle: () => title, // title 값을 반환하는 함수 추가
   }));
 
   return (

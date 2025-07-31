@@ -1,7 +1,7 @@
 import Panel from "./Panel"
 import { Button } from "./Button"
 
-export default function JudgePanel({ onJudge, isStarted, onReset, captureImage }) {
+export default function JudgePanel({ onJudge, isStarted, onReset, camera1Ref, camera2Ref }) {
   // 니들 DOWN 명령 전송 함수
   const sendNeedleDown = () => {
     try {
@@ -16,99 +16,133 @@ export default function JudgePanel({ onJudge, isStarted, onReset, captureImage }
     }
   }
 
-  // 카메라 프레임 캡처 함수 (CameraView의 captureImage 사용)
-  const saveScreenshot = async (result) => {
-    console.log(`📷 카메라 프레임 캡처 시작: ${result}`)
-    
+  // EEPROM 데이터 읽기 함수
+  const readEepromData = async () => {
     try {
-      const fs = window.require('fs')
-      const path = window.require('path')
+      console.log('📖 EEPROM 데이터 읽기 시작...')
+      const ws = new WebSocket('ws://192.168.0.122:8765')
       
-      // CameraView의 captureImage 함수 호출 (선과 텍스트 포함)
-      const dataURL = await captureImage()
+      const eepromData = await new Promise((resolve, reject) => {
+        const timeout = setTimeout(() => {
+          ws.close()
+          reject(new Error('EEPROM 읽기 타임아웃'))
+        }, 5000)
+        
+        ws.onopen = () => {
+          console.log('📡 EEPROM 읽기 WebSocket 연결됨')
+          ws.send(JSON.stringify({ cmd: "eeprom_read" }))
+        }
+        
+        ws.onmessage = (event) => {
+          try {
+            const response = JSON.parse(event.data)
+            console.log('📖 EEPROM 응답:', response)
+            
+            if (response.type === 'eeprom_read') {
+              clearTimeout(timeout)
+              ws.close()
+
+              // DataSettingsPanel의 검증된 방식으로 수정
+              if (response.result && response.result.success) {
+                console.log('✅ EEPROM 데이터 읽기 성공:', response.result);
+                resolve(response.result);
+              } else {
+                console.error('❌ EEPROM 읽기 실패:', response.result?.error || '결과 데이터 없음');
+                resolve(null);
+              }
+            }
+          } catch (error) {
+            console.error('❌ EEPROM 응답 파싱 실패:', error)
+            clearTimeout(timeout)
+            ws.close()
+            resolve(null)
+          }
+        }
+        
+        ws.onerror = (error) => {
+          console.error('❌ EEPROM WebSocket 오류:', error)
+          clearTimeout(timeout)
+          ws.close()
+          resolve(null)
+        }
+      })
       
-      if (!dataURL) {
-        console.error('❌ 캡처 이미지 데이터를 가져올 수 없음')
-        return
-      }
-      
-      console.log('✅ 캡처 이미지 데이터 획득 성공')
-      
-      // Base64 데이터를 Buffer로 변환
-      const base64Data = dataURL.replace(/^data:image\/png;base64,/, '')
-      const imageBuffer = Buffer.from(base64Data, 'base64')
-      
-      console.log(`💾 이미지 데이터 크기: ${imageBuffer.length} bytes`)
-      
-      // 저장 경로 설정
-      const baseDir = result === 'NG' ? 'C:\\Inspect\\NG' : 'C:\\Inspect\\PASS'
-      console.log(`📁 저장 경로: ${baseDir}`)
-      
-      // 디렉토리 생성 (없으면)
-      if (!fs.existsSync(baseDir)) {
-        console.log('📁 디렉토리 생성 중...')
-        fs.mkdirSync(baseDir, { recursive: true })
-        console.log('✅ 디렉토리 생성 완료')
-      }
-      
-      // 기존 파일 개수 확인하여 다음 번호 결정
-      const files = fs.readdirSync(baseDir).filter(file => file.endsWith('.png'))
-      const nextNumber = files.length + 1
-      console.log(`📊 기존 파일 개수: ${files.length}, 다음 번호: ${nextNumber}`)
-      
-      const filename = `${nextNumber}.png`
-      const filepath = path.join(baseDir, filename)
-      console.log(`💾 저장할 파일 경로: ${filepath}`)
-      
-      // 이미지 저장
-      fs.writeFileSync(filepath, imageBuffer)
-      console.log(`✅ 카메라 이미지 저장 완료: ${filepath}`)
-      
-      // 파일 존재 확인
-      if (fs.existsSync(filepath)) {
-        const stats = fs.statSync(filepath)
-        console.log(`✅ 파일 저장 확인: ${filepath} (${stats.size} bytes)`)
-      } else {
-        console.error('❌ 파일 저장 실패: 파일이 생성되지 않음')
-      }
-      
+      return eepromData
     } catch (error) {
-      console.error('❌ 카메라 이미지 저장 실패:', error)
-      console.error('❌ 에러 세부정보:', error.stack)
+      console.error('❌ EEPROM 데이터 읽기 실패:', error)
+      return null
     }
   }
 
-  const handleNGClick = async () => {
-    console.log("NG 판정")
-    
-    // 1. 카메라 프레임 캡처 (니들 내리기 전에 먼저!)
-    await saveScreenshot('NG')
-    
-    // 2. 니들 DOWN
-    sendNeedleDown()
-    
-    // 3. 상태 초기화
-    if (onReset) onReset()
-    
-    // 4. 콜백 호출
-    if (onJudge) onJudge('NG')
-  }
+  // 판정 결과를 받아 스크린샷을 저장하는 함수
+  const saveScreenshot = async (judgeResult, cameraRef, eepromData) => {
+    if (!cameraRef.current) {
+      console.error('카메라 ref가 없습니다.');
+      return;
+    }
 
-  const handlePassClick = async () => {
-    console.log("PASS 판정")
-    
-    // 1. 카메라 프레임 캡처 (니들 내리기 전에 먼저!)
-    await saveScreenshot('PASS')
-    
-    // 2. 니들 DOWN
-    sendNeedleDown()
-    
-    // 3. 상태 초기화
-    if (onReset) onReset()
-    
-    // 4. 콜백 호출
-    if (onJudge) onJudge('PASS')
-  }
+    // judgeResult와 eepromData를 captureImage로 전달
+    const imageData = await cameraRef.current.captureImage(judgeResult, eepromData);
+
+    if (imageData) {
+      const blob = await (await fetch(imageData)).blob();
+      const buffer = Buffer.from(await blob.arrayBuffer());
+      const cameraTitle = cameraRef.current.getTitle(); // ref에서 직접 title 가져오기
+      const date = new Date();
+      const formattedDate = `${date.getFullYear()}${(date.getMonth() + 1).toString().padStart(2, '0')}${date.getDate().toString().padStart(2, '0')}`;
+      const formattedTime = `${date.getHours().toString().padStart(2, '0')}${date.getMinutes().toString().padStart(2, '0')}${date.getSeconds().toString().padStart(2, '0')}`;
+      const fileName = `${formattedDate}_${formattedTime}_${cameraTitle}_${judgeResult}.png`;
+
+      const fs = window.require('fs');
+      const path = window.require('path');
+      const baseDir = judgeResult === 'NG' ? 'C:\\Inspect\\NG' : 'C:\\Inspect\\PASS';
+      if (!fs.existsSync(baseDir)) {
+        fs.mkdirSync(baseDir, { recursive: true });
+      }
+      const savePath = path.join(baseDir, fileName);
+
+      fs.writeFileSync(savePath, buffer);
+      console.log(`✅ ${fileName} 저장 완료: ${savePath}`);
+    } else {
+      console.error('❌ 이미지 데이터가 없어 파일을 저장할 수 없습니다.');
+    }
+  };
+
+  // 판정 로직을 처리하는 중앙 함수
+  const handleJudge = async (result) => {
+    try {
+      // 1. EEPROM 데이터 읽기 (완료될 때까지 기다림)
+      console.log('📡 EEPROM 데이터 읽기 시작...');
+      const eepromData = await readEepromData();
+      console.log('✅ EEPROM 데이터 읽기 완료:', eepromData);
+
+      // 2. 양쪽 카메라에 대해 스크린샷 저장
+      await saveScreenshot(result, camera1Ref, eepromData);
+      await saveScreenshot(result, camera2Ref, eepromData);
+
+      // 니들 DOWN
+      sendNeedleDown()
+      
+      // 상태 초기화
+      if (onReset) onReset()
+      
+      // 콜백 호출
+      if (onJudge) onJudge(result)
+
+    } catch (error) {
+      console.error(`❌ ${result} 판정 처리 중 에러 발생:`, error);
+    }
+  };
+
+  const handleNGClick = () => {
+    console.log("NG 판정");
+    handleJudge('NG');
+  };
+
+  const handlePassClick = () => {
+    console.log("PASS 판정");
+    handleJudge('PASS');
+  };
 
   return (
     <Panel title="판정">

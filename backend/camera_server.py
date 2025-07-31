@@ -1,4 +1,5 @@
 from flask import Flask, Response, request, jsonify
+from flask_cors import CORS
 import cv2
 from flask_cors import CORS
 import platform
@@ -8,6 +9,7 @@ import time
 import atexit
 
 app = Flask(__name__)
+CORS(app)
 CORS(app) # CORS 지원 추가
 
 # 전역 카메라 객체
@@ -103,10 +105,16 @@ def generate_frames():
             print("[ERROR] 카메라 0번이 연결되지 않음")
             break
             
-        success, frame = cap.read()
-        if not success:
-            print("[ERROR] 카메라 0번에서 프레임 읽기 실패")
-            break
+        try:
+            success, frame = cap.read()
+            if not success:
+                print("[ERROR] 카메라 0번에서 프레임 읽기 실패, 재시도 중...")
+                time.sleep(0.5) # 잠시 대기 후 재시도
+                continue
+        except cv2.error as e:
+            print(f"[ERROR] 카메라 0번 프레임 읽기 오류: {e}, 재시도 중...")
+            time.sleep(0.5) # 잠시 대기 후 재시도
+            continue
 
         ret, buffer = cv2.imencode('.jpg', frame)
         if not ret:
@@ -125,10 +133,16 @@ def generate_frames2():
             print("[ERROR] 카메라 2번이 연결되지 않음")
             break
             
-        success, frame = cap2.read()
-        if not success:
-            print("[ERROR] 카메라 2번에서 프레임 읽기 실패")
-            break
+        try:
+            success, frame = cap2.read()
+            if not success:
+                print("[ERROR] 카메라 2번에서 프레임 읽기 실패, 재시도 중...")
+                time.sleep(0.5) # 잠시 대기 후 재시도
+                continue
+        except cv2.error as e:
+            print(f"[ERROR] 카메라 2번 프레임 읽기 오류: {e}, 재시도 중...")
+            time.sleep(0.5) # 잠시 대기 후 재시도
+            continue
 
         ret, buffer = cv2.imencode('.jpg', frame)
         if not ret:

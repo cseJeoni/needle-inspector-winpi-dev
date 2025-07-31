@@ -718,7 +718,8 @@ export default function NeedleInspectorUI() {
             onJudge={(result) => console.log(`판정 결과: ${result}`)}
             isStarted={isStarted}
             onReset={handleJudgeReset}
-            captureImage={() => cameraViewRef1.current.captureImage()} // captureImage 함수 전달
+            camera1Ref={cameraViewRef1} // camera1Ref 전달
+            camera2Ref={cameraViewRef2} // camera2Ref 전달
           />
         </div>
       </main>
