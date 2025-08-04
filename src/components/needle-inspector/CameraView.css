@@ -39,6 +39,7 @@
   display: flex;
   align-items: center;
   gap: 0.5rem;
+  flex-wrap: wrap;
 }
 
 .control-button {
@@ -111,4 +112,38 @@
   height: 100%;
   cursor: crosshair;
   z-index: 10;
+}
+
+/* 캘리브레이션 입력란 스타일 */
+.calibration-container {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  background-color: #4B5563;
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.25rem;
+  font-size: 0.75rem;
+}
+
+.calibration-label {
+  color: #D1D5DB;
+  font-size: 0.7rem;
+  white-space: nowrap;
+}
+
+.calibration-input {
+  width: 60px;
+  padding: 0.125rem 0.25rem;
+  font-size: 0.7rem;
+  border: 1px solid #6B7280;
+  border-radius: 0.125rem;
+  background-color: #374151;
+  color: #F3F4F6;
+  text-align: center;
+}
+
+.calibration-input:focus {
+  outline: none;
+  border-color: #3B82F6;
+  background-color: #1F2937;
 }

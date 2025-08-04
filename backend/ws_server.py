@@ -85,39 +85,53 @@ def read_eeprom_data():
     if not eeprom_available:
         return {"success": False, "error": "EEPROM 기능이 비활성화되어 있습니다."}
     
-    try:
-        bus = smbus2.SMBus(I2C_BUS)
-        
-        # TIP TYPE 읽기 (0x10)
-        tip_type = bus.read_byte_data(EEPROM_ADDRESS, 0x10)
-        
-        # SHOT COUNT 읽기 (0x11~0x12)
-        shot_count_bytes = bus.read_i2c_block_data(EEPROM_ADDRESS, 0x11, 2)
-        shot_count = shot_count_bytes[0] << 8 | shot_count_bytes[1]
-        
-        # 제조일 읽기 (0x19~0x1B)
-        manufacture_date = bus.read_i2c_block_data(EEPROM_ADDRESS, 0x19, 3)
-        year = 2000 + manufacture_date[0]
-        month = manufacture_date[1]
-        day = manufacture_date[2]
-        
-        # 제조사 코드 읽기 (0x1C)
-        maker_code = bus.read_byte_data(EEPROM_ADDRESS, 0x1C)
-        
-        bus.close()
-        
-        return {
-            "success": True,
-            "tipType": tip_type,
-            "shotCount": shot_count,
-            "year": year,
-            "month": month,
-            "day": day,
-            "makerCode": maker_code
-        }
-        
-    except Exception as e:
-        return {"success": False, "error": f"EEPROM 읽기 실패: {str(e)}"}
+    bus = None
+    max_retries = 3
+    
+    for attempt in range(max_retries):
+        try:
+            bus = smbus2.SMBus(I2C_BUS)
+            
+            # TIP TYPE 읽기 (0x10)
+            tip_type = bus.read_byte_data(EEPROM_ADDRESS, 0x10)
+            
+            # SHOT COUNT 읽기 (0x11~0x12)
+            shot_count_bytes = bus.read_i2c_block_data(EEPROM_ADDRESS, 0x11, 2)
+            shot_count = shot_count_bytes[0] << 8 | shot_count_bytes[1]
+            
+            # 제조일 읽기 (0x19~0x1B)
+            manufacture_date = bus.read_i2c_block_data(EEPROM_ADDRESS, 0x19, 3)
+            year = 2000 + manufacture_date[0]
+            month = manufacture_date[1]
+            day = manufacture_date[2]
+            
+            # 제조사 코드 읽기 (0x1C)
+            maker_code = bus.read_byte_data(EEPROM_ADDRESS, 0x1C)
+            
+            return {
+                "success": True,
+                "tipType": tip_type,
+                "shotCount": shot_count,
+                "year": year,
+                "month": month,
+                "day": day,
+                "makerCode": maker_code
+            }
+            
+        except Exception as e:
+            print(f"[ERROR] EEPROM 읽기 시도 {attempt + 1}/{max_retries} 실패: {str(e)}")
+            if attempt < max_retries - 1:
+                time.sleep(0.1)  # 짧은 대기 후 재시도
+            else:
+                return {"success": False, "error": f"EEPROM 읽기 실패 (모든 재시도 소진): {str(e)}"}
+        finally:
+            # 버스 리소스 확실히 해제
+            if bus is not None:
+                try:
+                    bus.close()
+                except:
+                    pass
+                bus = None
 
 async def handler(websocket):
     print("[INFO] 클라이언트 연결됨")
@@ -285,6 +299,11 @@ async def handler(websocket):
         print("[INFO] 클라이언트 연결 해제됨")
 
 async def push_motor_status():
+    print("--- [DEBUG] push_motor_status: New logic is running ---", flush=True)
+    last_eeprom_read_time = 0
+    eeprom_read_interval = 1.0  # 1초마다 EEPROM 읽기
+    last_eeprom_data = {"success": False, "error": "Not read yet"}  # 마지막 EEPROM 상태 저장
+
     while True:
         await asyncio.sleep(0.05)
         if motor.is_connected():
@@ -293,7 +312,24 @@ async def push_motor_status():
             if gpio_available and pin18:
                 gpio_value = pin18.value
                 gpio_state = "HIGH" if gpio_value else "LOW"
-            
+
+            # EEPROM 데이터 주기적 읽기 (1초마다)
+            current_time = time.time()
+            if current_time - last_eeprom_read_time >= eeprom_read_interval:
+                last_eeprom_read_time = current_time
+                try:
+                    read_result = read_eeprom_data()
+                    if read_result["success"]:
+                        last_eeprom_data = read_result
+                        # print(f"[EEPROM] TIP:{last_eeprom_data['tipType']}, SHOT:{last_eeprom_data['shotCount']}, DATE:{last_eeprom_data['year']}-{last_eeprom_data['month']:02d}-{last_eeprom_data['day']:02d}, MAKER:{last_eeprom_data['makerCode']}")
+                    else:
+                        last_eeprom_data = read_result
+                        # print(f"[EEPROM] Read failed: {read_result.get('error', 'Unknown error')}")
+
+                except Exception as eeprom_error:
+                    # print(f"[EEPROM] 예외 발생: {str(eeprom_error)}")
+                    last_eeprom_data = {"success": False, "error": str(eeprom_error)}
+
             data = {
                 "type": "status",
                 "data": {
@@ -301,9 +337,13 @@ async def push_motor_status():
                     "force": motor.force,
                     "sensor": motor.sensor,
                     "setPos": motor.setPos,
-                    "gpio18": gpio_state  # GPIO 상태 추가
+                    "gpio18": gpio_state,  # GPIO 상태 추가
+                    "eeprom": last_eeprom_data  # 항상 최신 EEPROM 상태 포함
                 }
             }
+
+            # print(f"--- [DEBUG] Sending data: {json.dumps(data)} ---", flush=True)
+
             for ws in connected_clients.copy():
                 try:
                     await ws.send(json.dumps(data))

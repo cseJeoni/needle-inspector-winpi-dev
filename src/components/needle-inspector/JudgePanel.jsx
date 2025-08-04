@@ -1,7 +1,7 @@
 import Panel from "./Panel"
 import { Button } from "./Button"
 
-export default function JudgePanel({ onJudge, isStarted, onReset, camera1Ref, camera2Ref }) {
+export default function JudgePanel({ onJudge, isStarted, onReset, camera1Ref, camera2Ref, hasNeedleTip = true }) {
   // 니들 DOWN 명령 전송 함수
   const sendNeedleDown = () => {
     try {
@@ -150,21 +150,21 @@ export default function JudgePanel({ onJudge, isStarted, onReset, camera1Ref, ca
         {/* NG 버튼 */}
         <Button
           onClick={handleNGClick}
-          disabled={!isStarted}
+          disabled={!isStarted || !hasNeedleTip}
           style={{
             flex: 1,
-            backgroundColor: isStarted ? '#C22727' : '#6B7280',
+            backgroundColor: (isStarted && hasNeedleTip) ? '#C22727' : '#6B7280',
             color: 'white',
             fontSize: '2dvh',
             fontWeight: 'bold',
             border: 'none',
             borderRadius: '0.375rem',
-            cursor: isStarted ? 'pointer' : 'not-allowed',
+            cursor: (isStarted && hasNeedleTip) ? 'pointer' : 'not-allowed',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             height: '30dvh',
-            opacity: isStarted ? 1 : 0.6
+            opacity: (isStarted && hasNeedleTip) ? 1 : 0.6
           }}
         >
           NG
@@ -173,21 +173,21 @@ export default function JudgePanel({ onJudge, isStarted, onReset, camera1Ref, ca
         {/* PASS 버튼 */}
         <Button
           onClick={handlePassClick}
-          disabled={!isStarted}
+          disabled={!isStarted || !hasNeedleTip}
           style={{
             flex: 1,
-            backgroundColor: isStarted ? '#0CB56C' : '#6B7280',
+            backgroundColor: (isStarted && hasNeedleTip) ? '#0CB56C' : '#6B7280',
             color: 'white',
             fontSize: '2dvh',
             fontWeight: 'bold',
             border: 'none',
             borderRadius: '0.375rem',
-            cursor: isStarted ? 'pointer' : 'not-allowed',
+            cursor: (isStarted && hasNeedleTip) ? 'pointer' : 'not-allowed',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             height: '30dvh',
-            opacity: isStarted ? 1 : 0.6
+            opacity: (isStarted && hasNeedleTip) ? 1 : 0.6
           }}
         >
           PASS

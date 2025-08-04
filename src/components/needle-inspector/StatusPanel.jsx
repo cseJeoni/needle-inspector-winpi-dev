@@ -1,13 +1,11 @@
 import Panel from "./Panel"
 
-export default function StatusPanel({ mode, workStatus = 'waiting' }) {
+export default function StatusPanel({ mode, workStatus = 'waiting', readEepromData = null }) {
   // 상태에 따른 스타일과 메시지 정의
   const getStatusInfo = (status) => {
     switch (status) {
       case 'waiting':
         return { bg: 'bg-[#646683]', text: '작업 대기', textColor: 'text-white' }
-      case 'connected':
-        return { bg: 'bg-[#F3950F]', text: '니들팁 체결', textColor: 'text-white' }
       case 'disconnected':
         return { bg: 'bg-[#F3950F]', text: '니들팁 없음', textColor: 'text-white' }
       case 'write_success':
@@ -19,7 +17,17 @@ export default function StatusPanel({ mode, workStatus = 'waiting' }) {
     }
   }
 
-  const statusInfo = getStatusInfo(workStatus)
+  // EEPROM 상태에 따라 실시간으로 상태 결정
+  let effectiveStatus;
+  if (!readEepromData || !readEepromData.success) {
+    // EEPROM이 연결되지 않았으면 다른 모든 상태를 무시하고 '니들팁 없음' 표시
+    effectiveStatus = 'disconnected';
+  } else {
+    // EEPROM이 연결되어 있으면 workStatus를 따름 ('니들팁 체결' 상태는 더 이상 사용 안 함)
+    effectiveStatus = workStatus;
+  }
+
+  const statusInfo = getStatusInfo(effectiveStatus)
 
   return (
     <Panel title="작업 상태">

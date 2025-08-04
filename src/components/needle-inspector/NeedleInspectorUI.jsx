@@ -48,6 +48,7 @@ export default function NeedleInspectorUI() {
   const [drawMode1, setDrawMode1] = useState(false)
   const [selectedIndex1, setSelectedIndex1] = useState(-1)
   const [lineInfo1, setLineInfo1] = useState('선 정보: 없음')
+  const [calibrationValue1, setCalibrationValue1] = useState(3.78) // 기본 캘리브레이션 값 (px/mm)
   const canvasRef1 = useRef(null)
   const videoContainerRef1 = useRef(null)
   const cameraViewRef1 = useRef(null) // CameraView ref 추가
@@ -56,6 +57,7 @@ export default function NeedleInspectorUI() {
   const [drawMode2, setDrawMode2] = useState(false)
   const [selectedIndex2, setSelectedIndex2] = useState(-1)
   const [lineInfo2, setLineInfo2] = useState('선 정보: 없음')
+  const [calibrationValue2, setCalibrationValue2] = useState(3.78) // 기본 캘리브레이션 값 (px/mm)
   const canvasRef2 = useRef(null)
   const videoContainerRef2 = useRef(null)
   const cameraViewRef2 = useRef(null) // CameraView ref 추가
@@ -77,8 +79,8 @@ export default function NeedleInspectorUI() {
     }
   }
 
-  // 선 그리기 및 정보 표시 함수
-  const drawLineWithInfo = (ctx, line, color, showText) => {
+  // 선 그리기 및 정보 표시 함수 (캘리브레이션 값 적용)
+  const drawLineWithInfo = (ctx, line, color, showText, calibrationValue = 3.78) => {
     const { x1, y1, x2, y2 } = line
     
     // ctx가 null이 아닐 때만 그리기 실행
@@ -96,9 +98,9 @@ export default function NeedleInspectorUI() {
         const dx = x2 - x1
         const dy = y2 - y1
         const length = Math.sqrt(dx * dx + dy * dy)
-        const mm = length * PX_TO_MM
+        const mm = (length / calibrationValue) * 4.9 // 디노라이트 방식: 입력값 10 → 표시값 4.9 비율
         let angle = Math.atan2(dy, dx) * 180 / Math.PI
-        ctx.fillText(`${mm.toFixed(1)}mm (${angle.toFixed(1)}°)`, (x1 + x2) / 2 + 5, (y1 + y2) / 2 - 5)
+        ctx.fillText(`${mm.toFixed(2)}mm (${angle.toFixed(1)}°)`, (x1 + x2) / 2 + 5, (y1 + y2) / 2 - 5)
       }
     }
 
@@ -106,7 +108,7 @@ export default function NeedleInspectorUI() {
     const dx = x2 - x1
     const dy = y2 - y1
     const length = Math.sqrt(dx * dx + dy * dy)
-    const mm = length * PX_TO_MM
+    const mm = (length / calibrationValue) * 4.9 // 디노라이트 방식: 입력값 10 → 표시값 4.9 비율
     let angle = Math.atan2(dy, dx) * 180 / Math.PI
 
     return { length: length.toFixed(1), mm: mm.toFixed(2), angle: angle.toFixed(2) }
@@ -168,7 +170,7 @@ export default function NeedleInspectorUI() {
       for (let i = lines1.length - 1; i >= 0; i--) {
         if (isPointOnLine(pos, lines1[i])) {
           setSelectedIndex1(i)
-          const lineData = drawLineWithInfo(null, lines1[i], 'blue', false)
+          const lineData = drawLineWithInfo(null, lines1[i], 'blue', false, calibrationValue1)
           setLineInfo1(`선 ${i + 1}: ${lineData.mm}mm (${lineData.angle}°)`)
           redrawCanvas1()
           return
@@ -189,11 +191,11 @@ export default function NeedleInspectorUI() {
       ctx.clearRect(0, 0, canvas.width, canvas.height)
       
       // 기존 선들 그리기
-      drawLines(ctx, lines1, selectedIndex1)
+      drawLines(ctx, lines1, selectedIndex1, calibrationValue1)
       
       // 임시 선 그리기
       const tempLine = { x1: startPoint1.x, y1: startPoint1.y, x2: snappedPos.x, y2: snappedPos.y }
-      drawLineWithInfo(ctx, tempLine, 'orange', true)
+      drawLineWithInfo(ctx, tempLine, 'orange', true, calibrationValue1)
     },
     handleMouseUp: (e) => {
       if (!drawMode1 || !isDrawing1 || !startPoint1) return
@@ -210,7 +212,7 @@ export default function NeedleInspectorUI() {
       setDrawMode1(false)
       setSelectedIndex1(newLines.length - 1)
       
-      const lineData = drawLineWithInfo(null, newLine, 'blue', false)
+      const lineData = drawLineWithInfo(null, newLine, 'blue', false, calibrationValue1)
       setLineInfo1(`선 ${newLines.length}: ${lineData.mm}mm (${lineData.angle}°)`)
     },
     handleDeleteLine: () => {
@@ -239,7 +241,7 @@ export default function NeedleInspectorUI() {
       for (let i = lines2.length - 1; i >= 0; i--) {
         if (isPointOnLine(pos, lines2[i])) {
           setSelectedIndex2(i)
-          const lineData = drawLineWithInfo(null, lines2[i], 'blue', false)
+          const lineData = drawLineWithInfo(null, lines2[i], 'blue', false, calibrationValue2)
           setLineInfo2(`선 ${i + 1}: ${lineData.mm}mm (${lineData.angle}°)`)
           redrawCanvas2()
           return
@@ -260,11 +262,11 @@ export default function NeedleInspectorUI() {
       ctx.clearRect(0, 0, canvas.width, canvas.height)
       
       // 기존 선들 그리기
-      drawLines(ctx, lines2, selectedIndex2)
+      drawLines(ctx, lines2, selectedIndex2, calibrationValue2)
       
       // 임시 선 그리기
       const tempLine = { x1: startPoint2.x, y1: startPoint2.y, x2: snappedPos.x, y2: snappedPos.y }
-      drawLineWithInfo(ctx, tempLine, 'orange', true)
+      drawLineWithInfo(ctx, tempLine, 'orange', true, calibrationValue2)
     },
     handleMouseUp: (e) => {
       if (!drawMode2 || !isDrawing2 || !startPoint2) return
@@ -281,7 +283,7 @@ export default function NeedleInspectorUI() {
       setDrawMode2(false)
       setSelectedIndex2(newLines.length - 1)
       
-      const lineData = drawLineWithInfo(null, newLine, 'blue', false)
+      const lineData = drawLineWithInfo(null, newLine, 'blue', false, calibrationValue2)
       setLineInfo2(`선 ${newLines.length}: ${lineData.mm}mm (${lineData.angle}°)`)
     },
     handleDeleteLine: () => {
@@ -295,11 +297,11 @@ export default function NeedleInspectorUI() {
     }
   }
 
-  // 선 그리기 헬퍼 함수
-  const drawLines = (ctx, lines, selectedIndex) => {
+  // 선 그리기 헬퍼 함수 (캘리브레이션 값 적용)
+  const drawLines = (ctx, lines, selectedIndex, calibrationValue) => {
     lines.forEach((line, index) => {
       const isSelected = index === selectedIndex
-      drawLineWithInfo(ctx, line, isSelected ? 'cyan' : 'red', isSelected)
+      drawLineWithInfo(ctx, line, isSelected ? 'cyan' : 'red', isSelected, calibrationValue)
     })
   }
 
@@ -309,7 +311,7 @@ export default function NeedleInspectorUI() {
     if (!canvas) return
     const ctx = canvas.getContext('2d')
     ctx.clearRect(0, 0, canvas.width, canvas.height)
-    drawLines(ctx, lines1, selectedIndex1)
+    drawLines(ctx, lines1, selectedIndex1, calibrationValue1)
   }
 
   const redrawCanvas2 = () => {
@@ -317,7 +319,7 @@ export default function NeedleInspectorUI() {
     if (!canvas) return
     const ctx = canvas.getContext('2d')
     ctx.clearRect(0, 0, canvas.width, canvas.height)
-    drawLines(ctx, lines2, selectedIndex2)
+    drawLines(ctx, lines2, selectedIndex2, calibrationValue2)
   }
 
   // 캔버스 리사이즈 함수
@@ -338,11 +340,11 @@ export default function NeedleInspectorUI() {
 
   useEffect(() => {
     redrawCanvas1()
-  }, [lines1, selectedIndex1])
+  }, [lines1, selectedIndex1, calibrationValue1])
 
   useEffect(() => {
     redrawCanvas2()
-  }, [lines2, selectedIndex2])
+  }, [lines2, selectedIndex2, calibrationValue2])
 
   // 모터 WebSocket 연결 및 자동 연결
   useEffect(() => {
@@ -400,8 +402,10 @@ export default function NeedleInspectorUI() {
             }
           }
         } else if (res.type === "status") {
-          // 상태 업데이트 (모터 + GPIO)
-          const { position, gpio18 } = res.data
+          // 상태 업데이트 (모터 + GPIO + EEPROM)
+          console.log("🔍 [DEBUG] 전체 status 데이터:", res)
+          const { position, gpio18, eeprom } = res.data
+          console.log("🔍 [DEBUG] eeprom 필드:", eeprom)
           setCurrentPosition(position)
           
           // 니들 위치 판단 (840: UP, 0: DOWN)
@@ -411,6 +415,14 @@ export default function NeedleInspectorUI() {
             setNeedlePosition('DOWN')
           } else {
             setNeedlePosition('MOVING')
+          }
+          
+          // EEPROM 데이터 업데이트 (실시간)
+          if (eeprom) {
+            setReadEepromData(eeprom.success ? eeprom : null)
+            if (eeprom.success) {
+              console.log("📊 EEPROM 데이터 업데이트:", eeprom)
+            }
           }
           
           // GPIO 18번 상태 업데이트 및 토글 감지
@@ -653,6 +665,30 @@ export default function NeedleInspectorUI() {
           <div style={{ fontSize: '10px', marginTop: '2px' }}>
             GPIO 18: {gpioState}
           </div>
+          {/* EEPROM 정보 표시 */}
+          <div style={{ 
+            fontSize: '10px', 
+            marginTop: '2px', 
+            borderTop: '1px solid rgba(0,0,0,0.1)', 
+            paddingTop: '2px',
+            color: readEepromData ? '#155724' : '#721c24',
+            fontWeight: 'bold'
+          }}>
+            {readEepromData ? 'EEPROM: 읽기 성공' : '🚫 니들팁 없음'}
+          </div>
+          {readEepromData && (
+            <>
+              <div style={{ fontSize: '9px', marginTop: '1px' }}>
+                TIP: {readEepromData.tipType} | SHOT: {readEepromData.shotCount}
+              </div>
+              <div style={{ fontSize: '9px', marginTop: '1px' }}>
+                DATE: {readEepromData.year}-{String(readEepromData.month).padStart(2, '0')}-{String(readEepromData.day).padStart(2, '0')}
+              </div>
+              <div style={{ fontSize: '9px', marginTop: '1px' }}>
+                MAKER: {readEepromData.makerCode}
+              </div>
+            </>
+          )}
           {motorError && (
             <div style={{ fontSize: '10px', marginTop: '2px', opacity: 0.8 }}>
               {motorError}
@@ -677,6 +713,8 @@ export default function NeedleInspectorUI() {
             handlers={handlers1}
             canvasRef={canvasRef1}
             videoContainerRef={videoContainerRef1}
+            calibrationValue={calibrationValue1}
+            onCalibrationChange={setCalibrationValue1}
             ref={cameraViewRef1} // CameraView ref 추가
           />
           <CameraView 
@@ -692,13 +730,15 @@ export default function NeedleInspectorUI() {
             handlers={handlers2}
             canvasRef={canvasRef2}
             videoContainerRef={videoContainerRef2}
+            calibrationValue={calibrationValue2}
+            onCalibrationChange={setCalibrationValue2}
             ref={cameraViewRef2} // CameraView ref 추가
           />
         </div>
 
         {/* Bottom Control Panels */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 flex-1 min-h-0 overflow-y-auto">
-          <StatusPanel mode={mode} workStatus={workStatus} />
+          <StatusPanel mode={mode} workStatus={workStatus} readEepromData={readEepromData} />
           <DataSettingsPanel 
             makerCode={makerCode} 
             onWorkStatusChange={setWorkStatus}
@@ -720,6 +760,7 @@ export default function NeedleInspectorUI() {
             onReset={handleJudgeReset}
             camera1Ref={cameraViewRef1} // camera1Ref 전달
             camera2Ref={cameraViewRef2} // camera2Ref 전달
+            hasNeedleTip={!!readEepromData} // EEPROM 상태를 니들팁 존재 여부로 전달
           />
         </div>
       </main>

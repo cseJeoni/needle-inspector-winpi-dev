@@ -12,6 +12,19 @@ from motor_mode_generators import (
     generate_speed_force_mode_command
 )
 
+# EEPROM 관련 import
+try:
+    import smbus2
+    eeprom_available = True
+    print("[OK] EEPROM 기능 활성화 (smbus2)")
+except ImportError:
+    eeprom_available = False
+    print("[ERROR] smbus2 모듈을 찾을 수 없습니다. EEPROM 기능이 비활성화됩니다.")
+
+# EEPROM 설정
+I2C_BUS = 1
+EEPROM_ADDRESS = 0x50
+
 class MotorThreadedController:
     def __init__(self):
         self.serial = None
@@ -26,7 +39,66 @@ class MotorThreadedController:
         self.position = 0
         self.force = 0
         self.sensor = 0
+        
+        # EEPROM 관련 변수
+        self.eeprom_data = {
+            "success": False,
+            "tipType": 0,
+            "shotCount": 0,
+            "year": 0,
+            "month": 0,
+            "day": 0,
+            "makerCode": 0
+        }
+        self.last_eeprom_read_time = 0
+        self.eeprom_read_interval = 1.0  # 1초마다 EEPROM 읽기
 
+    def read_eeprom_data(self):
+        """
+        EEPROM에서 데이터 읽기
+        """
+        if not eeprom_available:
+            return {"success": False, "error": "EEPROM 기능이 비활성화되어 있습니다."}
+        
+        try:
+            bus = smbus2.SMBus(I2C_BUS)
+            
+            # TIP TYPE 읽기 (0x10)
+            tip_type = bus.read_byte_data(EEPROM_ADDRESS, 0x10)
+            
+            # SHOT COUNT 읽기 (0x11~0x12)
+            shot_count_bytes = bus.read_i2c_block_data(EEPROM_ADDRESS, 0x11, 2)
+            shot_count = shot_count_bytes[0] << 8 | shot_count_bytes[1]
+            
+            # 제조일 읽기 (0x19~0x1B)
+            manufacture_date = bus.read_i2c_block_data(EEPROM_ADDRESS, 0x19, 3)
+            year = 2000 + manufacture_date[0]
+            month = manufacture_date[1]
+            day = manufacture_date[2]
+            
+            # 제조사 코드 읽기 (0x1C)
+            maker_code = bus.read_byte_data(EEPROM_ADDRESS, 0x1C)
+            
+            bus.close()
+            
+            result = {
+                "success": True,
+                "tipType": tip_type,
+                "shotCount": shot_count,
+                "year": year,
+                "month": month,
+                "day": day,
+                "makerCode": maker_code
+            }
+            
+            # 내부 변수 업데이트
+            self.eeprom_data = result
+            return result
+            
+        except Exception as e:
+            error_result = {"success": False, "error": f"EEPROM 읽기 실패: {str(e)}"}
+            self.eeprom_data = error_result
+            return error_result
 
     def get_platform_port(self, port):
         """플랫폼에 따라 적절한 포트 이름을 반환합니다."""
@@ -167,6 +239,21 @@ class MotorThreadedController:
         while self.running:
             try:
                 time.sleep(0.01)
+                
+                # EEPROM 주기적 읽기 (1초마다)
+                current_time = time.time()
+                if current_time - self.last_eeprom_read_time >= self.eeprom_read_interval:
+                    self.last_eeprom_read_time = current_time
+                    try:
+                        eeprom_result = self.read_eeprom_data()
+                        if eeprom_result["success"]:
+                            print(f"[EEPROM] TIP:{eeprom_result['tipType']}, SHOT:{eeprom_result['shotCount']}, DATE:{eeprom_result['year']}-{eeprom_result['month']:02d}-{eeprom_result['day']:02d}, MAKER:{eeprom_result['makerCode']}")
+                        else:
+                            print(f"[EEPROM] 읽기 실패: {eeprom_result.get('error', '알 수 없는 오류')}")
+                    except Exception as eeprom_error:
+                        print(f"[EEPROM] 예외 발생: {str(eeprom_error)}")
+                
+                # 기존 모터 시리얼 통신 로직
                 # 리눅스에서는 in_waiting 속성이 더 안정적
                 if hasattr(self.serial, 'in_waiting') and self.serial.in_waiting > 0:
                     data = self.serial.read(self.serial.in_waiting)

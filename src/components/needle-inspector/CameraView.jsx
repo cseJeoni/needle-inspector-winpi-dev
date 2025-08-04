@@ -31,7 +31,9 @@ const CameraView = forwardRef(({
   lineInfo, 
   handlers, 
   canvasRef, 
-  videoContainerRef 
+  videoContainerRef,
+  calibrationValue,
+  onCalibrationChange
 }, ref) => {
 
   // 카메라 이미지 + 캔버스 오버레이 + 시간 텍스트를 포함한 이미지 캡처
@@ -195,6 +197,19 @@ const CameraView = forwardRef(({
           >
             선 삭제
           </button>
+          <div className="calibration-container">
+            <label className="calibration-label">스케일 (px/mm):</label>
+            <input 
+              type="number"
+              step="0.01"
+              min="0.1"
+              max="100"
+              value={calibrationValue}
+              onChange={(e) => onCalibrationChange(parseFloat(e.target.value) || 3.78)}
+              className="calibration-input"
+              placeholder="3.78"
+            />
+          </div>
         </div>
       </div>
       <div className="line-info">{lineInfo}</div>

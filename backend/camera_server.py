@@ -100,22 +100,53 @@ initialize_cameras()
 
 def generate_frames():
     global cap
+    error_count = 0
+    max_errors = 10
+    frame_count = 0
+    
     while True:
         if cap is None or not cap.isOpened():
             print("[ERROR] 카메라 0번이 연결되지 않음")
             break
             
         try:
+            # 주기적으로 버퍼 클리어 (100프레임마다)
+            if frame_count % 100 == 0 and frame_count > 0:
+                cap.grab()  # 버퍼 클리어
+                
             success, frame = cap.read()
             if not success:
-                print("[ERROR] 카메라 0번에서 프레임 읽기 실패, 재시도 중...")
-                time.sleep(0.5) # 잠시 대기 후 재시도
+                error_count += 1
+                print(f"[ERROR] 카메라 0번에서 프레임 읽기 실패 ({error_count}/{max_errors})")
+                
+                if error_count >= max_errors:
+                    print("[ERROR] 카메라 0번 최대 오류 횟수 초과, 카메라 재초기화 시도")
+                    initialize_cameras()
+                    error_count = 0
+                    time.sleep(2)
+                    continue
+                    
+                time.sleep(0.5)
                 continue
-        except cv2.error as e:
-            print(f"[ERROR] 카메라 0번 프레임 읽기 오류: {e}, 재시도 중...")
-            time.sleep(0.5) # 잠시 대기 후 재시도
+                
+        except Exception as e:
+            error_count += 1
+            print(f"[ERROR] 카메라 0번 예외 발생 ({error_count}/{max_errors}): {e}")
+            
+            if error_count >= max_errors:
+                print("[ERROR] 카메라 0번 최대 오류 횟수 초과, 카메라 재초기화 시도")
+                initialize_cameras()
+                error_count = 0
+                time.sleep(2)
+                continue
+                
+            time.sleep(0.5)
             continue
 
+        # 성공적으로 프레임을 읽었으면 에러 카운터 리셋
+        error_count = 0
+        frame_count += 1
+        
         ret, buffer = cv2.imencode('.jpg', frame)
         if not ret:
             print("[ERROR] 카메라 0번 프레임 인코딩 실패")
@@ -128,22 +159,53 @@ def generate_frames():
 
 def generate_frames2():
     global cap2
+    error_count = 0
+    max_errors = 10
+    frame_count = 0
+    
     while True:
         if cap2 is None or not cap2.isOpened():
             print("[ERROR] 카메라 2번이 연결되지 않음")
             break
             
         try:
+            # 주기적으로 버퍼 클리어 (100프레임마다)
+            if frame_count % 100 == 0 and frame_count > 0:
+                cap2.grab()  # 버퍼 클리어
+                
             success, frame = cap2.read()
             if not success:
-                print("[ERROR] 카메라 2번에서 프레임 읽기 실패, 재시도 중...")
-                time.sleep(0.5) # 잠시 대기 후 재시도
+                error_count += 1
+                print(f"[ERROR] 카메라 2번에서 프레임 읽기 실패 ({error_count}/{max_errors})")
+                
+                if error_count >= max_errors:
+                    print("[ERROR] 카메라 2번 최대 오류 횟수 초과, 카메라 재초기화 시도")
+                    initialize_cameras()
+                    error_count = 0
+                    time.sleep(2)
+                    continue
+                    
+                time.sleep(0.5)
                 continue
-        except cv2.error as e:
-            print(f"[ERROR] 카메라 2번 프레임 읽기 오류: {e}, 재시도 중...")
-            time.sleep(0.5) # 잠시 대기 후 재시도
+                
+        except Exception as e:
+            error_count += 1
+            print(f"[ERROR] 카메라 2번 예외 발생 ({error_count}/{max_errors}): {e}")
+            
+            if error_count >= max_errors:
+                print("[ERROR] 카메라 2번 최대 오류 횟수 초과, 카메라 재초기화 시도")
+                initialize_cameras()
+                error_count = 0
+                time.sleep(2)
+                continue
+                
+            time.sleep(0.5)
             continue
 
+        # 성공적으로 프레임을 읽었으면 에러 카운터 리셋
+        error_count = 0
+        frame_count += 1
+        
         ret, buffer = cv2.imencode('.jpg', frame)
         if not ret:
             print("[ERROR] 카메라 2번 프레임 인코딩 실패")
