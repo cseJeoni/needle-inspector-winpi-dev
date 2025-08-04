@@ -48,7 +48,7 @@ export default function NeedleInspectorUI() {
   const [drawMode1, setDrawMode1] = useState(false)
   const [selectedIndex1, setSelectedIndex1] = useState(-1)
   const [lineInfo1, setLineInfo1] = useState('선 정보: 없음')
-  const [calibrationValue1, setCalibrationValue1] = useState(3.78) // 기본 캘리브레이션 값 (px/mm)
+  const [calibrationValue1, setCalibrationValue1] = useState(19.8) // 실측 캘리브레이션 값 (99px = 5mm)
   const canvasRef1 = useRef(null)
   const videoContainerRef1 = useRef(null)
   const cameraViewRef1 = useRef(null) // CameraView ref 추가
@@ -57,7 +57,7 @@ export default function NeedleInspectorUI() {
   const [drawMode2, setDrawMode2] = useState(false)
   const [selectedIndex2, setSelectedIndex2] = useState(-1)
   const [lineInfo2, setLineInfo2] = useState('선 정보: 없음')
-  const [calibrationValue2, setCalibrationValue2] = useState(3.78) // 기본 캘리브레이션 값 (px/mm)
+  const [calibrationValue2, setCalibrationValue2] = useState(19.8) // 실측 캘리브레이션 값 (99px = 5mm)
   const canvasRef2 = useRef(null)
   const videoContainerRef2 = useRef(null)
   const cameraViewRef2 = useRef(null) // CameraView ref 추가
@@ -80,7 +80,7 @@ export default function NeedleInspectorUI() {
   }
 
   // 선 그리기 및 정보 표시 함수 (캘리브레이션 값 적용)
-  const drawLineWithInfo = (ctx, line, color, showText, calibrationValue = 3.78) => {
+  const drawLineWithInfo = (ctx, line, color, showText, calibrationValue = 19.8) => {
     const { x1, y1, x2, y2 } = line
     
     // ctx가 null이 아닐 때만 그리기 실행
@@ -98,9 +98,9 @@ export default function NeedleInspectorUI() {
         const dx = x2 - x1
         const dy = y2 - y1
         const length = Math.sqrt(dx * dx + dy * dy)
-        const mm = (length / calibrationValue) * 4.9 // 디노라이트 방식: 입력값 10 → 표시값 4.9 비율
+        const mm = length / calibrationValue // 올바른 공식: 픽셀거리 / (px/mm) = mm
         let angle = Math.atan2(dy, dx) * 180 / Math.PI
-        ctx.fillText(`${mm.toFixed(2)}mm (${angle.toFixed(1)}°)`, (x1 + x2) / 2 + 5, (y1 + y2) / 2 - 5)
+        ctx.fillText(`${length.toFixed(1)}px / ${mm.toFixed(2)}mm (${angle.toFixed(1)}°)`, (x1 + x2) / 2 + 5, (y1 + y2) / 2 - 5)
       }
     }
 
@@ -108,7 +108,7 @@ export default function NeedleInspectorUI() {
     const dx = x2 - x1
     const dy = y2 - y1
     const length = Math.sqrt(dx * dx + dy * dy)
-    const mm = (length / calibrationValue) * 4.9 // 디노라이트 방식: 입력값 10 → 표시값 4.9 비율
+    const mm = length / calibrationValue // 올바른 공식: 픽셀거리 / (px/mm) = mm
     let angle = Math.atan2(dy, dx) * 180 / Math.PI
 
     return { length: length.toFixed(1), mm: mm.toFixed(2), angle: angle.toFixed(2) }
@@ -301,7 +301,7 @@ export default function NeedleInspectorUI() {
   const drawLines = (ctx, lines, selectedIndex, calibrationValue) => {
     lines.forEach((line, index) => {
       const isSelected = index === selectedIndex
-      drawLineWithInfo(ctx, line, isSelected ? 'cyan' : 'red', isSelected, calibrationValue)
+      drawLineWithInfo(ctx, line, isSelected ? 'cyan' : 'red', true, calibrationValue)
     })
   }
 
@@ -644,7 +644,7 @@ export default function NeedleInspectorUI() {
       {/* 모터 연결 상태 표시 */}
       <div style={{
         position: 'fixed',
-        top: '20px',
+        top: '520px',
         right: '20px',
         zIndex: 1000
       }}>

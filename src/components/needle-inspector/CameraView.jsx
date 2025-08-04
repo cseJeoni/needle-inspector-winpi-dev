@@ -205,9 +205,9 @@ const CameraView = forwardRef(({
               min="0.1"
               max="100"
               value={calibrationValue}
-              onChange={(e) => onCalibrationChange(parseFloat(e.target.value) || 3.78)}
+              onChange={(e) => onCalibrationChange(parseFloat(e.target.value) || 19.8)}
               className="calibration-input"
-              placeholder="3.78"
+              placeholder="19.8"
             />
           </div>
         </div>

@@ -1,0 +1,20 @@
+License Agreement for 'DNX64' Software Development Kit
+
+This Limited Use Software License Agreement (the "Agreement") is a legal agreement between you, the end-user ("Licensee"), and AnMo Electronics Corp ("AnMo").   By using or storing this program ("DNX64") on a computer hard drive or other media, you are agreeing to be bound by the terms of this Agreement.
+
+Licensee may not alter this DNX64 in any way, including changing or removing any messages or windows.
+
+Licensee may not decompile, reverse engineer, disassemble or otherwise reduce this DNX64 to a human perceivable form. Licensee may not modify, rent or resell the DNX64 for profit.  Licensee may not publicize or distribute any registration code algorithms, information, or registration codes used by the DNX64 without permission of AnMo.
+
+Licensee written applications containing embedded DNX64 control may be freely distributed, without royalty payments to AnMo, provided that such distributed product is bound into these applications in such a way so as to prohibit separate use in design mode, and that the DNX64 in such product is used only in conjunction with the hardware manufactured by AnMo.
+
+This DNX64 may be used as a constituent control only if the compound control thus created is distributed with and as an integral part of an application. The license may not be transferred to a third party under any circumstance.
+
+This DNX64 is provided by AnMo on an "as is" basis. AnMo makes no warranty, expressed or implied, including without limitation the implied warranties of merchantability and fitness for a particular purpose, regarding the DNX64 or its use and operation alone or in combination with any product.
+
+Under no circumstances shall AnMo be liable for any incidental or consequential damages, nor for any damages in excess of the original purchase price.
+
+To the best of Vendor's knowledge, Customer's permitted use of the Licensed Software will not infringe the intellectual property rights of any third party.
+
+Compliance with Applicable Law. Vendor warrants that the services provided under this Agreement and Customer's permitted use of the Licensed Software shall comply with applicable federal, state, and local laws and regulations.
+
