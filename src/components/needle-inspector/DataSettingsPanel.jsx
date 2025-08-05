@@ -312,8 +312,20 @@ export default function DataSettingsPanel({ makerCode, onWorkStatusChange, isSta
         readFromEEPROM()
       }, 1000) // 1초 후 읽기 수행 (쓰기 완료 대기)
     } else {
-      // STOP 버튼을 눌렀을 때 대기 상태로 복귀
+      // STOP 버튼을 눌렀을 때 모터 DOWN 명령 전송 후 대기 상태로 복귀
       onWorkStatusChange && onWorkStatusChange('waiting')
+      
+      // 모터 DOWN 명령 전송
+      try {
+        const needleWs = new WebSocket('ws://192.168.0.122:8765')
+        needleWs.onopen = () => {
+          console.log('모터 DOWN 명령 전송')
+          needleWs.send(JSON.stringify({ cmd: "move", position: 0, mode: "position" })) // 모터 DOWN
+          needleWs.close()
+        }
+      } catch (error) {
+        console.error('모터 DOWN 명령 전송 실패:', error)
+      }
     }
     
     onStartedChange && onStartedChange(!isStarted)
