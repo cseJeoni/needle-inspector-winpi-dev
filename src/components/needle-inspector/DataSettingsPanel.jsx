@@ -13,6 +13,9 @@ export default function DataSettingsPanel({ makerCode, onWorkStatusChange, isSta
   const [selectedDay, setSelectedDay] = useState("")
   const [selectedCountry, setSelectedCountry] = useState("ilooda")
   const [selectedNeedleType, setSelectedNeedleType] = useState("25&16")
+  
+  // 저장 데이터 설정 활성화 상태 (기본값: 비활성화)
+  const [isDataSettingsEnabled, setIsDataSettingsEnabled] = useState(false)
 
   // 현재 날짜 정보
   const currentDate = new Date()
@@ -284,6 +287,12 @@ export default function DataSettingsPanel({ makerCode, onWorkStatusChange, isSta
     }
   }
   
+  // 저장 데이터 설정 활성화/비활성화 토글 함수
+  const handleDataSettingsToggle = () => {
+    setIsDataSettingsEnabled(!isDataSettingsEnabled)
+    console.log(`저장 데이터 설정: ${!isDataSettingsEnabled ? '활성화' : '비활성화'}`)
+  }
+
   const handleToggle = async () => {
     const tipType = calculateTipType()
     console.log('TIP TYPE:', tipType)
@@ -368,7 +377,7 @@ export default function DataSettingsPanel({ makerCode, onWorkStatusChange, isSta
         <div style={{ display: 'flex', gap: '0.5dvw' }}>
           <div style={{ display: 'flex', alignItems: 'center', flex: 1, gap: '0.5dvw' }}>
             <label style={{ width: '20%', fontSize: '1.5dvh', color: '#D1D5DB' }}>국가</label>
-            <Select value={selectedCountry} onValueChange={handleCountryChange} disabled={isStarted}>
+            <Select value={selectedCountry} onValueChange={handleCountryChange} disabled={isStarted || !isDataSettingsEnabled}>
               <SelectTrigger style={{ backgroundColor: '#171C26', border: 'none', color: 'white', fontSize: '1.2dvh', width: '100%', height: '3.5dvh' }}>
                 <SelectValue />
               </SelectTrigger>
@@ -381,7 +390,7 @@ export default function DataSettingsPanel({ makerCode, onWorkStatusChange, isSta
           </div>
           <div style={{ display: 'flex', alignItems: 'center', flex: 1, gap: '1dvw' }}>
             <label style={{ width: '20%', fontSize: '1.5dvh', color: '#D1D5DB' }}>니들</label>
-            <Select value={selectedNeedleType} onValueChange={handleNeedleTypeChange} disabled={isStarted}>
+            <Select value={selectedNeedleType} onValueChange={handleNeedleTypeChange} disabled={isStarted || !isDataSettingsEnabled}>
               <SelectTrigger style={{ backgroundColor: '#171C26', border: 'none', color: 'white', fontSize: '1.2dvh', width: '100%', height: '3.5dvh' }}>
                 <SelectValue />
               </SelectTrigger>
@@ -398,7 +407,7 @@ export default function DataSettingsPanel({ makerCode, onWorkStatusChange, isSta
         <div style={{ display: 'flex', alignItems: 'center' }}>
           <label style={{ width: '25%', fontSize: '1.5dvh', color: '#D1D5DB' }}>날짜</label>
           <div style={{ display: 'flex', width: '100%', gap: '0.8dvw' }}>
-            <Select value={selectedYear} onValueChange={handleYearChange} disabled={isStarted}>
+            <Select value={selectedYear} onValueChange={handleYearChange} disabled={isStarted || !isDataSettingsEnabled}>
               <SelectTrigger style={{ backgroundColor: '#171C26', border: 'none', color: 'white', fontSize: '1.2dvh', height: '3.5dvh' }}>
                 <SelectValue />
               </SelectTrigger>
@@ -410,7 +419,7 @@ export default function DataSettingsPanel({ makerCode, onWorkStatusChange, isSta
                 ))}
               </SelectContent>
             </Select>
-            <Select value={selectedMonth} onValueChange={handleMonthChange} disabled={isStarted}>
+            <Select value={selectedMonth} onValueChange={handleMonthChange} disabled={isStarted || !isDataSettingsEnabled}>
               <SelectTrigger style={{ backgroundColor: '#171C26', border: 'none', color: 'white', fontSize: '1.2dvh', height: '3.5dvh' }}>
                 <SelectValue />
               </SelectTrigger>
@@ -422,7 +431,7 @@ export default function DataSettingsPanel({ makerCode, onWorkStatusChange, isSta
                 ))}
               </SelectContent>
             </Select>
-            <Select value={selectedDay} onValueChange={handleDayChange} disabled={isStarted}>
+            <Select value={selectedDay} onValueChange={handleDayChange} disabled={isStarted || !isDataSettingsEnabled}>
               <SelectTrigger style={{ backgroundColor: '#171C26', border: 'none', color: 'white', fontSize: '1.2dvh', height: '3.5dvh' }}>
                 <SelectValue />
               </SelectTrigger>
@@ -438,6 +447,23 @@ export default function DataSettingsPanel({ makerCode, onWorkStatusChange, isSta
         </div>
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '1dvh' }}>
+
+      <Button
+          onClick={handleDataSettingsToggle}
+          style={{
+            width: '100%',
+            fontWeight: 'bold',
+            padding: '0.8dvh 0',
+            fontSize: '1.8dvh',
+            backgroundColor: '#171C26',
+            color: 'white',
+            border: '1px solid white',
+            borderRadius: '0.375rem',
+            cursor: 'pointer'
+          }}
+        >
+          {isDataSettingsEnabled ? "비활성화" : "활성화"}
+        </Button>
         <Button
           onClick={handleToggle}
           style={{
@@ -454,6 +480,8 @@ export default function DataSettingsPanel({ makerCode, onWorkStatusChange, isSta
         >
           {isStarted ? "STOP" : "START"}
         </Button>
+
+
 
       </div>
 
