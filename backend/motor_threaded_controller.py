@@ -50,8 +50,7 @@ class MotorThreadedController:
             "day": 0,
             "makerCode": 0
         }
-        self.last_eeprom_read_time = 0
-        self.eeprom_read_interval = 1.0  # 1초마다 EEPROM 읽기
+        # EEPROM 주기적 읽기 제거 - GPIO23 인터럽트 방식으로 변경됨
 
     def read_eeprom_data(self):
         """
@@ -240,18 +239,8 @@ class MotorThreadedController:
             try:
                 time.sleep(0.01)
                 
-                # EEPROM 주기적 읽기 (1초마다)
-                current_time = time.time()
-                if current_time - self.last_eeprom_read_time >= self.eeprom_read_interval:
-                    self.last_eeprom_read_time = current_time
-                    try:
-                        eeprom_result = self.read_eeprom_data()
-                        if eeprom_result["success"]:
-                            print(f"[EEPROM] TIP:{eeprom_result['tipType']}, SHOT:{eeprom_result['shotCount']}, DATE:{eeprom_result['year']}-{eeprom_result['month']:02d}-{eeprom_result['day']:02d}, MAKER:{eeprom_result['makerCode']}")
-                        else:
-                            print(f"[EEPROM] 읽기 실패: {eeprom_result.get('error', '알 수 없는 오류')}")
-                    except Exception as eeprom_error:
-                        print(f"[EEPROM] 예외 발생: {str(eeprom_error)}")
+                # EEPROM 주기적 읽기 제거 - GPIO23 인터럽트 방식으로 변경됨
+                # EEPROM은 write 명령 시에만 읽음
                 
                 # 기존 모터 시리얼 통신 로직
                 # 리눅스에서는 in_waiting 속성이 더 안정적

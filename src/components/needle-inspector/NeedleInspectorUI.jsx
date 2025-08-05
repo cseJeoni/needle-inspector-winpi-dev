@@ -43,6 +43,7 @@ export default function NeedleInspectorUI() {
   // DataSettingsPanel 상태 관리
   const [isStarted, setIsStarted] = useState(false) // START/STOP 상태
   const [readEepromData, setReadEepromData] = useState(null) // EEPROM 읽기 데이터
+  const [needleTipConnected, setNeedleTipConnected] = useState(false) // GPIO23 기반 니들팁 연결 상태
   
   // Camera 1 상태
   const [drawMode1, setDrawMode1] = useState(false)
@@ -404,8 +405,8 @@ export default function NeedleInspectorUI() {
         } else if (res.type === "status") {
           // 상태 업데이트 (모터 + GPIO + EEPROM)
           console.log("🔍 [DEBUG] 전체 status 데이터:", res)
-          const { position, gpio18, eeprom } = res.data
-          console.log("🔍 [DEBUG] eeprom 필드:", eeprom)
+          const { position, gpio18, gpio23, needle_tip_connected, eeprom } = res.data
+          console.log("🔍 [DEBUG] GPIO23:", gpio23, "니들팁 연결:", needle_tip_connected, "EEPROM:", eeprom)
           setCurrentPosition(position)
           
           // 니들 위치 판단 (840: UP, 0: DOWN)
@@ -417,11 +418,19 @@ export default function NeedleInspectorUI() {
             setNeedlePosition('MOVING')
           }
           
-          // EEPROM 데이터 업데이트 (실시간)
+          // GPIO23 기반 니들팁 연결 상태 업데이트
+          if (typeof needle_tip_connected === 'boolean') {
+            setNeedleTipConnected(needle_tip_connected)
+            console.log("🔌 GPIO23 니들팁 상태 업데이트:", needle_tip_connected ? '연결됨' : '분리됨')
+          }
+          
+          // EEPROM 데이터 업데이트 (write 명령 시에만 업데이트됨)
           if (eeprom) {
             setReadEepromData(eeprom.success ? eeprom : null)
             if (eeprom.success) {
-              console.log("📊 EEPROM 데이터 업데이트:", eeprom)
+              console.log("📊 EEPROM 데이터 업데이트 (write 명령 시):", eeprom)
+            } else {
+              console.log("⚠️ EEPROM 읽기 실패:", eeprom.error)
             }
           }
           
@@ -665,16 +674,16 @@ export default function NeedleInspectorUI() {
           <div style={{ fontSize: '10px', marginTop: '2px' }}>
             GPIO 18: {gpioState}
           </div>
-          {/* EEPROM 정보 표시 */}
+          {/* GPIO23 기반 니들팁 연결 상태 표시 */}
           <div style={{ 
             fontSize: '10px', 
             marginTop: '2px', 
             borderTop: '1px solid rgba(0,0,0,0.1)', 
             paddingTop: '2px',
-            color: readEepromData ? '#155724' : '#721c24',
+            color: needleTipConnected ? '#155724' : '#721c24',
             fontWeight: 'bold'
           }}>
-            {readEepromData ? 'EEPROM: 읽기 성공' : '🚫 니들팁 없음'}
+            {needleTipConnected ? '✅ 니들팁 연결됨 (GPIO23 LOW)' : '🚫 니들팁 없음 (GPIO23 HIGH)'}
           </div>
           {readEepromData && (
             <>
@@ -738,7 +747,7 @@ export default function NeedleInspectorUI() {
 
         {/* Bottom Control Panels */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 flex-1 min-h-0 overflow-y-auto">
-          <StatusPanel mode={mode} workStatus={workStatus} readEepromData={readEepromData} />
+          <StatusPanel mode={mode} workStatus={workStatus} needleTipConnected={needleTipConnected} />
           <DataSettingsPanel 
             makerCode={makerCode} 
             onWorkStatusChange={setWorkStatus}
@@ -760,7 +769,7 @@ export default function NeedleInspectorUI() {
             onReset={handleJudgeReset}
             camera1Ref={cameraViewRef1} // camera1Ref 전달
             camera2Ref={cameraViewRef2} // camera2Ref 전달
-            hasNeedleTip={!!readEepromData} // EEPROM 상태를 니들팁 존재 여부로 전달
+            hasNeedleTip={needleTipConnected} // GPIO23 기반 니들팁 연결 상태 전달
           />
         </div>
       </main>

@@ -257,6 +257,12 @@ export default function DataSettingsPanel({ makerCode, onWorkStatusChange, isSta
           if (response.result.success) {
             console.log('EEPROM 쓰기 성공:', response.result)
             onWorkStatusChange && onWorkStatusChange('write_success')
+            
+            // 쓰기 성공 후 데이터를 바로 표시
+            if (response.result.data) {
+              onReadEepromDataChange && onReadEepromDataChange(response.result.data)
+              console.log('EEPROM 데이터 표시:', response.result.data)
+            }
           } else {
             console.error('EEPROM 쓰기 실패:', response.result.error)
             onWorkStatusChange && onWorkStatusChange('write_failed')

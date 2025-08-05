@@ -17,21 +17,66 @@ except ImportError:
 I2C_BUS = 1
 EEPROM_ADDRESS = 0x50
 
-# GPIO 초기화 (gpiozero 사용)
+# GPIO 초기화 (RPi.GPIO 사용)
 gpio_available = False
 pin18 = None
+needle_tip_connected = False  # 니들팁 연결 상태 (전역 변수)
+last_eeprom_data = {"success": False, "error": "니들팁이 연결되지 않음"}  # 마지막 EEPROM 상태
+
 try:
-    from gpiozero import DigitalInputDevice
+    import RPi.GPIO as GPIO
+    from gpiozero import DigitalInputDevice  # pin18용으로 gpiozero 유지
+    
+    # GPIO 모드 설정
+    GPIO.setmode(GPIO.BCM)
+    
+    # GPIO18은 기존 gpiozero 방식 유지
     pin18 = DigitalInputDevice(18)
+    
+    # GPIO23은 RPi.GPIO 방식으로 설정
+    GPIO.setup(23, GPIO.IN, pull_up_down=GPIO.PUD_UP)  # 풀업 저항 활성화
+    
     gpio_available = True
-    print("[OK] GPIO 18번 핀 입력 모드로 초기화 완료 (gpiozero)")
-except ImportError:
-    print("[ERROR] gpiozero 모듈을 찾을 수 없습니다. GPIO 기능이 비활성화됩니다.")
+    print("[OK] GPIO 18번(gpiozero), 23번(RPi.GPIO) 핀 입력 모드로 초기화 완료")
+except ImportError as ie:
+    print(f"[ERROR] GPIO 모듈을 찾을 수 없습니다: {ie}. GPIO 기능이 비활성화됩니다.")
 except Exception as e:
     print(f"[ERROR] GPIO 초기화 오류: {e}")
 
 motor = MotorThreadedController()
 connected_clients = set()
+
+# GPIO23 인터럽트 핸들러 (RPi.GPIO 방식) - 니들팁 상태만 관리
+def gpio23_callback(channel):
+    """GPIO23 상태 변화 시 호출되는 인터럽트 핸들러 - 니들팁 체결 상태만 확인"""
+    global needle_tip_connected
+    
+    if not gpio_available:
+        return
+    
+    # GPIO23 상태 읽기 (LOW = 니들팁 연결됨, HIGH = 니들팁 분리됨)
+    current_state = not GPIO.input(23)  # 반전 (LOW일 때 True)
+    
+    if current_state != needle_tip_connected:
+        needle_tip_connected = current_state
+        print(f"[GPIO23] 니들팁 상태 변경: {'연결됨' if needle_tip_connected else '분리됨'}")
+        
+        # EEPROM 데이터는 명시적으로 지우기 전까지 유지 (자동 초기화 제거)
+
+# GPIO23 인터럽트 설정 (RPi.GPIO 방식) - 니들팁 상태만 감지
+if gpio_available:
+    try:
+        # 초기 상태 설정
+        needle_tip_connected = not GPIO.input(23)  # LOW일 때 True
+        print(f"[GPIO23] 초기 니들팁 상태: {'연결됨' if needle_tip_connected else '분리됨'}")
+        
+        # 인터럽트 핸들러 등록 (BOTH 엣지에서 상태 변화 감지)
+        GPIO.add_event_detect(23, GPIO.BOTH, callback=gpio23_callback, bouncetime=200)
+        
+        # EEPROM 읽기는 write 명령 시에만 수행하므로 초기 로드 안 함
+        print("[OK] GPIO23 인터럽트 핸들러 등록 완료 (RPi.GPIO) - 니들팁 상태만 감지")
+    except Exception as e:
+        print(f"[ERROR] GPIO23 인터럽트 설정 오류: {e}")
 
 # EEPROM 관련 함수들
 def write_eeprom_data(tip_type, shot_count, year, month, day, maker_code):
@@ -269,6 +314,16 @@ async def handler(websocket):
                         }))
                     else:
                         result = write_eeprom_data(tip_type, shot_count, year, month, day, maker_code)
+                        
+                        # 쓰기 성공 후 바로 읽어서 데이터 포함
+                        if result.get("success"):
+                            read_result = read_eeprom_data()
+                            if read_result.get("success"):
+                                result["data"] = read_result  # 읽은 데이터를 응답에 포함
+                                print(f"[INFO] EEPROM 쓰기 후 읽기 성공: {read_result}")
+                            else:
+                                print(f"[WARN] EEPROM 쓰기 후 읽기 실패: {read_result}")
+                        
                         await websocket.send(json.dumps({
                             "type": "eeprom_write",
                             "result": result
@@ -299,37 +354,24 @@ async def handler(websocket):
         print("[INFO] 클라이언트 연결 해제됨")
 
 async def push_motor_status():
-    print("--- [DEBUG] push_motor_status: New logic is running ---", flush=True)
-    last_eeprom_read_time = 0
-    eeprom_read_interval = 1.0  # 1초마다 EEPROM 읽기
-    last_eeprom_data = {"success": False, "error": "Not read yet"}  # 마지막 EEPROM 상태 저장
-
+    print("--- [DEBUG] push_motor_status: GPIO23 interrupt-based logic is running ---", flush=True)
+    
     while True:
         await asyncio.sleep(0.05)
         if motor.is_connected():
             # GPIO 상태 읽기
-            gpio_state = "UNKNOWN"
+            gpio18_state = "UNKNOWN"
+            gpio23_state = "UNKNOWN"
+            
             if gpio_available and pin18:
                 gpio_value = pin18.value
-                gpio_state = "HIGH" if gpio_value else "LOW"
+                gpio18_state = "HIGH" if gpio_value else "LOW"
+            
+            if gpio_available:
+                gpio23_value = GPIO.input(23)
+                gpio23_state = "HIGH" if gpio23_value else "LOW"
 
-            # EEPROM 데이터 주기적 읽기 (1초마다)
-            current_time = time.time()
-            if current_time - last_eeprom_read_time >= eeprom_read_interval:
-                last_eeprom_read_time = current_time
-                try:
-                    read_result = read_eeprom_data()
-                    if read_result["success"]:
-                        last_eeprom_data = read_result
-                        # print(f"[EEPROM] TIP:{last_eeprom_data['tipType']}, SHOT:{last_eeprom_data['shotCount']}, DATE:{last_eeprom_data['year']}-{last_eeprom_data['month']:02d}-{last_eeprom_data['day']:02d}, MAKER:{last_eeprom_data['makerCode']}")
-                    else:
-                        last_eeprom_data = read_result
-                        # print(f"[EEPROM] Read failed: {read_result.get('error', 'Unknown error')}")
-
-                except Exception as eeprom_error:
-                    # print(f"[EEPROM] 예외 발생: {str(eeprom_error)}")
-                    last_eeprom_data = {"success": False, "error": str(eeprom_error)}
-
+            # EEPROM 데이터는 GPIO23 인터럽트에서 관리되므로 전역 변수 사용
             data = {
                 "type": "status",
                 "data": {
@@ -337,8 +379,10 @@ async def push_motor_status():
                     "force": motor.force,
                     "sensor": motor.sensor,
                     "setPos": motor.setPos,
-                    "gpio18": gpio_state,  # GPIO 상태 추가
-                    "eeprom": last_eeprom_data  # 항상 최신 EEPROM 상태 포함
+                    "gpio18": gpio18_state,  # 기존 GPIO18 상태
+                    "gpio23": gpio23_state,  # 새로운 GPIO23 상태 추가
+                    "needle_tip_connected": needle_tip_connected,  # 니들팁 연결 상태
+                    "eeprom": last_eeprom_data  # 인터럽트에서 업데이트되는 EEPROM 데이터
                 }
             }
 
@@ -356,5 +400,19 @@ async def main():
         print("[INFO] WebSocket 모터 서버 실행 중 (ws://0.0.0.0:8765)")
         await push_motor_status()  # 상태 주기 전송 루프 시작
 
+def cleanup_gpio():
+    """GPIO 리소스 정리"""
+    if gpio_available:
+        try:
+            GPIO.cleanup()
+            print("[OK] GPIO 리소스 정리 완료")
+        except Exception as e:
+            print(f"[ERROR] GPIO 정리 오류: {e}")
+
 if __name__ == "__main__":
-    asyncio.run(main())
+    try:
+        asyncio.run(main())
+    except KeyboardInterrupt:
+        print("\n[INFO] 프로그램 종료 중...")
+    finally:
+        cleanup_gpio()

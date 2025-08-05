@@ -1,6 +1,6 @@
 import Panel from "./Panel"
 
-export default function StatusPanel({ mode, workStatus = 'waiting', readEepromData = null }) {
+export default function StatusPanel({ mode, workStatus = 'waiting', needleTipConnected = false }) {
   // 상태에 따른 스타일과 메시지 정의
   const getStatusInfo = (status) => {
     switch (status) {
@@ -17,13 +17,13 @@ export default function StatusPanel({ mode, workStatus = 'waiting', readEepromDa
     }
   }
 
-  // EEPROM 상태에 따라 실시간으로 상태 결정
+  // GPIO23 인터럽트 기반 니들팁 상태에 따라 실시간으로 상태 결정
   let effectiveStatus;
-  if (!readEepromData || !readEepromData.success) {
-    // EEPROM이 연결되지 않았으면 다른 모든 상태를 무시하고 '니들팁 없음' 표시
+  if (!needleTipConnected) {
+    // GPIO23이 HIGH일 때 '니들팁 없음' 표시
     effectiveStatus = 'disconnected';
   } else {
-    // EEPROM이 연결되어 있으면 workStatus를 따름 ('니들팁 체결' 상태는 더 이상 사용 안 함)
+    // GPIO23이 LOW일 때 (니들팁 연결됨) workStatus를 따름
     effectiveStatus = workStatus;
   }
 
