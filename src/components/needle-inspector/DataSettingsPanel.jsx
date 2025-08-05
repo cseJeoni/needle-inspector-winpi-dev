@@ -290,7 +290,7 @@ export default function DataSettingsPanel({ makerCode, onWorkStatusChange, isSta
   // 저장 데이터 설정 활성화/비활성화 토글 함수
   const handleDataSettingsToggle = () => {
     setIsDataSettingsEnabled(!isDataSettingsEnabled)
-    console.log(`저장 데이터 설정: ${!isDataSettingsEnabled ? '활성화' : '비활성화'}`)
+    console.log(`저장 데이터 설정: ${!isDataSettingsEnabled ? 'UNLOCK' : 'LOCK'}`)
   }
 
   const handleToggle = async () => {
@@ -462,7 +462,7 @@ export default function DataSettingsPanel({ makerCode, onWorkStatusChange, isSta
             cursor: 'pointer'
           }}
         >
-          {isDataSettingsEnabled ? "비활성화" : "활성화"}
+          {isDataSettingsEnabled ? "LOCK" : "UNLOCK"}
         </Button>
         <Button
           onClick={handleToggle}

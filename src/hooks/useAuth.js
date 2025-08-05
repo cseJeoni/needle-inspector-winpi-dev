@@ -1,40 +1,59 @@
 import { useState, useEffect } from 'react'
 import { 
+  getAuth, 
   signInWithEmailAndPassword, 
   signOut, 
   onAuthStateChanged,
-  createUserWithEmailAndPassword 
+  createUserWithEmailAndPassword
 } from 'firebase/auth'
-import { auth } from '../firebase/config'
+import { auth, db } from '../firebase/config'
+import { doc, getDoc } from 'firebase/firestore'
 
 export const useAuth = () => {
   const [user, setUser] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
-  // 인증 상태 변화 감지
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      setUser(user)
-      setLoading(false)
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      try {
+        if (user) {
+          const userDocRef = doc(db, 'users', user.uid)
+          const userDoc = await getDoc(userDocRef)
+          
+          if (userDoc.exists()) {
+            setUser({ ...user, ...userDoc.data() })
+          } else {
+            setUser(user)
+          }
+        } else {
+          setUser(null)
+        }
+      } catch (e) {
+        console.error("Firestore에서 사용자 정보 가져오기 실패:", e)
+        const errorMessage = "사용자 정보를 가져오는 데 실패했습니다."
+        setError(errorMessage)
+        setTimeout(() => setError(null), 3000) // 3초 후 에러 메시지 초기화
+      } finally {
+        setLoading(false)
+      }
     })
 
     return () => unsubscribe()
   }, [])
 
-  // 로그인 함수
   const login = async (email, password) => {
     try {
       setLoading(true)
       setError(null)
       const result = await signInWithEmailAndPassword(auth, email, password)
       console.log('로그인 성공:', result.user.email)
+      // onAuthStateChanged가 Firestore 데이터 로딩을 처리하므로 여기서는 반환만 함
       return { success: true, user: result.user }
     } catch (error) {
       console.error('로그인 실패:', error)
       let errorMessage = '로그인에 실패했습니다.'
       
-      // Firebase 에러 코드에 따른 한국어 메시지
       switch (error.code) {
         case 'auth/user-not-found':
           errorMessage = '등록되지 않은 이메일입니다.'
@@ -59,7 +78,6 @@ export const useAuth = () => {
     }
   }
 
-  // 로그아웃 함수
   const logout = async () => {
     try {
       setLoading(true)
@@ -77,13 +95,13 @@ export const useAuth = () => {
     }
   }
 
-  // 회원가입 함수 (관리자용)
   const register = async (email, password) => {
     try {
       setLoading(true)
       setError(null)
       const result = await createUserWithEmailAndPassword(auth, email, password)
       console.log('회원가입 성공:', result.user.email)
+      // onAuthStateChanged가 Firestore 데이터 로딩을 처리하므로 여기서는 반환만 함
       return { success: true, user: result.user }
     } catch (error) {
       console.error('회원가입 실패:', error)

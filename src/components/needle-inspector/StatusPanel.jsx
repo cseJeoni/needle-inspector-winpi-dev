@@ -16,19 +16,17 @@ export default function StatusPanel({ mode, workStatus = 'waiting', needleTipCon
   // 로그인 처리 함수 (Firebase)
   const handleLogin = async () => {
     if (!email.trim() || !password.trim()) {
-      // 간단한 유효성 검사는 여기서 처리하거나, useAuth 훅으로 옮길 수 있습니다.
-      // 지금은 useAuth에서 처리하도록 비워둡니다.
       return;
     }
 
     setIsLoggingIn(true);
-    const result = await login(email.trim(), password.trim());
+    const userEmail = `${email.trim()}@solismsn.local`;
+    const result = await login(userEmail, password.trim());
     
     if (result.success) {
       setEmail('');
       setPassword('');
     }
-    // 에러 처리는 useAuth 훅에서 담당합니다.
     
     setIsLoggingIn(false);
   }
@@ -105,7 +103,7 @@ export default function StatusPanel({ mode, workStatus = 'waiting', needleTipCon
               <div style={{ display: 'flex', alignItems: 'center', gap: '1dvw', padding: '0.5dvh' }}>
                 <label style={{ width: '7dvw', fontSize: '1.5dvh', color: '#D1D5DB' }}>아이디</label>
                 <Input 
-                  type="email" 
+                  type="text" 
                   value={email} 
                   onChange={(e) => setEmail(e.target.value)}
                   onKeyPress={handleKeyPress}
@@ -192,7 +190,7 @@ export default function StatusPanel({ mode, workStatus = 'waiting', needleTipCon
                 color: 'white'
               }}>
                 <span style={{ fontSize: '1.5dvh', fontWeight: 'bold' }}>
-                  환영합니다, {user?.email}님!
+                  작업자 : {user?.name || user?.email.split('@')[0]}
                 </span>
                 <Button 
                   onClick={handleLogout}
