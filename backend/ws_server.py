@@ -185,7 +185,6 @@ async def handler(websocket):
         async for msg in websocket:
             try:
                 data = json.loads(msg)
-                print(f"[INFO] 수신된 메시지: {data}")
 
                 if data["cmd"] == "connect":
                     port = data.get("port")
@@ -213,7 +212,7 @@ async def handler(websocket):
                     speed = data.get("speed")
                     force = data.get("force")
                     
-                    print(f"[INFO] 모터 이동 명령 수신: mode={mode}, position={position}, speed={speed}, force={force}")
+                    # 모터 이동 명령 처리
                     
                     if mode == "servo" or mode == "position":
                         if position is not None:
@@ -354,7 +353,6 @@ async def handler(websocket):
         print("[INFO] 클라이언트 연결 해제됨")
 
 async def push_motor_status():
-    print("--- [DEBUG] push_motor_status: GPIO23 interrupt-based logic is running ---", flush=True)
     
     while True:
         await asyncio.sleep(0.05)
@@ -386,7 +384,7 @@ async def push_motor_status():
                 }
             }
 
-            # print(f"--- [DEBUG] Sending data: {json.dumps(data)} ---", flush=True)
+            # 상태 데이터 전송 (로그 제거로 성능 개선)
 
             for ws in connected_clients.copy():
                 try:

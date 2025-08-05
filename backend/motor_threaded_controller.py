@@ -287,11 +287,8 @@ class MotorThreadedController:
     def parse_response(self, frame):
         try:
             hex_str = frame.hex().upper()
-            print("[PARSE] hex_str:", hex_str)
-            print("[PARSE] len:", len(hex_str))
 
             if len(hex_str) < 34:  # 최소 필요한 길이 체크
-                print("[PARSE] 응답이 너무 짧습니다")
                 return
 
             setPos_val = hex_str[14:18]  # setPos
@@ -322,8 +319,6 @@ class MotorThreadedController:
             self.position = position
             self.force = round(force * 0.001 * 9.81, 1)
             self.sensor = sensor
-
-            print(f"[STATUS] 목표 위치: {self.setPos}, 현재 위치: {self.position}, 힘(N): {self.force}, 센서: {self.sensor}")
         except Exception as e:
             print(f"[Parse Error] {str(e)}")
             print(f"[Parse Error] frame: {frame.hex().upper()}")

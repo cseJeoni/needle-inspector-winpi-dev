@@ -1,75 +1,26 @@
 import Panel from "./Panel"
 import { Button } from "./Button"
 
-export default function JudgePanel({ onJudge, isStarted, onReset, camera1Ref, camera2Ref, hasNeedleTip = true }) {
-  // 니들 DOWN 명령 전송 함수
+export default function JudgePanel({ onJudge, isStarted, onReset, camera1Ref, camera2Ref, hasNeedleTip = true, websocket, isWsConnected }) {
+  // 니들 DOWN 명령 전송 함수 (메인 WebSocket 사용)
   const sendNeedleDown = () => {
-    try {
-      const needleWs = new WebSocket('ws://192.168.0.122:8765')
-      needleWs.onopen = () => {
-        console.log('판정 후 니들 DOWN 명령 전송')
-        needleWs.send(JSON.stringify({ cmd: "move", position: 0, mode: "position" })) // 니들 DOWN
-        needleWs.close()
-      }
-    } catch (error) {
-      console.error('니들 DOWN 명령 전송 실패:', error)
+    if (websocket && isWsConnected) {
+      console.log('판정 후 니들 DOWN 명령 전송')
+      websocket.send(JSON.stringify({ cmd: "move", position: 0, mode: "position" }))
+    } else {
+      console.error('WebSocket 연결되지 않음 - 니들 DOWN 명령 실패')
     }
   }
 
-  // EEPROM 데이터 읽기 함수
+  // EEPROM 데이터 읽기 함수 (메인 WebSocket 사용)
   const readEepromData = async () => {
-    try {
+    if (websocket && isWsConnected) {
       console.log('📖 EEPROM 데이터 읽기 시작...')
-      const ws = new WebSocket('ws://192.168.0.122:8765')
-      
-      const eepromData = await new Promise((resolve, reject) => {
-        const timeout = setTimeout(() => {
-          ws.close()
-          reject(new Error('EEPROM 읽기 타임아웃'))
-        }, 5000)
-        
-        ws.onopen = () => {
-          console.log('📡 EEPROM 읽기 WebSocket 연결됨')
-          ws.send(JSON.stringify({ cmd: "eeprom_read" }))
-        }
-        
-        ws.onmessage = (event) => {
-          try {
-            const response = JSON.parse(event.data)
-            console.log('📖 EEPROM 응답:', response)
-            
-            if (response.type === 'eeprom_read') {
-              clearTimeout(timeout)
-              ws.close()
-
-              // DataSettingsPanel의 검증된 방식으로 수정
-              if (response.result && response.result.success) {
-                console.log('✅ EEPROM 데이터 읽기 성공:', response.result);
-                resolve(response.result);
-              } else {
-                console.error('❌ EEPROM 읽기 실패:', response.result?.error || '결과 데이터 없음');
-                resolve(null);
-              }
-            }
-          } catch (error) {
-            console.error('❌ EEPROM 응답 파싱 실패:', error)
-            clearTimeout(timeout)
-            ws.close()
-            resolve(null)
-          }
-        }
-        
-        ws.onerror = (error) => {
-          console.error('❌ EEPROM WebSocket 오류:', error)
-          clearTimeout(timeout)
-          ws.close()
-          resolve(null)
-        }
-      })
-      
-      return eepromData
-    } catch (error) {
-      console.error('❌ EEPROM 데이터 읽기 실패:', error)
+      websocket.send(JSON.stringify({ cmd: "eeprom_read" }))
+      // EEPROM 데이터는 NeedleInspectorUI의 WebSocket 핸들러에서 처리됨
+      return true
+    } else {
+      console.error('WebSocket 연결되지 않음 - EEPROM 읽기 실패')
       return null
     }
   }

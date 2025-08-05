@@ -348,7 +348,7 @@ export default function NeedleInspectorUI() {
       // START 버튼 클릭 시: EEPROM 데이터 읽기 요청
       if (ws && isWsConnected) {
         console.log("🚀 START 버튼 클릭 - EEPROM 데이터 읽기 요청");
-        ws.send(JSON.stringify({ type: "read_eeprom" }));
+        ws.send(JSON.stringify({ cmd: "eeprom_read" }));
       } else {
         console.log("⚠️ WebSocket 연결되지 않음 - EEPROM 읽기 실패");
       }
@@ -399,15 +399,11 @@ export default function NeedleInspectorUI() {
     socket.onmessage = (e) => {
       try {
         const res = JSON.parse(e.data)
-        console.log("📨 모터 응답:", res)
 
         if (res.type === "serial") {
-          console.log("🔍 Serial 응답 분석:", res.result)
-          
           if (res.result.includes("성공") || 
               res.result.includes("완료") || 
               res.result.includes("전송 완료")) {
-            console.log("✅ 모터 연결 성공")
             setIsMotorConnected(true)
             setMotorError(null)
           } else if (res.result.includes("실패") || 
@@ -416,18 +412,14 @@ export default function NeedleInspectorUI() {
             setIsMotorConnected(false)
             setMotorError(res.result)
           } else {
-            // 다른 serial 응답도 로그로 확인
-            console.log("🔍 기타 Serial 응답:", res.result)
             // 만약 모터가 이미 연결되어 있고 명령이 정상 처리되면 연결 상태 유지
             if (isMotorConnected && res.result && !res.result.includes("실패") && !res.result.includes("오류")) {
-              console.log("🔄 모터 연결 상태 유지 (명령 처리 중)")
+              // 연결 상태 유지
             }
           }
         } else if (res.type === "status") {
           // 상태 업데이트 (모터 + GPIO + EEPROM)
-          console.log("🔍 [DEBUG] 전체 status 데이터:", res)
           const { position, gpio18, gpio23, needle_tip_connected, eeprom } = res.data
-          console.log("🔍 [DEBUG] GPIO23:", gpio23, "니들팁 연결:", needle_tip_connected, "EEPROM:", eeprom)
           setCurrentPosition(position)
           
           // 니들 위치 판단 (840: UP, 0: DOWN)
@@ -442,13 +434,12 @@ export default function NeedleInspectorUI() {
           // GPIO23 기반 니들팁 연결 상태 업데이트
           if (typeof needle_tip_connected === 'boolean') {
             setNeedleTipConnected(needle_tip_connected)
-            console.log("🔌 GPIO23 니들팁 상태 업데이트:", needle_tip_connected ? '연결됨' : '분리됨')
           }
           
           // EEPROM 데이터 자동 처리 제거 - START/STOP 버튼으로만 제어
           // 기존 코드가 WebSocket 응답마다 EEPROM 데이터를 초기화하여 문제 발생
           if (eeprom && eeprom.success) {
-            console.log("📊 EEPROM 데이터 수신 감지 (자동 처리 비활성화):", eeprom)
+            // EEPROM 데이터 수신 감지 (자동 처리 비활성화)
           }
           
           // GPIO 18번 상태 업데이트 및 토글 감지
@@ -457,27 +448,32 @@ export default function NeedleInspectorUI() {
             
             // GPIO 상태가 변경되었을 때 토글 실행 (HIGH↔LOW 변화)
             if (prevGpioState !== gpio18) {
-              console.log(`🔄 GPIO 18 상태 토글 감지: ${prevGpioState} → ${gpio18}`)
-              console.log("🎯 현재 모터 상태:", needlePosition, "- 반대 명령 전송")
               handleAutoToggle()
             }
             
             // 상태 업데이트 (즉시 반영)
             prevGpioRef.current = gpio18
             setGpioState(gpio18)
-            
-            console.log("🔧 GPIO 18 상태 업데이트:", prevGpioState, "→", gpio18)
           }
-          
-          console.log("📊 모터 위치 업데이트:", position, "GPIO 18:", gpio18)
-        } else if (res.type === "read_eeprom") {
-          // START 버튼 클릭 시 EEPROM 데이터 읽기 응답 처리
-          console.log("📊 EEPROM 읽기 응답 수신:", res)
+        } else if (res.type === "eeprom_read") {
+          // EEPROM 읽기 응답 처리
           if (res.result && res.result.success) {
             setReadEepromData(res.result)
-            console.log("✅ EEPROM 데이터 설정 성공:", res.result)
+            console.log('✅ EEPROM 데이터 수신 및 업데이트 완료')
           } else {
-            console.log("⚠️ EEPROM 읽기 실패:", res.result?.error || '알 수 없는 오류')
+            console.error("⚠️ EEPROM 읽기 실패:", res.result?.error || '알 수 없는 오류')
+            setReadEepromData(null)
+          }
+        } else if (res.type === "eeprom_write") {
+          // EEPROM 쓰기 응답 처리
+          if (res.result && res.result.success) {
+            console.log('✅ EEPROM 쓰기 성공')
+            // 쓰기 성공 후 데이터가 있으면 표시
+            if (res.result.data) {
+              setReadEepromData(res.result.data)
+            }
+          } else {
+            console.error('⚠️ EEPROM 쓰기 실패:', res.result?.error || '알 수 없는 오류')
           }
         } else if (res.type === "error") {
           console.error("❌ 모터 오류:", res.result)
@@ -784,6 +780,8 @@ export default function NeedleInspectorUI() {
             readEepromData={readEepromData}
             onReadEepromDataChange={setReadEepromData}
             needleTipConnected={needleTipConnected}
+            websocket={ws} // WebSocket 연결 전달
+            isWsConnected={isWsConnected} // WebSocket 연결 상태 전달
           />
           <NeedleCheckPanel 
             mode={mode} 
@@ -799,6 +797,8 @@ export default function NeedleInspectorUI() {
             camera1Ref={cameraViewRef1} // camera1Ref 전달
             camera2Ref={cameraViewRef2} // camera2Ref 전달
             hasNeedleTip={needleTipConnected} // GPIO23 기반 니들팁 연결 상태 전달
+            websocket={ws} // WebSocket 연결 전달
+            isWsConnected={isWsConnected} // WebSocket 연결 상태 전달
           />
         </div>
       </main>

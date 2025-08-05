@@ -6,7 +6,17 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 import { Button } from "./Button"
 import { Input } from "./Input"
 
-export default function DataSettingsPanel({ makerCode, onWorkStatusChange, isStarted, onStartedChange, readEepromData, onReadEepromDataChange, needleTipConnected }) {
+export default function DataSettingsPanel({
+  makerCode,
+  onWorkStatusChange,
+  isStarted,
+  onStartedChange,
+  readEepromData,
+  onReadEepromDataChange,
+  needleTipConnected,
+  websocket, // 메인 WebSocket 연결
+  isWsConnected // WebSocket 연결 상태
+}) {
   // isStarted와 readEepromData는 이제 props로 받아서 사용
   const [selectedYear, setSelectedYear] = useState("")
   const [selectedMonth, setSelectedMonth] = useState("")
@@ -179,42 +189,18 @@ export default function DataSettingsPanel({ makerCode, onWorkStatusChange, isSta
     }
   }, [selectedYear, selectedMonth])
 
-  // EEPROM 읽기 함수 (WebSocket 통신)
+  // EEPROM 읽기 함수 (메인 WebSocket 사용)
   const readFromEEPROM = async () => {
-    // onWorkStatusChange("waiting"); // READ 버튼 클릭 시 상태 변경하지 않음
-    const ws = new WebSocket("ws://192.168.0.122:8765");
-
-    ws.onopen = () => {
-      console.log("WebSocket for READ opened");
-      ws.send(JSON.stringify({ cmd: "eeprom_read" }));
-    };
-
-    ws.onmessage = (event) => {
-      const response = JSON.parse(event.data);
-      console.log("EEPROM Read Response:", response);
-      if (response.type === "eeprom_read" && response.result.success) {
-        // onWorkStatusChange("connected"); // READ 버튼 클릭 시 상태 변경하지 않음
-        onReadEepromDataChange && onReadEepromDataChange(response.result);
-        console.log("EEPROM Data:", response.result);
-      } else {
-        // onWorkStatusChange("disconnected"); // READ 버튼 클릭 시 상태 변경하지 않음
-        onReadEepromDataChange && onReadEepromDataChange(null);
-      }
-      ws.close();
-    };
-
-    ws.onerror = (error) => {
-      console.error("WebSocket error:", error);
-      // onWorkStatusChange("disconnected"); // READ 버튼 클릭 시 상태 변경하지 않음
-      ws.close();
-    };
-
-    ws.onclose = () => {
-      console.log("WebSocket for READ closed");
-    };
+    if (websocket && isWsConnected) {
+      console.log("EEPROM 읽기 명령 전송");
+      websocket.send(JSON.stringify({ cmd: "eeprom_read" }));
+    } else {
+      console.error('WebSocket 연결되지 않음 - EEPROM 읽기 실패');
+      onReadEepromDataChange && onReadEepromDataChange(null);
+    }
   };
 
-  // EEPROM에 데이터 쓰기 함수 (WebSocket 통신)
+  // EEPROM에 데이터 쓰기 함수 (메인 WebSocket 사용)
   const writeToEEPROM = async () => {
     const tipType = calculateTipType()
     
@@ -230,60 +216,12 @@ export default function DataSettingsPanel({ makerCode, onWorkStatusChange, isSta
     
     console.log('EEPROM에 쓸 데이터:', eepromData)
     
-    try {
-      // WebSocket을 통해 라즈베리파이에 데이터 전송
-      // 주의: 실제 구현에서는 기존 WebSocket 연결을 사용해야 합니다
-      const ws = new WebSocket('ws://192.168.0.122:8765') // 실제 라즈베리파이 IP 주소로 변경하세요
-      
-      ws.onopen = () => {
-        console.log('WebSocket 연결 성공')
-        // EEPROM 읽기 시도 (니들팁 체결 여부 확인)
-        ws.send(JSON.stringify({ cmd: "eeprom_read" }))
-      }
-      
-      ws.onmessage = async (event) => {
-        const response = JSON.parse(event.data)
-        console.log('EEPROM 응답:', response)
-        
-        if (response.type === 'eeprom_read') {
-          if (response.result.success) {
-            console.log('EEPROM 읽기 성공 - 니들팁 체결됨')
-            // onWorkStatusChange && onWorkStatusChange('connected') // 니들팁 있음 상태는 UI에 표시하지 않음
-            // 읽기 성공 후 쓰기 진행
-            ws.send(JSON.stringify(eepromData))
-          } else {
-            console.log('EEPROM 읽기 실패 - 니들팁 없음')
-            onWorkStatusChange && onWorkStatusChange('disconnected')
-            ws.close()
-          }
-        } else if (response.type === 'eeprom_write') {
-          if (response.result.success) {
-            console.log('EEPROM 쓰기 성공:', response.result)
-            onWorkStatusChange && onWorkStatusChange('write_success')
-            
-            // 쓰기 성공 후 데이터를 바로 표시
-            if (response.result.data) {
-              onReadEepromDataChange && onReadEepromDataChange(response.result.data)
-              console.log('EEPROM 데이터 표시:', response.result.data)
-            }
-          } else {
-            console.error('EEPROM 쓰기 실패:', response.result.error)
-            onWorkStatusChange && onWorkStatusChange('write_failed')
-          }
-        }
-      }
-      
-      ws.onerror = (error) => {
-        console.error('WebSocket 오류:', error)
-        onWorkStatusChange && onWorkStatusChange('disconnected')
-      }
-      
-      ws.onclose = () => {
-        console.log('WebSocket 연결 종료')
-      }
-      
-    } catch (error) {
-      console.error('EEPROM 쓰기 오류:', error)
+    if (websocket && isWsConnected) {
+      console.log('EEPROM 쓰기 명령 전송')
+      websocket.send(JSON.stringify(eepromData))
+    } else {
+      console.error('WebSocket 연결되지 않음 - EEPROM 쓰기 실패')
+      onWorkStatusChange && onWorkStatusChange('disconnected')
     }
   }
   
@@ -295,9 +233,6 @@ export default function DataSettingsPanel({ makerCode, onWorkStatusChange, isSta
 
   const handleToggle = async () => {
     const tipType = calculateTipType()
-    console.log('TIP TYPE:', tipType)
-    console.log('Country:', selectedCountry, 'Needle Type:', selectedNeedleType)
-    console.log('Maker Code:', makerCode)
     
     if (!isStarted) {
       // 니들팁이 연결되지 않은 상태에서는 START 버튼 동작 차단
@@ -310,16 +245,12 @@ export default function DataSettingsPanel({ makerCode, onWorkStatusChange, isSta
       // START 버튼을 눌렀을 때 상태 초기화 후 EEPROM에 쓰기
       onWorkStatusChange && onWorkStatusChange('waiting')
       
-      // 니들 UP 명령 전송
-      try {
-        const needleWs = new WebSocket('ws://192.168.0.122:8765')
-        needleWs.onopen = () => {
-          console.log('니들 UP 명령 전송')
-          needleWs.send(JSON.stringify({ cmd: "move", position: 840, mode: "position" })) // 니듡 UP
-          needleWs.close()
-        }
-      } catch (error) {
-        console.error('니들 UP 명령 전송 실패:', error)
+      // 니들 UP 명령 전송 (메인 WebSocket 사용)
+      if (websocket && isWsConnected) {
+        console.log('니들 UP 명령 전송')
+        websocket.send(JSON.stringify({ cmd: "move", position: 840, mode: "position" }))
+      } else {
+        console.error('WebSocket 연결되지 않음 - 니들 UP 명령 실패')
       }
       
       await writeToEEPROM()
@@ -331,16 +262,12 @@ export default function DataSettingsPanel({ makerCode, onWorkStatusChange, isSta
       // STOP 버튼을 눌렀을 때 모터 DOWN 명령 전송 후 대기 상태로 복귀
       onWorkStatusChange && onWorkStatusChange('waiting')
       
-      // 모터 DOWN 명령 전송
-      try {
-        const needleWs = new WebSocket('ws://192.168.0.122:8765')
-        needleWs.onopen = () => {
-          console.log('모터 DOWN 명령 전송')
-          needleWs.send(JSON.stringify({ cmd: "move", position: 0, mode: "position" })) // 모터 DOWN
-          needleWs.close()
-        }
-      } catch (error) {
-        console.error('모터 DOWN 명령 전송 실패:', error)
+      // 모터 DOWN 명령 전송 (메인 WebSocket 사용)
+      if (websocket && isWsConnected) {
+        console.log('모터 DOWN 명령 전송')
+        websocket.send(JSON.stringify({ cmd: "move", position: 0, mode: "position" }))
+      } else {
+        console.error('WebSocket 연결되지 않음 - 모터 DOWN 명령 실패')
       }
     }
     
