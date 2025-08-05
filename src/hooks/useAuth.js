@@ -42,6 +42,26 @@ export const useAuth = () => {
     return () => unsubscribe()
   }, [])
 
+  // 앱 종료 시 자동 로그아웃
+  useEffect(() => {
+    const handleBeforeUnload = async () => {
+      if (user) {
+        try {
+          await signOut(auth)
+          console.log('앱 종료 시 자동 로그아웃 완료')
+        } catch (error) {
+          console.error('앱 종료 시 로그아웃 실패:', error)
+        }
+      }
+    }
+
+    window.addEventListener('beforeunload', handleBeforeUnload)
+    
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload)
+    }
+  }, [user])
+
   const login = async (email, password) => {
     try {
       setLoading(true)
