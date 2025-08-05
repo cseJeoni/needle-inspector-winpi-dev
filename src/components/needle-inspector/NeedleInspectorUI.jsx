@@ -755,6 +755,7 @@ export default function NeedleInspectorUI() {
             onStartedChange={setIsStarted}
             readEepromData={readEepromData}
             onReadEepromDataChange={setReadEepromData}
+            needleTipConnected={needleTipConnected}
           />
           <NeedleCheckPanel 
             mode={mode} 

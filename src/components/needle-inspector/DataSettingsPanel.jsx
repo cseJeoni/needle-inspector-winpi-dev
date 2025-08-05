@@ -6,7 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 import { Button } from "./Button"
 import { Input } from "./Input"
 
-export default function DataSettingsPanel({ makerCode, onWorkStatusChange, isStarted, onStartedChange, readEepromData, onReadEepromDataChange }) {
+export default function DataSettingsPanel({ makerCode, onWorkStatusChange, isStarted, onStartedChange, readEepromData, onReadEepromDataChange, needleTipConnected }) {
   // isStarted와 readEepromData는 이제 props로 받아서 사용
   const [selectedYear, setSelectedYear] = useState("")
   const [selectedMonth, setSelectedMonth] = useState("")
@@ -291,6 +291,13 @@ export default function DataSettingsPanel({ makerCode, onWorkStatusChange, isSta
     console.log('Maker Code:', makerCode)
     
     if (!isStarted) {
+      // 니들팁이 연결되지 않은 상태에서는 START 버튼 동작 차단
+      if (!needleTipConnected) {
+        console.log('니들팁이 연결되지 않아 START 버튼 동작을 차단합니다.')
+        onWorkStatusChange && onWorkStatusChange('disconnected')
+        return // 조기 종료
+      }
+      
       // START 버튼을 눌렀을 때 상태 초기화 후 EEPROM에 쓰기
       onWorkStatusChange && onWorkStatusChange('waiting')
       
