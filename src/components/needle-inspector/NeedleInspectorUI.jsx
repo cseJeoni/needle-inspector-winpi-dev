@@ -649,7 +649,7 @@ export default function NeedleInspectorUI() {
   }, [])
 
   return (
-    <div className="bg-[#171C26] min-h-screen text-white font-sans p-4 flex flex-col gap-4">
+    <div className="bg-[#000000] min-h-screen text-white font-sans p-4 flex flex-col gap-4">
       {/* 모터 연결 상태 표시 */}
       <div style={{
         position: 'fixed',
