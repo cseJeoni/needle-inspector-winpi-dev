@@ -339,6 +339,27 @@ export default function NeedleInspectorUI() {
     redrawCanvas2()
   }
 
+  // START/STOP 버튼 클릭 핸들러 - 실시간 상태 관리 대신 버튼 기반으로 단순화
+  const handleStartStopClick = () => {
+    const nextStartedState = !isStarted;
+    setIsStarted(nextStartedState);
+
+    if (nextStartedState) {
+      // START 버튼 클릭 시: EEPROM 데이터 읽기 요청
+      if (ws && isWsConnected) {
+        console.log("🚀 START 버튼 클릭 - EEPROM 데이터 읽기 요청");
+        ws.send(JSON.stringify({ type: "read_eeprom" }));
+      } else {
+        console.log("⚠️ WebSocket 연결되지 않음 - EEPROM 읽기 실패");
+      }
+    } else {
+      // STOP 버튼 클릭 시: 데이터 초기화
+      console.log("🛑 STOP 버튼 클릭 - EEPROM 데이터 초기화");
+      setReadEepromData(null);
+      setWorkStatus('waiting');
+    }
+  };
+
   useEffect(() => {
     redrawCanvas1()
   }, [lines1, selectedIndex1, calibrationValue1])
@@ -424,14 +445,10 @@ export default function NeedleInspectorUI() {
             console.log("🔌 GPIO23 니들팁 상태 업데이트:", needle_tip_connected ? '연결됨' : '분리됨')
           }
           
-          // EEPROM 데이터 업데이트 (write 명령 시에만 업데이트됨)
-          if (eeprom) {
-            setReadEepromData(eeprom.success ? eeprom : null)
-            if (eeprom.success) {
-              console.log("📊 EEPROM 데이터 업데이트 (write 명령 시):", eeprom)
-            } else {
-              console.log("⚠️ EEPROM 읽기 실패:", eeprom.error)
-            }
+          // EEPROM 데이터 자동 처리 제거 - START/STOP 버튼으로만 제어
+          // 기존 코드가 WebSocket 응답마다 EEPROM 데이터를 초기화하여 문제 발생
+          if (eeprom && eeprom.success) {
+            console.log("📊 EEPROM 데이터 수신 감지 (자동 처리 비활성화):", eeprom)
           }
           
           // GPIO 18번 상태 업데이트 및 토글 감지
@@ -453,6 +470,15 @@ export default function NeedleInspectorUI() {
           }
           
           console.log("📊 모터 위치 업데이트:", position, "GPIO 18:", gpio18)
+        } else if (res.type === "read_eeprom") {
+          // START 버튼 클릭 시 EEPROM 데이터 읽기 응답 처리
+          console.log("📊 EEPROM 읽기 응답 수신:", res)
+          if (res.result && res.result.success) {
+            setReadEepromData(res.result)
+            console.log("✅ EEPROM 데이터 설정 성공:", res.result)
+          } else {
+            console.log("⚠️ EEPROM 읽기 실패:", res.result?.error || '알 수 없는 오류')
+          }
         } else if (res.type === "error") {
           console.error("❌ 모터 오류:", res.result)
           setMotorError(res.result)
@@ -546,24 +572,26 @@ export default function NeedleInspectorUI() {
 
   // 니들 DOWN 함수
   const handleNeedleDown = () => {
-    handleNeedlePosition(0)
+    handleNeedlePosition(0);
   }
 
   // 판정 후 상태 초기화 함수
   const handleJudgeReset = () => {
-    console.log('🔄 판정 후 상태 초기화 시작')
+    console.log('🔄 판정 후 상태 초기화 시작');
     
     // 1. EEPROM 읽기 데이터 초기화
-    setReadEepromData(null)
+    setReadEepromData(null);
     
     // 2. START/STOP 상태 초기화 (STOP → START)
-    setIsStarted(false)
+    setIsStarted(false);
     
     // 3. 작업 상태를 대기로 변경
-    setWorkStatus('waiting')
+    setWorkStatus('waiting');
     
-    console.log('✅ 판정 후 상태 초기화 완료')
-  }
+    console.log('✅ 판정 후 상태 초기화 완료');
+  };
+
+  // 기존 handleStartStopClick 함수 제거 - 새로운 함수로 대체됨
 
   // GPIO 18번 자동 토글 함수 (모터 상태 기반 반대 명령)
   const handleAutoToggle = () => {
@@ -589,7 +617,7 @@ export default function NeedleInspectorUI() {
       commandDirection = 'DOWN'
       console.log("✅ UP 상태 감지 - DOWN 명령 준비")
     } else {
-      console.log("⚠️ 모터 상태 불명 (", needlePosition, ") - 기본 UP 명령 전솨")
+      console.log("⚠️ 모터 상태 불명 (", needlePosition, ") - 기본 UP 명령 전송")
       targetPosition = 840 // 기본값: UP
       commandDirection = 'UP'
     }
@@ -627,7 +655,7 @@ export default function NeedleInspectorUI() {
     }
     
     autoSocket.onclose = () => {
-      console.log("🔗 모터 명령용 WebSocket 연겴 종료됨")
+      console.log("🔗 모터 명령용 WebSocket 연결 종료됨")
     }
   }
 
@@ -752,7 +780,7 @@ export default function NeedleInspectorUI() {
             makerCode={makerCode} 
             onWorkStatusChange={setWorkStatus}
             isStarted={isStarted}
-            onStartedChange={setIsStarted}
+            onStartedChange={handleStartStopClick} // START/STOP 상태 변경
             readEepromData={readEepromData}
             onReadEepromDataChange={setReadEepromData}
             needleTipConnected={needleTipConnected}
