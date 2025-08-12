@@ -30,6 +30,17 @@ export default function JudgePanel({ onJudge, isStarted, onReset, camera1Ref, ca
         return;
       }
 
+      // 기존 동기 흐름을 유지하는 레거시 경로: 캡처 후 저장까지 완료
+      await saveMergedScreenshotFromData(mergedImageData, judgeResult, eepromData);
+      
+    } catch (error) {
+      console.error('❌ 병합 이미지 저장 실패:', error);
+    }
+  };
+
+  // '이미 캡처된' 병합 이미지 데이터(URL)를 받아 파일로 저장하는 함수
+  const saveMergedScreenshotFromData = async (mergedImageData, judgeResult, eepromData) => {
+    try {
       // 파일명 생성: 캡쳐날짜_캡쳐시각_팁타입_제조일자_작업자코드_작업자이름
       const date = new Date();
       const captureDate = `${String(date.getFullYear()).slice(-2)}${String(date.getMonth() + 1).padStart(2, '0')}${String(date.getDate()).padStart(2, '0')}`;
@@ -55,7 +66,7 @@ export default function JudgePanel({ onJudge, isStarted, onReset, camera1Ref, ca
       if (generateUserBasedPath) {
         const tempPath = generateUserBasedPath('TEMP');
         const pathParts = tempPath.split('\\');
-        const userFolder = pathParts[2]; // C:\Inspect\{userFolder}\...
+        const userFolder = pathParts[2]; // C:\\Inspect\\{userFolder}\\...
         
         if (userFolder && userFolder !== 'undefined') {
           const userParts = userFolder.split('-');
@@ -87,7 +98,8 @@ export default function JudgePanel({ onJudge, isStarted, onReset, camera1Ref, ca
       }
       
       const savePath = path.join(baseDir, fileName);
-      fs.writeFileSync(savePath, buffer);
+      // 비동기 저장으로 UI 지연 최소화
+      await fs.promises.writeFile(savePath, buffer);
       console.log(`✅ 병합 이미지 저장 완료: ${savePath}`);
       
     } catch (error) {
@@ -101,11 +113,17 @@ export default function JudgePanel({ onJudge, isStarted, onReset, camera1Ref, ca
       // 1. EEPROM 데이터 사용 (props로 받은 데이터)
       console.log('📡 EEPROM 데이터 사용:', eepromData);
 
-      // 2. 병합된 스크린샷 저장 (두 카메라를 가로로 합친 하나의 이미지)
-      await saveMergedScreenshot(result, eepromData);
+      // 2. 캡처 먼저 수행하여 '화면 그대로' 확보
+      const mergedImageData = await onCaptureMergedImage(result, eepromData);
 
-      // 니들 DOWN
-      sendNeedleDown()
+      // 3. 캡처가 확보되면 즉시 니들 DOWN (작업 대기 시간 최소화)
+      sendNeedleDown();
+
+      // 4. 디스크 저장은 비동기로 진행하여 UI/동작 지연 최소화
+      //    실패 시 로그만 남김 (필요하다면 재시도 로직 추가 가능)
+      saveMergedScreenshotFromData(mergedImageData, result, eepromData).catch(err => {
+        console.error('❌ 비동기 병합 이미지 저장 실패:', err);
+      });
       
       // 상태 초기화
       if (onReset) onReset()
