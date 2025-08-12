@@ -5,6 +5,7 @@ import DataSettingsPanel from "./DataSettingsPanel"
 import NeedleCheckPanel from "./NeedleCheckPanel"
 import ModePanel from "./ModePanel"
 import JudgePanel from "./JudgePanel" // Import JudgePanel
+import { useAuth } from "../../hooks/useAuth" // Firebase 사용자 정보
 import "../../css/NeedleInspector.css"
 
 const PX_TO_MM = 1 / 3.78; // 1px 당 mm
@@ -21,6 +22,9 @@ const MOTOR_CONFIG = {
 export default function NeedleInspectorUI() {
   const [mode, setMode] = useState("생산")
   const [makerCode, setMakerCode] = useState("4")
+  
+  // Firebase 사용자 정보
+  const { user } = useAuth()
   
   // 비디오 서버 URL (실제 환경에 맞게 수정 필요)
   const videoServerUrl = "http://localhost:5000"
@@ -44,6 +48,19 @@ export default function NeedleInspectorUI() {
   const [isStarted, setIsStarted] = useState(false) // START/STOP 상태
   const [readEepromData, setReadEepromData] = useState(null) // EEPROM 읽기 데이터
   const [needleTipConnected, setNeedleTipConnected] = useState(false) // GPIO23 기반 니들팁 연결 상태
+
+  // 니들팁 연결 상태에 따른 작업 상태 업데이트
+  useEffect(() => {
+    if (needleTipConnected) {
+      // 니들팁 연결 시: '저장 완료' 상태가 아닌 경우에만 '작업 대기'로 업데이트
+      if (workStatus !== 'write_success') {
+        setWorkStatus('waiting');
+      }
+    } else {
+      // 니들팁 분리 시: 항상 '니들팁 없음'으로 업데이트 (저장 완료 상태라도)
+      setWorkStatus('disconnected');
+    }
+  }, [needleTipConnected, workStatus]);
   
   // Camera 1 상태
   const [drawMode1, setDrawMode1] = useState(false)
@@ -187,6 +204,30 @@ export default function NeedleInspectorUI() {
     link.click();
     document.body.removeChild(link);
     console.log(`✅ 병합 이미지 다운로드 완료: ${filename}`);
+  };
+
+  // 사용자 정보 기반 폴더 경로 생성 함수
+  const generateUserBasedPath = (judgeResult) => {
+    const today = new Date();
+    const workDate = today.toISOString().split('T')[0]; // YYYY-MM-DD
+
+    let userFolder;
+    // 사용자 정보 확인
+    if (!user || !user.uid || !user.username) {
+      // 로그인하지 않은 경우 'undefined' 폴더 사용
+      userFolder = 'undefined';
+      console.warn('⚠️ 사용자 정보가 없어 undefined 폴더에 저장합니다.');
+    } else {
+      // 로그인한 경우 사용자 정보 기반 폴더 사용
+      const workerCode = user.uid.slice(-4);
+      const workerName = user.username;
+      userFolder = `${workerCode}-${workerName}`;
+      console.log(`👤 사용자 정보 - 코드: ${workerCode}, 이름: ${workerName}`);
+    }
+
+    const finalPath = `C:\\Inspect\\${userFolder}\\${workDate}\\${judgeResult}`;
+    console.log(`📁 생성된 폴더 경로: ${finalPath}`);
+    return finalPath;
   };
 
   // 마우스 위치 계산 함수
@@ -588,12 +629,14 @@ export default function NeedleInspectorUI() {
           // EEPROM 쓰기 응답 처리
           if (res.result && res.result.success) {
             console.log('✅ EEPROM 쓰기 성공')
+            setWorkStatus('write_success'); // 저장 완료 상태로 업데이트
             // 쓰기 성공 후 데이터가 있으면 표시
             if (res.result.data) {
               setReadEepromData(res.result.data)
             }
           } else {
             console.error('⚠️ EEPROM 쓰기 실패:', res.result?.error || '알 수 없는 오류')
+            setWorkStatus('write_failed'); // 저장 실패 상태로 업데이트
           }
         } else if (res.type === "error") {
           console.error("❌ 모터 오류:", res.result)
@@ -921,6 +964,7 @@ export default function NeedleInspectorUI() {
             isWsConnected={isWsConnected} // WebSocket 연결 상태 전달
             onCaptureMergedImage={captureMergedImage} // 병합 캡처 함수 전달
             eepromData={readEepromData} // EEPROM 데이터 전달
+            generateUserBasedPath={generateUserBasedPath} // 사용자 기반 폴더 경로 생성 함수 전달
           />
         </div>
       </main>

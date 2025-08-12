@@ -1,7 +1,7 @@
 import Panel from "./Panel"
 import { Button } from "./Button"
 
-export default function JudgePanel({ onJudge, isStarted, onReset, camera1Ref, camera2Ref, hasNeedleTip = true, websocket, isWsConnected, onCaptureMergedImage, eepromData }) {
+export default function JudgePanel({ onJudge, isStarted, onReset, camera1Ref, camera2Ref, hasNeedleTip = true, websocket, isWsConnected, onCaptureMergedImage, eepromData, generateUserBasedPath }) {
   // 니들 DOWN 명령 전송 함수 (메인 WebSocket 사용)
   const sendNeedleDown = () => {
     if (websocket && isWsConnected) {
@@ -30,23 +30,60 @@ export default function JudgePanel({ onJudge, isStarted, onReset, camera1Ref, ca
         return;
       }
 
-      // 파일명 생성
+      // 파일명 생성: 캡쳐날짜_캡쳐시각_팁타입_제조일자_작업자코드_작업자이름
       const date = new Date();
-      const formattedDate = `${date.getFullYear()}${(date.getMonth() + 1).toString().padStart(2, '0')}${date.getDate().toString().padStart(2, '0')}`;
-      const formattedTime = `${date.getHours().toString().padStart(2, '0')}${date.getMinutes().toString().padStart(2, '0')}${date.getSeconds().toString().padStart(2, '0')}`;
-      const fileName = `${formattedDate}_${formattedTime}_Merged_${judgeResult}.png`;
+      const captureDate = `${String(date.getFullYear()).slice(-2)}${String(date.getMonth() + 1).padStart(2, '0')}${String(date.getDate()).padStart(2, '0')}`;
+      const captureTime = `${String(date.getHours()).padStart(2, '0')}${String(date.getMinutes()).padStart(2, '0')}${String(date.getSeconds()).padStart(2, '0')}`;
+      
+      // EEPROM 데이터에서 팁타입과 제조일자 추출
+      let tipType = 'T000';
+      let mfgDate = '000000';
+      
+      if (eepromData && eepromData.tipType) {
+        tipType = `T${String(eepromData.tipType).padStart(3, '0')}`;
+      }
+      
+      if (eepromData && eepromData.year && eepromData.month && eepromData.day) {
+        mfgDate = `${String(eepromData.year).slice(-2)}${String(eepromData.month).padStart(2, '0')}${String(eepromData.day).padStart(2, '0')}`;
+      }
+      
+      // 사용자 정보 추출 (Firebase 사용자 정보 활용)
+      let workerCode = 'unkn';
+      let workerName = 'unknown';
+      
+      // generateUserBasedPath 함수를 통해 사용자 정보 확인 (임시로 사용)
+      if (generateUserBasedPath) {
+        const tempPath = generateUserBasedPath('TEMP');
+        const pathParts = tempPath.split('\\');
+        const userFolder = pathParts[2]; // C:\Inspect\{userFolder}\...
+        
+        if (userFolder && userFolder !== 'undefined') {
+          const userParts = userFolder.split('-');
+          if (userParts.length === 2) {
+            workerCode = userParts[0];
+            workerName = userParts[1];
+          }
+        }
+      }
+      
+      const fileName = `${captureDate}_${captureTime}_${tipType}_${mfgDate}_${workerCode}_${workerName}.png`;
 
       // 이미지 데이터를 Buffer로 변환
       const blob = await (await fetch(mergedImageData)).blob();
       const buffer = Buffer.from(await blob.arrayBuffer());
 
-      // 저장 경로 설정
+      // 사용자 기반 저장 경로 설정
       const fs = window.require('fs');
       const path = window.require('path');
-      const baseDir = judgeResult === 'NG' ? 'C:\\Inspect\\NG' : 'C:\\Inspect\\PASS';
       
+      // 사용자 정보 기반 폴더 경로 생성
+      const baseDir = generateUserBasedPath ? generateUserBasedPath(judgeResult) : 
+                     (judgeResult === 'NG' ? 'C:\\Inspect\\NG' : 'C:\\Inspect\\PASS');
+      
+      // 폴더가 없으면 생성 (recursive: true로 중간 폴더들도 자동 생성)
       if (!fs.existsSync(baseDir)) {
         fs.mkdirSync(baseDir, { recursive: true });
+        console.log(`📁 폴더 생성 완료: ${baseDir}`);
       }
       
       const savePath = path.join(baseDir, fileName);
