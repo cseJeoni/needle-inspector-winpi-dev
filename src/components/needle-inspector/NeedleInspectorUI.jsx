@@ -71,6 +71,124 @@ export default function NeedleInspectorUI() {
   const [startPoint1, setStartPoint1] = useState(null)
   const [startPoint2, setStartPoint2] = useState(null)
 
+  // 두 카메라 이미지를 가로로 합쳐서 캡처하는 함수
+  const captureMergedImage = async (judgeResult = null, eepromData = null) => {
+    try {
+      console.log('🔄 두 카메라 이미지 병합 캡처 시작...');
+      
+      // 두 카메라에서 개별 이미지 캡처
+      const camera1Image = await cameraViewRef1.current?.captureImage(judgeResult, eepromData);
+      const camera2Image = await cameraViewRef2.current?.captureImage(judgeResult, eepromData);
+      
+      if (!camera1Image || !camera2Image) {
+        console.error('❌ 카메라 이미지 캡처 실패');
+        return null;
+      }
+      
+      // 이미지 로드를 위한 Promise 생성
+      const loadImage = (dataURL) => {
+        return new Promise((resolve, reject) => {
+          const img = new Image();
+          img.onload = () => resolve(img);
+          img.onerror = reject;
+          img.src = dataURL;
+        });
+      };
+      
+      // 두 이미지 로드
+      const [img1, img2] = await Promise.all([
+        loadImage(camera1Image),
+        loadImage(camera2Image)
+      ]);
+      
+      // 병합용 캔버스 생성 (가로로 이어붙이기)
+      const mergedCanvas = document.createElement('canvas');
+      const ctx = mergedCanvas.getContext('2d');
+      
+      // 캔버스 크기 설정 (두 이미지를 가로로 배치)
+      mergedCanvas.width = img1.width + img2.width;
+      mergedCanvas.height = Math.max(img1.height, img2.height);
+      
+      // 배경을 검은색으로 채우기
+      ctx.fillStyle = 'black';
+      ctx.fillRect(0, 0, mergedCanvas.width, mergedCanvas.height);
+      
+      // 첫 번째 이미지 그리기 (왼쪽)
+      ctx.drawImage(img1, 0, 0);
+      
+      // 두 번째 이미지 그리기 (오른쪽)
+      ctx.drawImage(img2, img1.width, 0);
+      
+      // 구분선 그리기 (선택사항)
+      ctx.strokeStyle = 'white';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(img1.width, 0);
+      ctx.lineTo(img1.width, mergedCanvas.height);
+      ctx.stroke();
+      
+      // 병합된 이미지 데이터 생성
+      const mergedDataURL = mergedCanvas.toDataURL('image/png');
+      
+      console.log('✅ 두 카메라 이미지 병합 완료');
+      return mergedDataURL;
+      
+    } catch (error) {
+      console.error('❌ 이미지 병합 실패:', error);
+      return null;
+    }
+  };
+
+  // 병합된 이미지를 파일로 저장하는 함수
+  const saveMergedImage = async (judgeResult = null, eepromData = null) => {
+    try {
+      const mergedImageData = await captureMergedImage(judgeResult, eepromData);
+      
+      if (!mergedImageData) {
+        console.error('❌ 병합 이미지 생성 실패');
+        return;
+      }
+      
+      // 현재 시간을 파일명에 포함
+      const now = new Date();
+      const timestamp = now.toISOString().replace(/[:.]/g, '-').slice(0, 19);
+      const filename = `merged_capture_${timestamp}.png`;
+      
+      // Electron API 사용 가능한지 확인
+      if (window.electronAPI && window.electronAPI.saveImage) {
+        // Electron 환경에서 저장
+        const base64Data = mergedImageData.split(',')[1];
+        const buffer = Buffer.from(base64Data, 'base64');
+        
+        try {
+          await window.electronAPI.saveImage(buffer, filename);
+          console.log(`✅ 병합 이미지 저장 완료: ${filename}`);
+        } catch (error) {
+          console.error('❌ Electron API 저장 실패:', error);
+          // fallback to browser download
+          downloadMergedImage(mergedImageData, filename);
+        }
+      } else {
+        // 브라우저 환경에서 다운로드
+        downloadMergedImage(mergedImageData, filename);
+      }
+      
+    } catch (error) {
+      console.error('❌ 병합 이미지 저장 실패:', error);
+    }
+  };
+
+  // 브라우저에서 이미지 다운로드
+  const downloadMergedImage = (dataURL, filename) => {
+    const link = document.createElement('a');
+    link.href = dataURL;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    console.log(`✅ 병합 이미지 다운로드 완료: ${filename}`);
+  };
+
   // 마우스 위치 계산 함수
   const getMousePos = (canvas, e) => {
     const rect = canvas.getBoundingClientRect()
@@ -457,7 +575,9 @@ export default function NeedleInspectorUI() {
           }
         } else if (res.type === "eeprom_read") {
           // EEPROM 읽기 응답 처리
+          console.log('🔍 EEPROM Read 응답 전체:', JSON.stringify(res, null, 2))
           if (res.result && res.result.success) {
+            console.log('🔍 EEPROM Read 데이터 구조:', JSON.stringify(res.result, null, 2))
             setReadEepromData(res.result)
             console.log('✅ EEPROM 데이터 수신 및 업데이트 완료')
           } else {
@@ -799,6 +919,8 @@ export default function NeedleInspectorUI() {
             hasNeedleTip={needleTipConnected} // GPIO23 기반 니들팁 연결 상태 전달
             websocket={ws} // WebSocket 연결 전달
             isWsConnected={isWsConnected} // WebSocket 연결 상태 전달
+            onCaptureMergedImage={captureMergedImage} // 병합 캡처 함수 전달
+            eepromData={readEepromData} // EEPROM 데이터 전달
           />
         </div>
       </main>

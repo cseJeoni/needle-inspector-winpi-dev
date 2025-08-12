@@ -1,7 +1,7 @@
 import Panel from "./Panel"
 import { Button } from "./Button"
 
-export default function JudgePanel({ onJudge, isStarted, onReset, camera1Ref, camera2Ref, hasNeedleTip = true, websocket, isWsConnected }) {
+export default function JudgePanel({ onJudge, isStarted, onReset, camera1Ref, camera2Ref, hasNeedleTip = true, websocket, isWsConnected, onCaptureMergedImage, eepromData }) {
   // 니들 DOWN 명령 전송 함수 (메인 WebSocket 사용)
   const sendNeedleDown = () => {
     if (websocket && isWsConnected) {
@@ -12,64 +12,60 @@ export default function JudgePanel({ onJudge, isStarted, onReset, camera1Ref, ca
     }
   }
 
-  // EEPROM 데이터 읽기 함수 (메인 WebSocket 사용)
-  const readEepromData = async () => {
-    if (websocket && isWsConnected) {
-      console.log('📖 EEPROM 데이터 읽기 시작...')
-      websocket.send(JSON.stringify({ cmd: "eeprom_read" }))
-      // EEPROM 데이터는 NeedleInspectorUI의 WebSocket 핸들러에서 처리됨
-      return true
-    } else {
-      console.error('WebSocket 연결되지 않음 - EEPROM 읽기 실패')
-      return null
-    }
-  }
 
-  // 판정 결과를 받아 스크린샷을 저장하는 함수
-  const saveScreenshot = async (judgeResult, cameraRef, eepromData) => {
-    if (!cameraRef.current) {
-      console.error('카메라 ref가 없습니다.');
+
+  // 병합된 스크린샷을 저장하는 함수
+  const saveMergedScreenshot = async (judgeResult, eepromData) => {
+    if (!onCaptureMergedImage) {
+      console.error('병합 캡처 함수가 없습니다.');
       return;
     }
 
-    // judgeResult와 eepromData를 captureImage로 전달
-    const imageData = await cameraRef.current.captureImage(judgeResult, eepromData);
+    try {
+      // 병합된 이미지 데이터 생성
+      const mergedImageData = await onCaptureMergedImage(judgeResult, eepromData);
+      
+      if (!mergedImageData) {
+        console.error('❌ 병합 이미지 생성 실패');
+        return;
+      }
 
-    if (imageData) {
-      const blob = await (await fetch(imageData)).blob();
-      const buffer = Buffer.from(await blob.arrayBuffer());
-      const cameraTitle = cameraRef.current.getTitle(); // ref에서 직접 title 가져오기
+      // 파일명 생성
       const date = new Date();
       const formattedDate = `${date.getFullYear()}${(date.getMonth() + 1).toString().padStart(2, '0')}${date.getDate().toString().padStart(2, '0')}`;
       const formattedTime = `${date.getHours().toString().padStart(2, '0')}${date.getMinutes().toString().padStart(2, '0')}${date.getSeconds().toString().padStart(2, '0')}`;
-      const fileName = `${formattedDate}_${formattedTime}_${cameraTitle}_${judgeResult}.png`;
+      const fileName = `${formattedDate}_${formattedTime}_Merged_${judgeResult}.png`;
 
+      // 이미지 데이터를 Buffer로 변환
+      const blob = await (await fetch(mergedImageData)).blob();
+      const buffer = Buffer.from(await blob.arrayBuffer());
+
+      // 저장 경로 설정
       const fs = window.require('fs');
       const path = window.require('path');
       const baseDir = judgeResult === 'NG' ? 'C:\\Inspect\\NG' : 'C:\\Inspect\\PASS';
+      
       if (!fs.existsSync(baseDir)) {
         fs.mkdirSync(baseDir, { recursive: true });
       }
+      
       const savePath = path.join(baseDir, fileName);
-
       fs.writeFileSync(savePath, buffer);
-      console.log(`✅ ${fileName} 저장 완료: ${savePath}`);
-    } else {
-      console.error('❌ 이미지 데이터가 없어 파일을 저장할 수 없습니다.');
+      console.log(`✅ 병합 이미지 저장 완료: ${savePath}`);
+      
+    } catch (error) {
+      console.error('❌ 병합 이미지 저장 실패:', error);
     }
   };
 
   // 판정 로직을 처리하는 중앙 함수
   const handleJudge = async (result) => {
     try {
-      // 1. EEPROM 데이터 읽기 (완료될 때까지 기다림)
-      console.log('📡 EEPROM 데이터 읽기 시작...');
-      const eepromData = await readEepromData();
-      console.log('✅ EEPROM 데이터 읽기 완료:', eepromData);
+      // 1. EEPROM 데이터 사용 (props로 받은 데이터)
+      console.log('📡 EEPROM 데이터 사용:', eepromData);
 
-      // 2. 양쪽 카메라에 대해 스크린샷 저장
-      await saveScreenshot(result, camera1Ref, eepromData);
-      await saveScreenshot(result, camera2Ref, eepromData);
+      // 2. 병합된 스크린샷 저장 (두 카메라를 가로로 합친 하나의 이미지)
+      await saveMergedScreenshot(result, eepromData);
 
       // 니들 DOWN
       sendNeedleDown()
