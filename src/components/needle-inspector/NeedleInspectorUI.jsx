@@ -48,6 +48,7 @@ export default function NeedleInspectorUI() {
   const [isStarted, setIsStarted] = useState(false) // START/STOP 상태
   const [readEepromData, setReadEepromData] = useState(null) // EEPROM 읽기 데이터
   const [needleTipConnected, setNeedleTipConnected] = useState(false) // GPIO23 기반 니들팁 연결 상태
+  const [isWaitingEepromRead, setIsWaitingEepromRead] = useState(false) // EEPROM 읽기 응답 대기 상태
 
   // 니들팁 연결 상태에 따른 작업 상태 업데이트
   useEffect(() => {
@@ -614,30 +615,8 @@ export default function NeedleInspectorUI() {
             prevGpioRef.current = gpio18
             setGpioState(gpio18)
           }
-        } else if (res.type === "eeprom_read") {
-          // EEPROM 읽기 응답 처리
-          console.log('🔍 EEPROM Read 응답 전체:', JSON.stringify(res, null, 2))
-          if (res.result && res.result.success) {
-            console.log('🔍 EEPROM Read 데이터 구조:', JSON.stringify(res.result, null, 2))
-            setReadEepromData(res.result)
-            console.log('✅ EEPROM 데이터 수신 및 업데이트 완료')
-          } else {
-            console.error("⚠️ EEPROM 읽기 실패:", res.result?.error || '알 수 없는 오류')
-            setReadEepromData(null)
-          }
-        } else if (res.type === "eeprom_write") {
-          // EEPROM 쓰기 응답 처리
-          if (res.result && res.result.success) {
-            console.log('✅ EEPROM 쓰기 성공')
-            setWorkStatus('write_success'); // 저장 완료 상태로 업데이트
-            // 쓰기 성공 후 데이터가 있으면 표시
-            if (res.result.data) {
-              setReadEepromData(res.result.data)
-            }
-          } else {
-            console.error('⚠️ EEPROM 쓰기 실패:', res.result?.error || '알 수 없는 오류')
-            setWorkStatus('write_failed'); // 저장 실패 상태로 업데이트
-          }
+        // EEPROM 관련 메시지는 DataSettingsPanel에서 Promise 기반으로 직접 처리
+        // 중복 처리 방지를 위해 메인 UI에서는 제거
         } else if (res.type === "error") {
           console.error("❌ 모터 오류:", res.result)
           setMotorError(res.result)
@@ -734,20 +713,27 @@ export default function NeedleInspectorUI() {
     handleNeedlePosition(0);
   }
 
-  // 판정 후 상태 초기화 함수
+  // 판정 후 상태 초기화 함수 (동기 로직으로 단순화)
   const handleJudgeReset = () => {
     console.log('🔄 판정 후 상태 초기화 시작');
     
-    // 1. EEPROM 읽기 데이터 초기화
+    // 1. EEPROM UI 데이터 초기화
     setReadEepromData(null);
+    console.log('✅ EEPROM UI 데이터 초기화 완료');
     
-    // 2. START/STOP 상태 초기화 (STOP → START)
+    // 2. EEPROM 읽기 대기 상태 초기화
+    setIsWaitingEepromRead(false);
+    console.log('✅ EEPROM 읽기 대기 상태 초기화 완료');
+    
+    // 3. START/STOP 상태 초기화 (STOP 상태로 변경)
     setIsStarted(false);
+    console.log('✅ START/STOP 상태 초기화 완료');
     
-    // 3. 작업 상태를 대기로 변경
+    // 4. 작업 상태를 대기로 변경
     setWorkStatus('waiting');
+    console.log('✅ 작업 상태 초기화 완료');
     
-    console.log('✅ 판정 후 상태 초기화 완료');
+    console.log('🎉 판정 후 상태 초기화 완료 - 동기 로직으로 race condition 해결');
   };
 
   // 기존 handleStartStopClick 함수 제거 - 새로운 함수로 대체됨
@@ -934,7 +920,7 @@ export default function NeedleInspectorUI() {
 
         {/* Bottom Control Panels */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 flex-1 min-h-0 overflow-y-auto">
-          <StatusPanel mode={mode} workStatus={workStatus} needleTipConnected={needleTipConnected} />
+          <StatusPanel mode={mode} workStatus={workStatus} needleTipConnected={needleTipConnected} isWaitingEepromRead={isWaitingEepromRead} />
           <DataSettingsPanel 
             makerCode={makerCode} 
             onWorkStatusChange={setWorkStatus}
@@ -945,6 +931,7 @@ export default function NeedleInspectorUI() {
             needleTipConnected={needleTipConnected}
             websocket={ws} // WebSocket 연결 전달
             isWsConnected={isWsConnected} // WebSocket 연결 상태 전달
+            onWaitingEepromReadChange={setIsWaitingEepromRead} // EEPROM 읽기 대기 상태 변경 함수 전달
           />
           <NeedleCheckPanel 
             mode={mode} 
@@ -965,6 +952,8 @@ export default function NeedleInspectorUI() {
             onCaptureMergedImage={captureMergedImage} // 병합 캡처 함수 전달
             eepromData={readEepromData} // EEPROM 데이터 전달
             generateUserBasedPath={generateUserBasedPath} // 사용자 기반 폴더 경로 생성 함수 전달
+            isWaitingEepromRead={isWaitingEepromRead} // EEPROM 읽기 대기 상태 전달
+            onWaitingEepromReadChange={setIsWaitingEepromRead} // EEPROM 읽기 대기 상태 변경 함수 전달
           />
         </div>
       </main>

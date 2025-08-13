@@ -380,7 +380,6 @@ async def push_motor_status():
                     "gpio18": gpio18_state,  # 기존 GPIO18 상태
                     "gpio23": gpio23_state,  # 새로운 GPIO23 상태 추가
                     "needle_tip_connected": needle_tip_connected,  # 니들팁 연결 상태
-                    "eeprom": last_eeprom_data  # 인터럽트에서 업데이트되는 EEPROM 데이터
                 }
             }
 

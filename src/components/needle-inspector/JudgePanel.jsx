@@ -1,7 +1,7 @@
 import Panel from "./Panel"
 import { Button } from "./Button"
 
-export default function JudgePanel({ onJudge, isStarted, onReset, camera1Ref, camera2Ref, hasNeedleTip = true, websocket, isWsConnected, onCaptureMergedImage, eepromData, generateUserBasedPath }) {
+export default function JudgePanel({ onJudge, isStarted, onReset, camera1Ref, camera2Ref, hasNeedleTip = true, websocket, isWsConnected, onCaptureMergedImage, eepromData, generateUserBasedPath, isWaitingEepromRead = false, onWaitingEepromReadChange }) {
   // 니들 DOWN 명령 전송 함수 (메인 WebSocket 사용)
   const sendNeedleDown = () => {
     if (websocket && isWsConnected) {
@@ -127,6 +127,7 @@ export default function JudgePanel({ onJudge, isStarted, onReset, camera1Ref, ca
       
       // 상태 초기화
       if (onReset) onReset()
+      if (onWaitingEepromReadChange) onWaitingEepromReadChange(false) // EEPROM 읽기 대기 상태 초기화
       
       // 콜백 호출
       if (onJudge) onJudge(result)
@@ -152,21 +153,21 @@ export default function JudgePanel({ onJudge, isStarted, onReset, camera1Ref, ca
         {/* NG 버튼 */}
         <Button
           onClick={handleNGClick}
-          disabled={!isStarted || !hasNeedleTip}
+          disabled={!isStarted || !hasNeedleTip || isWaitingEepromRead}
           style={{
             flex: 1,
-            backgroundColor: (isStarted && hasNeedleTip) ? '#C22727' : '#6B7280',
+            backgroundColor: (isStarted && hasNeedleTip && !isWaitingEepromRead) ? '#C22727' : '#6B7280',
             color: 'white',
             fontSize: '2dvh',
             fontWeight: 'bold',
             border: 'none',
             borderRadius: '0.375rem',
-            cursor: (isStarted && hasNeedleTip) ? 'pointer' : 'not-allowed',
+            cursor: (isStarted && hasNeedleTip && !isWaitingEepromRead) ? 'pointer' : 'not-allowed',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             height: '30dvh',
-            opacity: (isStarted && hasNeedleTip) ? 1 : 0.6
+            opacity: (isStarted && hasNeedleTip && !isWaitingEepromRead) ? 1 : 0.6
           }}
         >
           NG
@@ -175,21 +176,21 @@ export default function JudgePanel({ onJudge, isStarted, onReset, camera1Ref, ca
         {/* PASS 버튼 */}
         <Button
           onClick={handlePassClick}
-          disabled={!isStarted || !hasNeedleTip}
+          disabled={!isStarted || !hasNeedleTip || isWaitingEepromRead}
           style={{
             flex: 1,
-            backgroundColor: (isStarted && hasNeedleTip) ? '#0CB56C' : '#6B7280',
+            backgroundColor: (isStarted && hasNeedleTip && !isWaitingEepromRead) ? '#0CB56C' : '#6B7280',
             color: 'white',
             fontSize: '2dvh',
             fontWeight: 'bold',
             border: 'none',
             borderRadius: '0.375rem',
-            cursor: (isStarted && hasNeedleTip) ? 'pointer' : 'not-allowed',
+            cursor: (isStarted && hasNeedleTip && !isWaitingEepromRead) ? 'pointer' : 'not-allowed',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             height: '30dvh',
-            opacity: (isStarted && hasNeedleTip) ? 1 : 0.6
+            opacity: (isStarted && hasNeedleTip && !isWaitingEepromRead) ? 1 : 0.6
           }}
         >
           PASS

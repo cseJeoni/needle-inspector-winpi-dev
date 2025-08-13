@@ -4,7 +4,7 @@ import { Input } from "./Input"
 import { Button } from "./Button"
 import { useAuth } from "../../hooks/useAuth"
 
-export default function StatusPanel({ mode, workStatus = 'waiting', needleTipConnected = false }) {
+export default function StatusPanel({ mode, workStatus = 'waiting', needleTipConnected = false, isWaitingEepromRead = false }) {
   // Firebase Authentication 훅 사용
   const { user, loading, error, login, logout, isAuthenticated } = useAuth()
   
@@ -51,7 +51,12 @@ export default function StatusPanel({ mode, workStatus = 'waiting', needleTipCon
   }
 
   // 상태에 따른 스타일과 메시지 정의
-  const getStatusInfo = (status) => {
+  const getStatusInfo = (status, isWaitingRead = false) => {
+    // EEPROM 읽기 대기 중일 때는 우선적으로 표시
+    if (isWaitingRead) {
+      return { bg: 'bg-[#F59E0B]', text: 'EEPROM 읽기 중...', textColor: 'text-white' }
+    }
+    
     switch (status) {
       case 'waiting':
         return { bg: 'bg-[#646683]', text: '작업 대기', textColor: 'text-white' }
@@ -76,7 +81,7 @@ export default function StatusPanel({ mode, workStatus = 'waiting', needleTipCon
     effectiveStatus = workStatus;
   }
 
-  const statusInfo = getStatusInfo(effectiveStatus)
+  const statusInfo = getStatusInfo(effectiveStatus, isWaitingEepromRead)
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1dvh' }}>

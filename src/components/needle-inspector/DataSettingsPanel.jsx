@@ -15,7 +15,8 @@ export default function DataSettingsPanel({
   onReadEepromDataChange,
   needleTipConnected,
   websocket, // 메인 WebSocket 연결
-  isWsConnected // WebSocket 연결 상태
+  isWsConnected, // WebSocket 연결 상태
+  onWaitingEepromReadChange // EEPROM 읽기 대기 상태 변경 함수
 }) {
   // isStarted와 readEepromData는 이제 props로 받아서 사용
   const [selectedYear, setSelectedYear] = useState("")
@@ -189,41 +190,111 @@ export default function DataSettingsPanel({
     }
   }, [selectedYear, selectedMonth])
 
-  // EEPROM 읽기 함수 (메인 WebSocket 사용)
-  const readFromEEPROM = async () => {
-    if (websocket && isWsConnected) {
+  // EEPROM 읽기 함수 (Promise 기반 동기화)
+  const readFromEEPROM = () => {
+    return new Promise((resolve, reject) => {
+      if (!websocket || !isWsConnected) {
+        console.error('WebSocket 연결되지 않음 - EEPROM 읽기 실패');
+        onReadEepromDataChange && onReadEepromDataChange(null);
+        reject(new Error('WebSocket 연결 없음'));
+        return;
+      }
+
       console.log("EEPROM 읽기 명령 전송");
+      onWaitingEepromReadChange && onWaitingEepromReadChange(true);
+      
+      // 응답 대기용 리스너 등록
+      const handleResponse = (event) => {
+        try {
+          const response = JSON.parse(event.data);
+          if (response.type === 'eeprom_read') {
+            websocket.removeEventListener('message', handleResponse);
+            onWaitingEepromReadChange && onWaitingEepromReadChange(false);
+            
+            if (response.result && response.result.success) {
+              console.log('✅ EEPROM 읽기 성공:', response.result);
+              onReadEepromDataChange && onReadEepromDataChange(response.result);
+              resolve(response.result);
+            } else {
+              console.error('⚠️ EEPROM 읽기 실패:', response.result?.error);
+              onReadEepromDataChange && onReadEepromDataChange(null);
+              reject(new Error(response.result?.error || 'EEPROM 읽기 실패'));
+            }
+          }
+        } catch (err) {
+          console.error('EEPROM 읽기 응답 파싱 오류:', err);
+        }
+      };
+      
+      websocket.addEventListener('message', handleResponse);
       websocket.send(JSON.stringify({ cmd: "eeprom_read" }));
-    } else {
-      console.error('WebSocket 연결되지 않음 - EEPROM 읽기 실패');
-      onReadEepromDataChange && onReadEepromDataChange(null);
-    }
+      
+      // 타임아웃 설정 (5초)
+      setTimeout(() => {
+        websocket.removeEventListener('message', handleResponse);
+        onWaitingEepromReadChange && onWaitingEepromReadChange(false);
+        reject(new Error('EEPROM 읽기 타임아웃'));
+      }, 5000);
+    });
   };
 
-  // EEPROM에 데이터 쓰기 함수 (메인 WebSocket 사용)
-  const writeToEEPROM = async () => {
-    const tipType = calculateTipType()
-    
-    const eepromData = {
-      cmd: "eeprom_write",
-      tipType: tipType,
-      shotCount: 0, // 무조건 0
-      year: parseInt(selectedYear),
-      month: parseInt(selectedMonth),
-      day: parseInt(selectedDay),
-      makerCode: 4
-    }
-    
-    console.log('EEPROM에 쓸 데이터:', eepromData)
-    
-    if (websocket && isWsConnected) {
-      console.log('EEPROM 쓰기 명령 전송')
-      websocket.send(JSON.stringify(eepromData))
-    } else {
-      console.error('WebSocket 연결되지 않음 - EEPROM 쓰기 실패')
-      onWorkStatusChange && onWorkStatusChange('disconnected')
-    }
-  }
+  // EEPROM에 데이터 쓰기 함수 (Promise 기반 동기화)
+  const writeToEEPROM = () => {
+    return new Promise((resolve, reject) => {
+      const tipType = calculateTipType();
+      
+      const eepromData = {
+        cmd: "eeprom_write",
+        tipType: tipType,
+        shotCount: 0, // 무조건 0
+        year: parseInt(selectedYear),
+        month: parseInt(selectedMonth),
+        day: parseInt(selectedDay),
+        makerCode: 4
+      };
+      
+      console.log('EEPROM에 쓸 데이터:', eepromData);
+      
+      if (!websocket || !isWsConnected) {
+        console.error('WebSocket 연결되지 않음 - EEPROM 쓰기 실패');
+        onWorkStatusChange && onWorkStatusChange('disconnected');
+        reject(new Error('WebSocket 연결 없음'));
+        return;
+      }
+      
+      // 응답 대기용 리스너 등록
+      const handleResponse = (event) => {
+        try {
+          const response = JSON.parse(event.data);
+          if (response.type === 'eeprom_write') {
+            websocket.removeEventListener('message', handleResponse);
+            
+            if (response.result && response.result.success) {
+              console.log('✅ EEPROM 쓰기 성공:', response.result);
+              onWorkStatusChange && onWorkStatusChange('write_success');
+              resolve(response.result);
+            } else {
+              console.error('⚠️ EEPROM 쓰기 실패:', response.result?.error);
+              onWorkStatusChange && onWorkStatusChange('write_failed');
+              reject(new Error(response.result?.error || 'EEPROM 쓰기 실패'));
+            }
+          }
+        } catch (err) {
+          console.error('EEPROM 쓰기 응답 파싱 오류:', err);
+        }
+      };
+      
+      websocket.addEventListener('message', handleResponse);
+      console.log('EEPROM 쓰기 명령 전송');
+      websocket.send(JSON.stringify(eepromData));
+      
+      // 타임아웃 설정 (5초)
+      setTimeout(() => {
+        websocket.removeEventListener('message', handleResponse);
+        reject(new Error('EEPROM 쓰기 타임아웃'));
+      }, 5000);
+    });
+  };
   
   // 저장 데이터 설정 활성화/비활성화 토글 함수
   const handleDataSettingsToggle = () => {
@@ -242,25 +313,45 @@ export default function DataSettingsPanel({
         return // 조기 종료
       }
       
-      // START 버튼을 눌렀을 때 상태 초기화 후 EEPROM에 쓰기
-      onWorkStatusChange && onWorkStatusChange('waiting')
-      
-      // 니들 UP 명령 전송 (메인 WebSocket 사용)
-      if (websocket && isWsConnected) {
-        console.log('니들 UP 명령 전송')
-        websocket.send(JSON.stringify({ cmd: "move", position: 840, mode: "position" }))
-      } else {
-        console.error('WebSocket 연결되지 않음 - 니들 UP 명령 실패')
+      try {
+        console.log('🚀 동기 EEPROM 처리 시작')
+        onWorkStatusChange && onWorkStatusChange('waiting')
+        
+        // 1단계: 니들 UP 명령 전송
+        if (websocket && isWsConnected) {
+          console.log('1️⃣ 니들 UP 명령 전송')
+          websocket.send(JSON.stringify({ cmd: "move", position: 840, mode: "position" }))
+        } else {
+          console.error('WebSocket 연결되지 않음 - 니들 UP 명령 실패')
+          return
+        }
+        
+        // 2단계: EEPROM 쓰기 완료까지 대기
+        console.log('2️⃣ EEPROM 쓰기 시작 - 응답 대기 중...')
+        await writeToEEPROM()
+        console.log('✅ EEPROM 쓰기 완료')
+        
+        // 3단계: EEPROM 읽기 완료까지 대기
+        console.log('3️⃣ EEPROM 읽기 시작 - 응답 대기 중...')
+        await readFromEEPROM()
+        console.log('✅ EEPROM 읽기 완료')
+        
+        // 4단계: 판정 버튼 활성화 (isStarted 상태 변경으로 자동 처리됨)
+        console.log('4️⃣ 판정 버튼 활성화 준비 완료')
+        onStartedChange && onStartedChange(true)
+        
+        console.log('🎉 동기 EEPROM 처리 완료 - 판정 버튼 활성화됨')
+        
+      } catch (error) {
+        console.error('❌ 동기 EEPROM 처리 실패:', error.message)
+        onWorkStatusChange && onWorkStatusChange('write_failed')
+        // 실패 시 START 상태를 유지하지 않음
+        return
       }
-      
-      await writeToEEPROM()
-      // EEPROM 쓰기 완료 후 읽기 수행
-      setTimeout(() => {
-        readFromEEPROM()
-      }, 1000) // 1초 후 읽기 수행 (쓰기 완료 대기)
     } else {
       // STOP 버튼을 눌렀을 때 모터 DOWN 명령 전송 후 대기 상태로 복귀
       onWorkStatusChange && onWorkStatusChange('waiting')
+      onWaitingEepromReadChange && onWaitingEepromReadChange(false) // EEPROM 읽기 대기 상태 초기화
       
       // 모터 DOWN 명령 전송 (메인 WebSocket 사용)
       if (websocket && isWsConnected) {
@@ -269,9 +360,9 @@ export default function DataSettingsPanel({
       } else {
         console.error('WebSocket 연결되지 않음 - 모터 DOWN 명령 실패')
       }
+      
+      onStartedChange && onStartedChange(false)
     }
-    
-    onStartedChange && onStartedChange(!isStarted)
   }
 
   const handleCountryChange = (value) => {
