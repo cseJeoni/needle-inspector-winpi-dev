@@ -1,6 +1,6 @@
 /* eslint-disable no-undef */
 
-const { app, BrowserWindow, dialog } = require("electron");
+const { app, BrowserWindow, dialog, ipcMain } = require("electron");
 const path = require("path");
 const { spawn } = require("child_process");
 const fs = require("fs");
@@ -23,6 +23,44 @@ function getBackendPath() {
   } else {
     // 프로덕션에서는 electron-builder의 extraResources 설정에 따라 경로가 달라짐
     return path.join(process.resourcesPath, 'backend');
+  }
+}
+
+/**
+ * CSV 파일을 파싱하여 객체 배열로 변환
+ * @param {string} filePath - CSV 파일 경로
+ * @returns {Array} 파싱된 데이터 배열
+ */
+function parseCSV(filePath) {
+  try {
+    if (!fs.existsSync(filePath)) {
+      console.warn(`CSV 파일이 존재하지 않습니다: ${filePath}`);
+      return [];
+    }
+
+    const content = fs.readFileSync(filePath, 'utf-8');
+    const lines = content.split(/\r?\n/).filter(line => line.trim());
+    
+    if (lines.length < 2) return [];
+    
+    const headers = lines[0].split(',').map(h => h.trim());
+    const rows = [];
+
+    for (let i = 1; i < lines.length; i++) {
+      const values = lines[i].split(',').map(v => v.trim());
+      if (values.length === headers.length) {
+        const row = {};
+        headers.forEach((header, index) => {
+          row[header] = values[index];
+        });
+        rows.push(row);
+      }
+    }
+
+    return rows;
+  } catch (error) {
+    console.error(`CSV 파일 파싱 오류 (${filePath}):`, error);
+    return [];
   }
 }
 
@@ -103,21 +141,57 @@ function waitForBackend() {
   });
 }
 
+// IPC 핸들러 등록
+ipcMain.handle('load-csv-data', async (event, configDir = 'C:\\inspector_config_data') => {
+  try {
+    const mtr2Path = path.join(configDir, 'mtr_2.csv');
+    const mtr4Path = path.join(configDir, 'mtr_4.csv');
+    
+    console.log(`[INFO] CSV 파일 읽기 시도:`);
+    console.log(`  - MTR 2.0: ${mtr2Path}`);
+    console.log(`  - MTR 4.0: ${mtr4Path}`);
+    
+    const mtr2Data = parseCSV(mtr2Path);
+    const mtr4Data = parseCSV(mtr4Path);
+    
+    console.log(`[INFO] CSV 데이터 로드 완료:`);
+    console.log(`  - MTR 2.0: ${mtr2Data.length}개 레코드`);
+    console.log(`  - MTR 4.0: ${mtr4Data.length}개 레코드`);
+    
+    return {
+      mtr2: mtr2Data,
+      mtr4: mtr4Data
+    };
+  } catch (error) {
+    console.error('[ERROR] CSV 데이터 로드 실패:', error);
+    return {
+      mtr2: [],
+      mtr4: []
+    };
+  }
+});
+
+// Handle creating/removing shortcuts on Windows when installing/uninstalling.
+if (require('electron-squirrel-startup')) {
+  app.quit();
+}
+
 async function createWindow() {
   try {
-    // 백엔드 서버 시작 (테스트를 위해 주석처리)
+    // 백엔드 서버 시작
     startBackendServer();
     
-    // 서버가 시작될 때까지 대기 (테스트를 위해 주석처리)
+    // 서버가 시작될 때까지 대기
     await waitForBackend();
     
     // 웹소켓 서버가 실행된 후 창 생성
     win = new BrowserWindow({
-      width: 800,
-      height: 600,
+      width: 1200,
+      height: 800,
       webPreferences: {
-        nodeIntegration: true,
-        contextIsolation: false,
+        nodeIntegration: false,
+        contextIsolation: true,
+        preload: path.join(__dirname, 'preload.js')
       },
     });
 
@@ -181,6 +255,10 @@ app.on('window-all-closed', () => {
     }
     app.quit();
   }
+});
+
+app.on('quit', () => {
+  console.log('[INFO] Electron 앱 종료');
 });
 
 app.on('activate', () => {

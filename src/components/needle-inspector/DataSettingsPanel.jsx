@@ -5,6 +5,15 @@ import Panel from "./Panel"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./Select"
 import { Button } from "./Button"
 import { Input } from "./Input"
+import lockIcon from '../../assets/icon/lock.png';
+import unlockIcon from '../../assets/icon/unlock.png';
+import { 
+  getCountryOptions,
+  getNeedleOptions,
+  getId,
+  isCacheReady,
+  initializeCache
+} from '../../utils/csvCache';
 
 export default function DataSettingsPanel({
   makerCode,
@@ -22,11 +31,15 @@ export default function DataSettingsPanel({
   const [selectedYear, setSelectedYear] = useState("")
   const [selectedMonth, setSelectedMonth] = useState("")
   const [selectedDay, setSelectedDay] = useState("")
-  const [selectedCountry, setSelectedCountry] = useState("ilooda")
-  const [selectedNeedleType, setSelectedNeedleType] = useState("25&16")
+  const [selectedCountry, setSelectedCountry] = useState("")
+  const [selectedNeedleType, setSelectedNeedleType] = useState("")
+  const [mtrVersion, setMtrVersion] = useState('2.0'); // MTR 버전 상태 추가, 기본값 '2.0'
   
   // 저장 데이터 설정 활성화 상태 (기본값: 비활성화)
   const [isDataSettingsEnabled, setIsDataSettingsEnabled] = useState(false)
+  
+  // CSV 캐시 준비 상태
+  const [cacheReady, setCacheReady] = useState(false)
 
   // 현재 날짜 정보
   const currentDate = new Date()
@@ -104,60 +117,72 @@ export default function DataSettingsPanel({
     return Array.from({ length: daysInMonth }, (_, i) => String(i + 1).padStart(2, "0"))
   }
 
-  // 니들 옵션 생성
-  const getNeedleOptions = () => {
-    const options = {
-      cutera: [
-        { value: "25&16", label: "25 & 16 PIN" },
-        { value: "1&10", label: "1 & 10 PIN" },
-        { value: "10", label: "10 PIN" },
-        { value: "64", label: "64 PIN" },
-      ],
-      ilooda: [
-        { value: "25&16", label: "25 & 16 PIN" },
-        { value: "1&10", label: "1 & 10 PIN" },
-        { value: "10", label: "10 PIN" },
-        { value: "64", label: "64 PIN" },
-        { value: "25", label: "25 PIN" },
-      ],
-      ilooda_export: [
-        { value: "25&16", label: "25 & 16 PIN" },
-        { value: "1&10", label: "1 & 10 PIN" },
-        { value: "10", label: "10 PIN" },
-        { value: "64", label: "64 PIN" },
-        { value: "25", label: "25 PIN" },
-      ],
-    };
-    return options[selectedCountry] || [];
+  // 니들 옵션 생성 (CSV 캐시 사용)
+  const getNeedleOptionsForUI = () => {
+    if (!cacheReady || !selectedCountry) return [];
+    return getNeedleOptions(mtrVersion, selectedCountry);
+  };
+  
+  // 국가 옵션 생성 (CSV 캐시 사용)
+  const getCountryOptionsForUI = () => {
+    if (!cacheReady) return [];
+    return getCountryOptions(mtrVersion);
   };
 
-  // TIP TYPE 계산 함수
+  // TIP TYPE 계산 함수 (CSV 캐시 사용)
   const calculateTipType = () => {
-    const tipTypeMap = {
-      "cutera": {
-        "25&16": 208,
-        "1&10": 209,
-        "10": 210,
-        "64": 211
-      },
-      "ilooda": {
-        "25&16": 216,
-        "1&10": 217,
-        "10": 218,
-        "64": 219,
-        "25": 230
-      },
-      "ilooda_export": { // 해외향 추가
-        "25&16": 216,
-        "1&10": 217,
-        "10": 218,
-        "64": 219,
-        "25": 230
-      }
-    }
+    if (!cacheReady || !selectedCountry || !selectedNeedleType) return null;
     
-    return tipTypeMap[selectedCountry]?.[selectedNeedleType] || null
+    // CSV 캐시에서 ID 조회
+    const id = getId(mtrVersion, selectedCountry, selectedNeedleType);
+    
+    // ID가 숫자 형태라면 그대로 반환, 아니면 null
+    const numericId = parseInt(id);
+    return isNaN(numericId) ? null : numericId;
   }
+
+  // CSV 캐시 초기화 (앱 시작 시 1회)
+  useEffect(() => {
+    const loadCsvDataAsync = async () => {
+      console.log('DataSettingsPanel: 마운트됨, CSV 데이터 로딩 시도...');
+      if (window.api && typeof window.api.loadCsvData === 'function') {
+        try {
+          const csvData = await window.api.loadCsvData(); // 비동기로 CSV 데이터 로드
+          console.log('CSV 데이터 로드 완료:', csvData);
+          
+          // 데이터 형식을 csvCache가 기대하는 형식으로 변환
+          const formattedData = {
+            '2.0': csvData.mtr2 || [],
+            '4.0': csvData.mtr4 || []
+          };
+          
+          initializeCache(formattedData); // 로드된 데이터로 캐시 초기화
+          
+          // 캐시 초기화 후, 상태 업데이트하여 UI 리렌더링
+          if (isCacheReady()) {
+            console.log('캐시 준비 완료, UI 상태 업데이트');
+            setCacheReady(true);
+            const countryOptions = getCountryOptions(mtrVersion);
+            if (countryOptions.length > 0) {
+              setSelectedCountry(countryOptions[0].value);
+              const needleOptions = getNeedleOptions(mtrVersion, countryOptions[0].value);
+              if (needleOptions.length > 0) {
+                setSelectedNeedleType(needleOptions[0].value);
+              }
+            }
+          } else {
+            console.warn('캐시 준비 실패');
+          }
+        } catch (error) {
+          console.error('CSV 데이터 로드 중 오류 발생:', error);
+        }
+      } else {
+        console.error('`window.api.loadCsvData` 함수를 찾을 수 없습니다. preload.js를 확인하세요.');
+      }
+    };
+    
+    loadCsvDataAsync();
+  }, []); // 빈 배열을 전달하여 컴포넌트 마운트 시 1회만 실행
 
   // 초기값 설정
   useEffect(() => {
@@ -166,18 +191,41 @@ export default function DataSettingsPanel({
     setSelectedDay(currentDay)
   }, [])
 
+  // MTR 버전이 변경될 때 국가와 니들 옵션 초기화
+  useEffect(() => {
+    if (!cacheReady) return;
+    
+    const countryOptions = getCountryOptions(mtrVersion);
+    if (countryOptions.length > 0) {
+      const firstCountry = countryOptions[0].value;
+      setSelectedCountry(firstCountry);
+      
+      const needleOptions = getNeedleOptions(mtrVersion, firstCountry);
+      if (needleOptions.length > 0) {
+        setSelectedNeedleType(needleOptions[0].value);
+      } else {
+        setSelectedNeedleType("");
+      }
+    } else {
+      setSelectedCountry("");
+      setSelectedNeedleType("");
+    }
+  }, [mtrVersion, cacheReady]);
+  
   // 국가가 변경될 때 니들 종류 초기화
   useEffect(() => {
-    const options = getNeedleOptions();
-    if (options.length > 0) {
+    if (!cacheReady || !selectedCountry) return;
+    
+    const needleOptions = getNeedleOptions(mtrVersion, selectedCountry);
+    if (needleOptions.length > 0) {
       // 현재 선택된 니들이 새 옵션에 없으면 첫번째 옵션으로 설정
-      if (!options.find(opt => opt.value === selectedNeedleType)) {
-        setSelectedNeedleType(options[0].value);
+      if (!needleOptions.find(opt => opt.value === selectedNeedleType)) {
+        setSelectedNeedleType(needleOptions[0].value);
       }
     } else {
       setSelectedNeedleType("");
     }
-  }, [selectedCountry]);
+  }, [selectedCountry, mtrVersion, cacheReady]);
 
   // 월이 변경될 때 일 옵션 재설정
   useEffect(() => {
@@ -298,9 +346,7 @@ export default function DataSettingsPanel({
   
   // 저장 데이터 설정 활성화/비활성화 토글 함수
   const handleDataSettingsToggle = () => {
-    setIsDataSettingsEnabled(!isDataSettingsEnabled)
-    console.log(`저장 데이터 설정: ${!isDataSettingsEnabled ? 'UNLOCK' : 'LOCK'}`)
-  }
+    setIsDataSettingsEnabled(!isDataSettingsEnabled)  }
 
   const handleToggle = async () => {
     const tipType = calculateTipType()
@@ -390,8 +436,49 @@ export default function DataSettingsPanel({
   const readRawDate = readEepromData ? `Y:${readEepromData.year} M:${readEepromData.month} D:${readEepromData.day}` : '';
 
   return (
-    <Panel title="저장 데이터 설정">
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5dvh' }}>
+    <Panel title={
+      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+        <h2 className="text-lg font-bold">저장 데이터 설정</h2>
+        <img
+          src={isDataSettingsEnabled ? unlockIcon : lockIcon}
+          alt={isDataSettingsEnabled ? 'Unlocked' : 'Locked'}
+          style={{ cursor: 'pointer', height: '1.25rem' }} // h-5 equivalent
+          onClick={handleDataSettingsToggle}
+          title={isDataSettingsEnabled ? '설정 잠금' : '설정 잠금 해제'}
+        />
+      </div>
+    }>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5dvh' }}>
+        <div style={{ display: 'flex', gap: '0.2dvw', marginBottom: '0.3dvh' }}>
+            <Button 
+                onClick={() => setMtrVersion('2.0')}
+                disabled={!isDataSettingsEnabled}
+                style={{
+                    flex: 1,
+                    backgroundColor: mtrVersion === '2.0' ? '#4A90E2' : '#171C26',
+                    color: 'white',
+                    border: `1px solid ${mtrVersion === '2.0' ? '#4A90E2' : '#374151'}`,
+                    fontSize: '1.5dvh',
+                    padding: '0.8dvh 0',
+                }}
+            >
+                MTR 2.0
+            </Button>
+            <Button 
+                onClick={() => setMtrVersion('4.0')}
+                disabled={!isDataSettingsEnabled}
+                style={{
+                    flex: 1,
+                    backgroundColor: mtrVersion === '4.0' ? '#4A90E2' : '#171C26',
+                    color: 'white',
+                    border: `1px solid ${mtrVersion === '4.0' ? '#4A90E2' : '#374151'}`,
+                    fontSize: '1.5dvh',
+                    padding: '0.8dvh 0',
+                }}
+            >
+                MTR 4.0
+            </Button>
+        </div>
         <div style={{ display: 'flex', gap: '0.5dvw' }}>
           <div style={{ display: 'flex', alignItems: 'center', flex: 1, gap: '0.5dvw' }}>
             <label style={{ width: '20%', fontSize: '1.5dvh', color: '#D1D5DB' }}>국가</label>
@@ -400,9 +487,11 @@ export default function DataSettingsPanel({
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="cutera">CUTERA</SelectItem>
-                <SelectItem value="ilooda">ILOODA (국내)</SelectItem>
-                <SelectItem value="ilooda_export">ILOODA (해외)</SelectItem>
+                {getCountryOptionsForUI().map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
@@ -413,7 +502,7 @@ export default function DataSettingsPanel({
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {getNeedleOptions().map((option) => (
+                {getNeedleOptionsForUI().map((option) => (
                   <SelectItem key={option.value} value={option.value}>
                     {option.label}
                   </SelectItem>
@@ -466,22 +555,6 @@ export default function DataSettingsPanel({
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '1dvh' }}>
 
-      <Button
-          onClick={handleDataSettingsToggle}
-          style={{
-            width: '100%',
-            fontWeight: 'bold',
-            padding: '0.8dvh 0',
-            fontSize: '1.8dvh',
-            backgroundColor: '#171C26',
-            color: 'white',
-            border: '1px solid white',
-            borderRadius: '0.375rem',
-            cursor: 'pointer'
-          }}
-        >
-          {isDataSettingsEnabled ? "LOCK" : "UNLOCK"}
-        </Button>
         <Button
           onClick={handleToggle}
           style={{

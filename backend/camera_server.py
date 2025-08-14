@@ -16,6 +16,9 @@ CORS(app) # CORS 지원 추가
 cap = None
 cap2 = None
 
+# 종료 플래그
+shutdown_flag = False
+
 def initialize_cameras():
     """카메라 초기화 함수"""
     global cap, cap2
@@ -83,7 +86,9 @@ def cleanup_cameras():
 
 def signal_handler(sig, frame):
     """시그널 핸들러 - 프로그램 종료 시 카메라 정리"""
+    global shutdown_flag
     print("[INFO] 종료 신호 수신, 카메라 서버 종료 중...")
+    shutdown_flag = True
     cleanup_cameras()
     print("[INFO] 카메라 서버 종료 완료")
     sys.exit(0)
@@ -99,12 +104,12 @@ atexit.register(cleanup_cameras)
 initialize_cameras()
 
 def generate_frames():
-    global cap
+    global cap, shutdown_flag
     error_count = 0
     max_errors = 10
     frame_count = 0
     
-    while True:
+    while not shutdown_flag:
         if cap is None or not cap.isOpened():
             print("[ERROR] 카메라 0번이 연결되지 않음")
             break
@@ -158,12 +163,12 @@ def generate_frames():
                b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
 
 def generate_frames2():
-    global cap2
+    global cap2, shutdown_flag
     error_count = 0
     max_errors = 10
     frame_count = 0
     
-    while True:
+    while not shutdown_flag:
         if cap2 is None or not cap2.isOpened():
             print("[ERROR] 카메라 2번이 연결되지 않음")
             break
@@ -215,6 +220,11 @@ def generate_frames2():
 
         yield (b'--frame\r\n'
                b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
+
+@app.route('/health')
+def health():
+    """서버 상태 확인용 헬스체크 엔드포인트"""
+    return jsonify({'status': 'ok', 'message': 'Camera server is running'}), 200
 
 @app.route('/video')
 def video():
@@ -272,6 +282,8 @@ def capture2():
 
 if __name__ == '__main__':
     try:
-        app.run(host='0.0.0.0', port=5000, debug=True, threaded=True)
+        # 프로덕션 모드로 실행 (디버그 모드 해제, 자동 재로더 해제)
+        # 이렇게 하면 SIGTERM 신호가 제대로 전달되어 정상 종료됩니다
+        app.run(host='0.0.0.0', port=5000, debug=False, use_reloader=False, threaded=True)
     finally:
         cleanup_cameras()
