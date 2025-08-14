@@ -15,7 +15,14 @@ except ImportError:
 
 # EEPROM 설정
 I2C_BUS = 1
-EEPROM_ADDRESS = 0x50
+
+# MTR 버전별 EEPROM 설정
+MTR20_EEPROM_ADDRESS = 0x50
+MTR20_CLASSYS_OFFSET = 0x10
+MTR20_CUTERA_OFFSET = 0x80
+
+MTR40_EEPROM_ADDRESS = 0x51
+MTR40_OFFSET = 0x70
 
 # GPIO 초기화 (RPi.GPIO 사용)
 gpio_available = False
@@ -78,81 +85,112 @@ if gpio_available:
     except Exception as e:
         print(f"[ERROR] GPIO23 인터럽트 설정 오류: {e}")
 
-# EEPROM 관련 함수들
-def write_eeprom_data(tip_type, shot_count, year, month, day, maker_code):
+
+# EEPROM 관련 함수들 - 간소화된 API
+def write_eeprom_mtr20(tip_type, shot_count, year, month, day, maker_code, country="CLASSYS"):
     """
-    EEPROM에 데이터 쓰기
+    MTR 2.0용 EEPROM 쓰기 함수
+    
+    Args:
+        tip_type: TIP ID (1바이트)
+        shot_count: Shot Count (2바이트)
+        year: 제조 년도
+        month: 제조 월
+        day: 제조 일
+        maker_code: 제조업체 코드 (1바이트)
+        country: 국가 ("CLASSYS" 또는 "CUTERA")
+    
+    EEPROM 설정:
+        - CLASSYS: 주소 0x50, 오프셋 0x10
+        - CUTERA: 주소 0x50, 오프셋 0x80
+    
+    데이터 구조 (오프셋 기준):
+        offset + 0: TIP ID (1바이트)
+        offset + 1~2: Shot Count (2바이트, big-endian)
+        offset + 3~8: Reserve (6바이트)
+        offset + 9~11: 제조 년/월/일 (3바이트)
+        offset + 12: 제조업체 (1바이트)
     """
     if not eeprom_available:
         return {"success": False, "error": "EEPROM 기능이 비활성화되어 있습니다."}
-    
+
+    # 국가에 따른 오프셋 설정
+    eeprom_address = MTR20_EEPROM_ADDRESS
+    offset = MTR20_CUTERA_OFFSET if country == "CUTERA" else MTR20_CLASSYS_OFFSET
+
     try:
         bus = smbus2.SMBus(I2C_BUS)
-        
-        # TIP TYPE 쓰기 (0x10)
-        bus.write_byte_data(EEPROM_ADDRESS, 0x10, tip_type)
-        time.sleep(0.1)
-        
-        # SHOT COUNT 쓰기 (0x11~0x12) - 2바이트
-        bus.write_i2c_block_data(EEPROM_ADDRESS, 0x11, [shot_count >> 8, shot_count & 0xFF])
-        time.sleep(0.1)
-        
-        # 제조일 쓰기 (0x19~0x1B) - 년도는 2000년 기준으로 오프셋
-        bus.write_i2c_block_data(EEPROM_ADDRESS, 0x19, [year - 2000, month, day])
-        time.sleep(0.1)
-        
-        # 제조사 코드 쓰기 (0x1C)
-        bus.write_byte_data(EEPROM_ADDRESS, 0x1C, maker_code)
-        time.sleep(0.1)
-        
-        bus.close()
-        
-        return {
-            "success": True,
-            "message": "EEPROM 쓰기 성공",
-            "data": {
-                "tipType": tip_type,
-                "shotCount": shot_count,
-                "year": year,
-                "month": month,
-                "day": day,
-                "makerCode": maker_code
-            }
-        }
-        
-    except Exception as e:
-        return {"success": False, "error": f"EEPROM 쓰기 실패: {str(e)}"}
 
-def read_eeprom_data():
+        # TIP ID (offset + 0)
+        bus.write_byte_data(eeprom_address, offset + 0, tip_type)
+        time.sleep(0.01)
+
+        # SHOT COUNT (offset + 1: H, offset + 2: L) - big-endian
+        bus.write_byte_data(eeprom_address, offset + 1, (shot_count >> 8) & 0xFF)
+        time.sleep(0.01)
+        bus.write_byte_data(eeprom_address, offset + 2, shot_count & 0xFF)
+        time.sleep(0.01)
+
+        # DATE: offset + 9=YEAR, offset + 10=MONTH, offset + 11=DAY
+        bus.write_byte_data(eeprom_address, offset + 9, (year - 2000) & 0xFF)
+        time.sleep(0.01)
+        bus.write_byte_data(eeprom_address, offset + 10, month & 0xFF)
+        time.sleep(0.01)
+        bus.write_byte_data(eeprom_address, offset + 11, day & 0xFF)
+        time.sleep(0.01)
+
+        # MAKER CODE (offset + 12)
+        bus.write_byte_data(eeprom_address, offset + 12, maker_code & 0xFF)
+        time.sleep(0.01)
+
+        bus.close()
+        return {"success": True, "message": f"MTR 2.0 {country} EEPROM 쓰기 성공 (주소: 0x{eeprom_address:02X}, 오프셋: 0x{offset:02X})"}
+
+    except Exception as e:
+        return {"success": False, "error": f"EEPROM 쓰기 실패: {e}"}
+
+
+def read_eeprom_mtr20(country="CLASSYS"):
     """
-    EEPROM에서 데이터 읽기
+    MTR 2.0용 EEPROM 읽기 함수
+    
+    Args:
+        country: 국가 ("CLASSYS" 또는 "CUTERA")
+    
+    EEPROM 설정:
+        - CLASSYS: 주소 0x50, 오프셋 0x10
+        - CUTERA: 주소 0x50, 오프셋 0x80
     """
     if not eeprom_available:
         return {"success": False, "error": "EEPROM 기능이 비활성화되어 있습니다."}
-    
+
+    # 국가에 따른 오프셋 설정
+    eeprom_address = MTR20_EEPROM_ADDRESS
+    offset = MTR20_CUTERA_OFFSET if country == "CUTERA" else MTR20_CLASSYS_OFFSET
+
     bus = None
     max_retries = 3
-    
+
     for attempt in range(max_retries):
         try:
             bus = smbus2.SMBus(I2C_BUS)
-            
-            # TIP TYPE 읽기 (0x10)
-            tip_type = bus.read_byte_data(EEPROM_ADDRESS, 0x10)
-            
-            # SHOT COUNT 읽기 (0x11~0x12)
-            shot_count_bytes = bus.read_i2c_block_data(EEPROM_ADDRESS, 0x11, 2)
-            shot_count = shot_count_bytes[0] << 8 | shot_count_bytes[1]
-            
-            # 제조일 읽기 (0x19~0x1B)
-            manufacture_date = bus.read_i2c_block_data(EEPROM_ADDRESS, 0x19, 3)
-            year = 2000 + manufacture_date[0]
-            month = manufacture_date[1]
-            day = manufacture_date[2]
-            
-            # 제조사 코드 읽기 (0x1C)
-            maker_code = bus.read_byte_data(EEPROM_ADDRESS, 0x1C)
-            
+
+            # TIP ID (offset + 0)
+            tip_type = bus.read_byte_data(eeprom_address, offset + 0)
+
+            # SHOT COUNT (offset + 1=H, offset + 2=L)
+            shot = bus.read_i2c_block_data(eeprom_address, offset + 1, 2)
+            shot_count = (shot[0] << 8) | shot[1]
+
+            # DATE: offset + 9=YEAR, offset + 10=MONTH, offset + 11=DAY
+            year_off = bus.read_byte_data(eeprom_address, offset + 9)
+            month = bus.read_byte_data(eeprom_address, offset + 10)
+            day = bus.read_byte_data(eeprom_address, offset + 11)
+            year = 2000 + year_off
+
+            # MAKER CODE (offset + 12)
+            maker_code = bus.read_byte_data(eeprom_address, offset + 12)
+
             return {
                 "success": True,
                 "tipType": tip_type,
@@ -160,23 +198,141 @@ def read_eeprom_data():
                 "year": year,
                 "month": month,
                 "day": day,
-                "makerCode": maker_code
+                "makerCode": maker_code,
+                "mtrVersion": "2.0",
+                "country": country,
+                "eepromAddress": f"0x{eeprom_address:02X}",
+                "offset": f"0x{offset:02X}"
             }
-            
+
         except Exception as e:
-            print(f"[ERROR] EEPROM 읽기 시도 {attempt + 1}/{max_retries} 실패: {str(e)}")
+            print(f"[ERROR] MTR 2.0 {country} EEPROM 읽기 시도 {attempt + 1}/{max_retries} 실패 (주소: 0x{eeprom_address:02X}, 오프셋: 0x{offset:02X}): {e}")
             if attempt < max_retries - 1:
-                time.sleep(0.1)  # 짧은 대기 후 재시도
+                time.sleep(0.1)
             else:
-                return {"success": False, "error": f"EEPROM 읽기 실패 (모든 재시도 소진): {str(e)}"}
+                return {"success": False, "error": f"EEPROM 읽기 실패: {e}"}
         finally:
-            # 버스 리소스 확실히 해제
             if bus is not None:
-                try:
-                    bus.close()
-                except:
-                    pass
-                bus = None
+                try: bus.close()
+                except: pass
+
+
+def write_eeprom_mtr40(tip_type, shot_count, year, month, day, maker_code):
+    """
+    MTR 4.0용 EEPROM 쓰기 함수
+    
+    Args:
+        tip_type: TIP ID (1바이트)
+        shot_count: Shot Count (2바이트)
+        year: 제조 년도
+        month: 제조 월
+        day: 제조 일
+        maker_code: 제조업체 코드 (1바이트)
+    
+    EEPROM 설정: 주소 0x51, 오프셋 0x70
+    """
+    if not eeprom_available:
+        return {"success": False, "error": "EEPROM 기능이 비활성화되어 있습니다."}
+
+    eeprom_address = MTR40_EEPROM_ADDRESS
+    offset = MTR40_OFFSET
+
+    try:
+        bus = smbus2.SMBus(I2C_BUS)
+
+        # TIP ID (offset + 0)
+        bus.write_byte_data(eeprom_address, offset + 0, tip_type)
+        time.sleep(0.01)
+
+        # SHOT COUNT (offset + 1: H, offset + 2: L) - big-endian
+        bus.write_byte_data(eeprom_address, offset + 1, (shot_count >> 8) & 0xFF)
+        time.sleep(0.01)
+        bus.write_byte_data(eeprom_address, offset + 2, shot_count & 0xFF)
+        time.sleep(0.01)
+
+        # DATE: offset + 9=YEAR, offset + 10=MONTH, offset + 11=DAY
+        bus.write_byte_data(eeprom_address, offset + 9, (year - 2000) & 0xFF)
+        time.sleep(0.01)
+        bus.write_byte_data(eeprom_address, offset + 10, month & 0xFF)
+        time.sleep(0.01)
+        bus.write_byte_data(eeprom_address, offset + 11, day & 0xFF)
+        time.sleep(0.01)
+
+        # MAKER CODE (offset + 12)
+        bus.write_byte_data(eeprom_address, offset + 12, maker_code & 0xFF)
+        time.sleep(0.01)
+
+        bus.close()
+        return {"success": True, "message": f"MTR 4.0 EEPROM 쓰기 성공 (주소: 0x{eeprom_address:02X}, 오프셋: 0x{offset:02X})"}
+
+    except Exception as e:
+        return {"success": False, "error": f"EEPROM 쓰기 실패: {e}"}
+
+
+def read_eeprom_mtr40():
+    """
+    MTR 4.0용 EEPROM 읽기 함수
+    
+    EEPROM 설정: 주소 0x51, 오프셋 0x70
+    """
+    if not eeprom_available:
+        return {"success": False, "error": "EEPROM 기능이 비활성화되어 있습니다."}
+
+    eeprom_address = MTR40_EEPROM_ADDRESS
+    offset = MTR40_OFFSET
+
+    bus = None
+    max_retries = 3
+
+    for attempt in range(max_retries):
+        try:
+            bus = smbus2.SMBus(I2C_BUS)
+
+            # TIP ID (offset + 0)
+            tip_type = bus.read_byte_data(eeprom_address, offset + 0)
+
+            # SHOT COUNT (offset + 1=H, offset + 2=L)
+            shot = bus.read_i2c_block_data(eeprom_address, offset + 1, 2)
+            shot_count = (shot[0] << 8) | shot[1]
+
+            # DATE: offset + 9=YEAR, offset + 10=MONTH, offset + 11=DAY
+            year_off = bus.read_byte_data(eeprom_address, offset + 9)
+            month = bus.read_byte_data(eeprom_address, offset + 10)
+            day = bus.read_byte_data(eeprom_address, offset + 11)
+            year = 2000 + year_off
+
+            # MAKER CODE (offset + 12)
+            maker_code = bus.read_byte_data(eeprom_address, offset + 12)
+
+            return {
+                "success": True,
+                "tipType": tip_type,
+                "shotCount": shot_count,
+                "year": year,
+                "month": month,
+                "day": day,
+                "makerCode": maker_code,
+                "mtrVersion": "4.0",
+                "country": "ALL",
+                "eepromAddress": f"0x{eeprom_address:02X}",
+                "offset": f"0x{offset:02X}"
+            }
+
+        except Exception as e:
+            print(f"[ERROR] MTR 4.0 EEPROM 읽기 시도 {attempt + 1}/{max_retries} 실패 (주소: 0x{eeprom_address:02X}, 오프셋: 0x{offset:02X}): {e}")
+            if attempt < max_retries - 1:
+                time.sleep(0.1)
+            else:
+                return {"success": False, "error": f"EEPROM 읽기 실패: {e}"}
+        finally:
+            if bus is not None:
+                try: bus.close()
+                except: pass
+
+
+
+
+
 
 async def handler(websocket):
     print("[INFO] 클라이언트 연결됨")
@@ -303,8 +459,11 @@ async def handler(websocket):
                     month = data.get("month")
                     day = data.get("day")
                     maker_code = data.get("makerCode")
+                    mtr_version = data.get("mtrVersion", "2.0")  # 기본값: MTR 2.0
+                    country = data.get("country", "CLASSYS")    # 기본값: CLASSYS
                     
-                    print(f"[INFO] EEPROM 쓰기 요청: TIP_TYPE={tip_type}, SHOT_COUNT={shot_count}, DATE={year}-{month}-{day}, MAKER={maker_code}")
+                    print(f"[DEBUG] EEPROM 쓰기 - 원본 데이터: {data}")
+                    print(f"[INFO] EEPROM 쓰기 요청: MTR={mtr_version}, 국가={country}, TIP_TYPE={tip_type}, SHOT_COUNT={shot_count}, DATE={year}-{month}-{day}, MAKER={maker_code}")
                     
                     if tip_type is None or year is None or month is None or day is None or maker_code is None:
                         await websocket.send(json.dumps({
@@ -312,11 +471,20 @@ async def handler(websocket):
                             "result": "필수 데이터가 누락되었습니다."
                         }))
                     else:
-                        result = write_eeprom_data(tip_type, shot_count, year, month, day, maker_code)
+                        # MTR 버전과 국가에 따라 적절한 함수 선택
+                        if mtr_version == "4.0":
+                            result = write_eeprom_mtr40(tip_type, shot_count, year, month, day, maker_code)
+                        else:  # MTR 2.0
+                            result = write_eeprom_mtr20(tip_type, shot_count, year, month, day, maker_code, country)
                         
                         # 쓰기 성공 후 바로 읽어서 데이터 포함
                         if result.get("success"):
-                            read_result = read_eeprom_data()
+                            # 읽기도 동일한 버전/국가 설정으로 수행
+                            if mtr_version == "4.0":
+                                read_result = read_eeprom_mtr40()
+                            else:  # MTR 2.0
+                                read_result = read_eeprom_mtr20(country)
+                                
                             if read_result.get("success"):
                                 result["data"] = read_result  # 읽은 데이터를 응답에 포함
                                 print(f"[INFO] EEPROM 쓰기 후 읽기 성공: {read_result}")
@@ -329,8 +497,18 @@ async def handler(websocket):
                         }))
 
                 elif data["cmd"] == "eeprom_read":
-                    print(f"[INFO] EEPROM 읽기 요청")
-                    result = read_eeprom_data()
+                    mtr_version = data.get("mtrVersion", "2.0")  # 기본값: MTR 2.0
+                    country = data.get("country", "CLASSYS")    # 기본값: CLASSYS
+                    
+                    print(f"[DEBUG] EEPROM 읽기 - 원본 데이터: {data}")
+                    print(f"[INFO] EEPROM 읽기 요청: MTR={mtr_version}, 국가={country}")
+                    
+                    # MTR 버전과 국가에 따라 적절한 함수 선택
+                    if mtr_version == "4.0":
+                        result = read_eeprom_mtr40()
+                    else:  # MTR 2.0
+                        result = read_eeprom_mtr20(country)
+                    
                     await websocket.send(json.dumps({
                         "type": "eeprom_read",
                         "result": result

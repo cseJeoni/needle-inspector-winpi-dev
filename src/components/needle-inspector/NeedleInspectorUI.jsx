@@ -499,19 +499,15 @@ export default function NeedleInspectorUI() {
     redrawCanvas2()
   }
 
-  // START/STOP 버튼 클릭 핸들러 - 실시간 상태 관리 대신 버튼 기반으로 단순화
+  // START/STOP 버튼 클릭 핸들러 - DataSettingsPanel에서 EEPROM 로직 처리
   const handleStartStopClick = () => {
     const nextStartedState = !isStarted;
     setIsStarted(nextStartedState);
 
     if (nextStartedState) {
-      // START 버튼 클릭 시: EEPROM 데이터 읽기 요청
-      if (ws && isWsConnected) {
-        console.log("🚀 START 버튼 클릭 - EEPROM 데이터 읽기 요청");
-        ws.send(JSON.stringify({ cmd: "eeprom_read" }));
-      } else {
-        console.log("⚠️ WebSocket 연결되지 않음 - EEPROM 읽기 실패");
-      }
+      // START 버튼 클릭 시: DataSettingsPanel에서 MTR 버전/국가 정보와 함께 EEPROM 읽기 처리
+      console.log("🚀 START 버튼 클릭 - DataSettingsPanel에서 EEPROM 처리");
+      setWorkStatus('running');
     } else {
       // STOP 버튼 클릭 시: 데이터 초기화
       console.log("🛑 STOP 버튼 클릭 - EEPROM 데이터 초기화");

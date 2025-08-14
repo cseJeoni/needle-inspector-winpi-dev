@@ -275,7 +275,14 @@ export default function DataSettingsPanel({
       };
       
       websocket.addEventListener('message', handleResponse);
-      websocket.send(JSON.stringify({ cmd: "eeprom_read" }));
+      
+      const readCommand = { 
+        cmd: "eeprom_read",
+        mtrVersion: mtrVersion,
+        country: selectedCountry
+      };
+      console.log('[DEBUG] EEPROM 읽기 명령 전송:', readCommand);
+      websocket.send(JSON.stringify(readCommand));
       
       // 타임아웃 설정 (5초)
       setTimeout(() => {
@@ -298,10 +305,12 @@ export default function DataSettingsPanel({
         year: parseInt(selectedYear),
         month: parseInt(selectedMonth),
         day: parseInt(selectedDay),
-        makerCode: 4
+        makerCode: 4,
+        mtrVersion: mtrVersion,
+        country: selectedCountry
       };
       
-      console.log('EEPROM에 쓸 데이터:', eepromData);
+      console.log('[DEBUG] EEPROM 쓰기 명령 전송:', eepromData);
       
       if (!websocket || !isWsConnected) {
         console.error('WebSocket 연결되지 않음 - EEPROM 쓰기 실패');
@@ -451,7 +460,10 @@ export default function DataSettingsPanel({
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5dvh' }}>
         <div style={{ display: 'flex', gap: '0.2dvw', marginBottom: '0.3dvh' }}>
             <Button 
-                onClick={() => setMtrVersion('2.0')}
+                onClick={() => {
+                  console.log('[DEBUG] MTR 2.0 버튼 클릭');
+                  setMtrVersion('2.0');
+                }}
                 disabled={!isDataSettingsEnabled}
                 style={{
                     flex: 1,
@@ -465,7 +477,10 @@ export default function DataSettingsPanel({
                 MTR 2.0
             </Button>
             <Button 
-                onClick={() => setMtrVersion('4.0')}
+                onClick={() => {
+                  console.log('[DEBUG] MTR 4.0 버튼 클릭');
+                  setMtrVersion('4.0');
+                }}
                 disabled={!isDataSettingsEnabled}
                 style={{
                     flex: 1,
