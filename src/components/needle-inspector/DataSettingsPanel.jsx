@@ -370,7 +370,7 @@ export default function DataSettingsPanel({
       
       try {
         console.log('🚀 동기 EEPROM 처리 시작')
-        onWorkStatusChange && onWorkStatusChange('waiting')
+        // START 시 상태 변경 제거 - EEPROM 쓰기 완료 시에만 상태 변경
         
         // 1단계: 니들 UP 명령 전송
         if (websocket && isWsConnected) {
@@ -391,8 +391,8 @@ export default function DataSettingsPanel({
         await readFromEEPROM()
         console.log('✅ EEPROM 읽기 완료')
         
-        // 4단계: 판정 버튼 활성화 (isStarted 상태 변경으로 자동 처리됨)
-        console.log('4️⃣ 판정 버튼 활성화 준비 완료')
+        // 4단계: 판정 버튼 활성화 (write_success 상태 유지)
+        console.log('4️⃣ 판정 버튼 활성화 준비 완료 (저장 완료 상태 유지)')
         onStartedChange && onStartedChange(true)
         
         console.log('🎉 동기 EEPROM 처리 완료 - 판정 버튼 활성화됨')

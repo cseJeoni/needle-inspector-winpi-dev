@@ -54,14 +54,17 @@ export default function NeedleInspectorUI() {
   useEffect(() => {
     if (needleTipConnected) {
       // 니들팁 연결 시: '저장 완료' 상태가 아닌 경우에만 '작업 대기'로 업데이트
-      if (workStatus !== 'write_success') {
-        setWorkStatus('waiting');
-      }
+      setWorkStatus(prevStatus => {
+        if (prevStatus !== 'write_success') {
+          return 'waiting';
+        }
+        return prevStatus; // write_success 상태는 유지
+      });
     } else {
       // 니들팁 분리 시: 항상 '니들팁 없음'으로 업데이트 (저장 완료 상태라도)
       setWorkStatus('disconnected');
     }
-  }, [needleTipConnected, workStatus]);
+  }, [needleTipConnected]); // workStatus 의존성 제거
   
   // Camera 1 상태
   const [drawMode1, setDrawMode1] = useState(false)
@@ -507,7 +510,7 @@ export default function NeedleInspectorUI() {
     if (nextStartedState) {
       // START 버튼 클릭 시: DataSettingsPanel에서 MTR 버전/국가 정보와 함께 EEPROM 읽기 처리
       console.log("🚀 START 버튼 클릭 - DataSettingsPanel에서 EEPROM 처리");
-      setWorkStatus('running');
+      // START 시 상태 변경 제거 - EEPROM 쓰기 완료 시에만 상태 변경
     } else {
       // STOP 버튼 클릭 시: 데이터 초기화
       console.log("🛑 STOP 버튼 클릭 - EEPROM 데이터 초기화");
@@ -725,9 +728,9 @@ export default function NeedleInspectorUI() {
     setIsStarted(false);
     console.log('✅ START/STOP 상태 초기화 완료');
     
-    // 4. 작업 상태를 대기로 변경
+    // 4. 작업 상태를 대기로 변경 (판정 후 정상 흐름)
     setWorkStatus('waiting');
-    console.log('✅ 작업 상태 초기화 완료');
+    console.log('✅ 작업 상태 초기화 완료 (판정 후 대기 상태)');
     
     console.log('🎉 판정 후 상태 초기화 완료 - 동기 로직으로 race condition 해결');
   };

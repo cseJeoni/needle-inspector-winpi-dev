@@ -61,7 +61,12 @@ export default function StatusPanel({ mode, workStatus = 'waiting', needleTipCon
 
   // 상태에 따른 스타일과 메시지 정의
   const getStatusInfo = (status, isWaitingRead = false) => {
-    // EEPROM 읽기 대기 중일 때는 우선적으로 표시
+    // write_success 상태일 때는 EEPROM 읽기 중이어도 "저장 완료" 우선 표시
+    if (status === 'write_success') {
+      return { bg: 'bg-[#0CB56C]', text: '저장 완료', textColor: 'text-white' }
+    }
+    
+    // EEPROM 읽기 대기 중일 때 표시 (write_success가 아닌 경우에만)
     if (isWaitingRead) {
       return { bg: 'bg-[#F59E0B]', text: 'EEPROM 읽기 중...', textColor: 'text-white' }
     }
@@ -71,8 +76,6 @@ export default function StatusPanel({ mode, workStatus = 'waiting', needleTipCon
         return { bg: 'bg-[#646683]', text: '작업 대기', textColor: 'text-white' }
       case 'disconnected':
         return { bg: 'bg-[#F3950F]', text: '니들팁 없음', textColor: 'text-white' }
-      case 'write_success':
-        return { bg: 'bg-[#0CB56C]', text: '저장 완료', textColor: 'text-white' }
       case 'write_failed':
         return { bg: 'bg-[#C22727]', text: '저장 실패', textColor: 'text-white' }
       default:
