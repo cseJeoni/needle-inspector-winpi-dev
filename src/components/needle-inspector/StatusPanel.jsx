@@ -2,44 +2,53 @@ import { useState } from "react"
 import Panel from "./Panel"
 import { Input } from "./Input"
 import { Button } from "./Button"
-import { useAuth } from "../../hooks/useAuth"
+import { useAuth } from "../../hooks/useAuth.jsx"
 
 export default function StatusPanel({ mode, workStatus = 'waiting', needleTipConnected = false, isWaitingEepromRead = false }) {
-  // Firebase Authentication 훅 사용
+  // CSV 기반 Authentication 훅 사용
   const { user, loading, error, login, logout, isAuthenticated } = useAuth()
   
   // 로그인 폼 상태 관리
-  const [email, setEmail] = useState('')
+  const [userId, setUserId] = useState('')
   const [password, setPassword] = useState('')
   const [isLoggingIn, setIsLoggingIn] = useState(false)
+  const [loginMessage, setLoginMessage] = useState('')
 
-  // 로그인 처리 함수 (Firebase)
+  // 로그인 처리 함수 (CSV 기반)
   const handleLogin = async () => {
-    if (!email.trim() || !password.trim()) {
+    if (!userId.trim() || !password.trim()) {
+      setLoginMessage('아이디와 비밀번호를 입력해주세요.')
+      setTimeout(() => setLoginMessage(''), 3000)
       return;
     }
 
     setIsLoggingIn(true);
-    const userEmail = `${email.trim()}@solismsn.local`;
-    const result = await login(userEmail, password.trim());
+    const result = await login(userId.trim(), password.trim());
     
     if (result.success) {
-      setEmail('');
+      setUserId('');
       setPassword('');
+      setLoginMessage('로그인 성공!')
+      setTimeout(() => setLoginMessage(''), 3000)
+    } else {
+      setLoginMessage(result.error || '로그인에 실패했습니다.')
+      setTimeout(() => setLoginMessage(''), 3000)
     }
     
     setIsLoggingIn(false);
   }
 
-  // 로그아웃 처리 함수 (Firebase)
+  // 로그아웃 처리 함수 (CSV 기반)
   const handleLogout = async () => {
     const result = await logout()
     
     if (result.success) {
       setLoginMessage('로그아웃되었습니다.')
+      setTimeout(() => setLoginMessage(''), 3000)
       console.log('로그아웃 완료')
     } else {
-      setLoginMessage(result.error)
+      setLoginMessage(result.error || '로그아웃에 실패했습니다.')
+      setTimeout(() => setLoginMessage(''), 3000)
     }
   }
 
@@ -109,8 +118,8 @@ export default function StatusPanel({ mode, workStatus = 'waiting', needleTipCon
                 <label style={{ width: '7dvw', fontSize: '1.5dvh', color: '#D1D5DB' }}>아이디</label>
                 <Input 
                   type="text" 
-                  value={email} 
-                  onChange={(e) => setEmail(e.target.value)}
+                  value={userId} 
+                  onChange={(e) => setUserId(e.target.value)}
                   onKeyPress={handleKeyPress}
                   style={{ 
                     flex: 1, 
@@ -143,9 +152,9 @@ export default function StatusPanel({ mode, workStatus = 'waiting', needleTipCon
                   disabled={isLoggingIn}
                 />
               </div>
-              {error ? (
+              {(error || loginMessage) ? (
                 <div style={{
-                  color: '#F87171',
+                  color: loginMessage.includes('성공') ? '#4ADE80' : '#F87171',
                   textAlign: 'center',
                   fontSize: '1.4dvh',
                   padding: '0.8dvh 0',
@@ -156,20 +165,20 @@ export default function StatusPanel({ mode, workStatus = 'waiting', needleTipCon
                   justifyContent: 'center',
                   width: '100%',
                 }}>
-                  {error}
+                  {error || loginMessage}
                 </div>
               ) : (
                 <Button
                   onClick={handleLogin}
-                  disabled={!email.trim() || !password.trim() || isLoggingIn}
+                  disabled={!userId.trim() || !password.trim() || isLoggingIn}
                   style={{
                     width: '100%',
                     fontWeight: 'bold',
                     marginTop: '0.5dvh',
                     padding: '0.8dvh 0',
                     fontSize: '1.5dvh',
-                    backgroundColor: (!email.trim() || !password.trim() || isLoggingIn) ? '#374151' : '#4ADE80',
-                    color: (!email.trim() || !password.trim() || isLoggingIn) ? '#9CA3AF' : 'white',
+                    backgroundColor: (!userId.trim() || !password.trim() || isLoggingIn) ? '#374151' : '#4ADE80',
+                    color: (!userId.trim() || !password.trim() || isLoggingIn) ? '#9CA3AF' : 'white',
                     border: 'none',
                     borderRadius: '0.375rem',
                     cursor: 'pointer',
@@ -195,7 +204,7 @@ export default function StatusPanel({ mode, workStatus = 'waiting', needleTipCon
                 color: 'white'
               }}>
                 <span style={{ fontSize: '1.5dvh', fontWeight: 'bold' }}>
-                  작업자 : {user?.name || user?.email.split('@')[0]}
+                  작업자 : {user?.name || user?.id}
                 </span>
                 <Button 
                   onClick={handleLogout}

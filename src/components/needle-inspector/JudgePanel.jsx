@@ -1,7 +1,11 @@
 import Panel from "./Panel"
 import { Button } from "./Button"
+import { useAuth } from "../../hooks/useAuth.jsx"
 
 export default function JudgePanel({ onJudge, isStarted, onReset, camera1Ref, camera2Ref, hasNeedleTip = true, websocket, isWsConnected, onCaptureMergedImage, eepromData, generateUserBasedPath, isWaitingEepromRead = false, onWaitingEepromReadChange }) {
+  // 사용자 정보 가져오기
+  const { user } = useAuth()
+  
   // 니들 DOWN 명령 전송 함수 (메인 WebSocket 사용)
   const sendNeedleDown = () => {
     if (websocket && isWsConnected) {
@@ -58,23 +62,25 @@ export default function JudgePanel({ onJudge, isStarted, onReset, camera1Ref, ca
         mfgDate = `${String(eepromData.year).slice(-2)}${String(eepromData.month).padStart(2, '0')}${String(eepromData.day).padStart(2, '0')}`;
       }
       
-      // 사용자 정보 추출 (Firebase 사용자 정보 활용)
+      // 사용자 정보 추출 (CSV 기반 로그인 시스템)
       let workerCode = 'unkn';
       let workerName = 'unknown';
       
-      // generateUserBasedPath 함수를 통해 사용자 정보 확인 (임시로 사용)
-      if (generateUserBasedPath) {
-        const tempPath = generateUserBasedPath('TEMP');
-        const pathParts = tempPath.split('\\');
-        const userFolder = pathParts[2]; // C:\\Inspect\\{userFolder}\\...
-        
-        if (userFolder && userFolder !== 'undefined') {
-          const userParts = userFolder.split('-');
-          if (userParts.length === 2) {
-            workerCode = userParts[0];
-            workerName = userParts[1];
-          }
-        }
+      // 직접 사용자 정보 사용
+      console.log('🔍 JudgePanel 사용자 정보 디버깅:', {
+        user: user,
+        userType: typeof user,
+        hasBirthLast4: user?.birthLast4,
+        hasId: user?.id,
+        userKeys: user ? Object.keys(user) : 'null'
+      });
+      
+      if (user && user.birthLast4 && user.id) {
+        workerCode = user.birthLast4; // birth 끝 4자리
+        workerName = user.id;         // CSV의 id 값
+        console.log(`👤 JudgePanel 사용자 정보 - 코드: ${workerCode}, 이름: ${workerName}`);
+      } else {
+        console.warn('⚠️ JudgePanel에서 사용자 정보를 찾을 수 없습니다.');
       }
       
       const fileName = `${captureDate}_${captureTime}_${tipType}_${mfgDate}_${workerCode}_${workerName}.png`;

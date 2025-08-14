@@ -201,6 +201,58 @@ ipcMain.handle('ensure-dir', async (event, dirPath) => {
   }
 });
 
+// 사용자 CSV 파일 로드 IPC 핸들러
+ipcMain.handle('load-users-csv', async (event) => {
+  try {
+    const configDir = 'C:\\inspector_config_data';
+    const usersPath = path.join(configDir, 'users.csv');
+    
+    // 디렉토리가 없으면 생성
+    if (!fs.existsSync(configDir)) {
+      await fs.promises.mkdir(configDir, { recursive: true });
+      console.log(`[INFO] 설정 디렉토리 생성: ${configDir}`);
+    }
+    
+    // CSV 파일이 없으면 기본 사용자 생성
+    if (!fs.existsSync(usersPath)) {
+      console.log('[INFO] users.csv 파일이 없습니다. 기본 파일을 생성합니다.');
+      const defaultCSV = 'id,pw\nadmin,admin123';
+      await fs.promises.writeFile(usersPath, defaultCSV, 'utf8');
+      console.log('[INFO] 기본 관리자 계정 생성: admin/admin123');
+    }
+    
+    // CSV 파일 읽기
+    const csvContent = await fs.promises.readFile(usersPath, 'utf8');
+    const lines = csvContent.split('\n');
+    
+    const users = {};
+    for (let i = 1; i < lines.length; i++) {
+      const line = lines[i].trim();
+      if (line) {
+        const values = line.split(',').map(v => v.trim());
+        if (values.length >= 3) {
+          const id = values[0];
+          const pw = values[1];
+          const birth = values[2];
+          users[id] = { pw: pw, birth: birth };
+        } else if (values.length >= 2) {
+          // 기존 호환성 유지 (birth 없는 경우)
+          const id = values[0];
+          const pw = values[1];
+          users[id] = { pw: pw, birth: '' };
+        }
+      }
+    }
+    
+    console.log(`[OK] 사용자 정보 로드 완료: ${Object.keys(users).length}명`);
+    return { success: true, users: users };
+    
+  } catch (error) {
+    console.error('[ERROR] 사용자 정보 로드 실패:', error);
+    return { success: false, error: error.message, users: {} };
+  }
+});
+
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
 if (require('electron-squirrel-startup')) {
   app.quit();

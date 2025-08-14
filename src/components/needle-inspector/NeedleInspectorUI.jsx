@@ -5,7 +5,7 @@ import DataSettingsPanel from "./DataSettingsPanel"
 import NeedleCheckPanel from "./NeedleCheckPanel"
 import ModePanel from "./ModePanel"
 import JudgePanel from "./JudgePanel" // Import JudgePanel
-import { useAuth } from "../../hooks/useAuth" // Firebase 사용자 정보
+import { useAuth } from "../../hooks/useAuth.jsx" // Firebase 사용자 정보
 import "../../css/NeedleInspector.css"
 
 const PX_TO_MM = 1 / 3.78; // 1px 당 mm
@@ -214,14 +214,14 @@ export default function NeedleInspectorUI() {
 
     let userFolder;
     // 사용자 정보 확인
-    if (!user || !user.uid || !user.username) {
-      // 로그인하지 않은 경우 'undefined' 폴더 사용
+    if (!user) {
+      // 로그인하지 않은 경우 undefined 폴더에 저장
       userFolder = 'undefined';
       console.warn('⚠️ 사용자 정보가 없어 undefined 폴더에 저장합니다.');
     } else {
-      // 로그인한 경우 사용자 정보 기반 폴더 사용
-      const workerCode = user.uid.slice(-4);
-      const workerName = user.username;
+      // 로그인한 경우 사용자 정보 기반 폴더 사용 (CSV 기반)
+      const workerCode = user.birthLast4 || '0000'; // birth 끝 4자리
+      const workerName = user.id || 'unknown'; // CSV의 id 값
       userFolder = `${workerCode}-${workerName}`;
       console.log(`👤 사용자 정보 - 코드: ${workerCode}, 이름: ${workerName}`);
     }

@@ -46,6 +46,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // 디렉토리 생성 API
   ensureDir: (dirPath) => {
     return ipcRenderer.invoke('ensure-dir', dirPath);
+  },
+  
+  // 사용자 CSV 파일 로드 API
+  loadUsersCSV: () => {
+    return ipcRenderer.invoke('load-users-csv');
   }
 });
 
