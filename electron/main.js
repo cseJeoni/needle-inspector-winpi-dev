@@ -261,13 +261,29 @@ app.on('window-all-closed', () => {
     // 백엔드 서버 종료
     if (serverProcess) {
       console.log('[INFO] 카메라 서버 종료 중...');
+      console.log(`[DEBUG] 현재 플랫폼: ${process.platform}`);
+      console.log(`[DEBUG] 서버 프로세스 PID: ${serverProcess.pid}`);
       
       try {
-        // Windows에서는 프로세스 트리 전체 종료
-        if (process.platform === 'win32') {
+        // Windows에서는 프로세스 트리 전체 종료 (더 확실한 조건 검사)
+        const isWindows = process.platform === 'win32' || process.platform.startsWith('win') || process.env.OS === 'Windows_NT';
+        
+        if (isWindows) {
+          console.log('[INFO] Windows 환경 - taskkill 사용');
           const { spawn } = require('child_process');
-          spawn('taskkill', ['/pid', serverProcess.pid, '/T', '/F'], { stdio: 'ignore' });
+          const killProcess = spawn('taskkill', ['/pid', serverProcess.pid, '/T', '/F'], { stdio: 'ignore' });
+          
+          killProcess.on('close', (code) => {
+            console.log(`[INFO] taskkill 완료 (코드: ${code})`);
+          });
+          
+          killProcess.on('error', (error) => {
+            console.error('[ERROR] taskkill 실패:', error);
+            // taskkill 실패 시 fallback으로 SIGTERM 사용
+            serverProcess.kill('SIGTERM');
+          });
         } else {
+          console.log('[INFO] Unix 환경 - SIGTERM 사용');
           // Linux/Mac에서는 SIGTERM 후 SIGKILL
           serverProcess.kill('SIGTERM');
           setTimeout(() => {
