@@ -36,6 +36,16 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // 기존 기능들 (호환성 유지)
   saveImage: (imageData, filename) => {
     return ipcRenderer.invoke('save-image', imageData, filename);
+  },
+  
+  // 파일 저장 API
+  saveFile: (filePath, data) => {
+    return ipcRenderer.invoke('save-file', filePath, data);
+  },
+  
+  // 디렉토리 생성 API
+  ensureDir: (dirPath) => {
+    return ipcRenderer.invoke('ensure-dir', dirPath);
   }
 });
 

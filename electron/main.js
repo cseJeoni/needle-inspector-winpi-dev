@@ -171,6 +171,36 @@ ipcMain.handle('load-csv-data', async (event, configDir = 'C:\\inspector_config_
   }
 });
 
+// 파일 저장 IPC 핸들러
+ipcMain.handle('save-file', async (event, filePath, data) => {
+  try {
+    // Base64 데이터를 Buffer로 변환
+    const base64Data = data.replace(/^data:image\/png;base64,/, '');
+    const buffer = Buffer.from(base64Data, 'base64');
+    
+    await fs.promises.writeFile(filePath, buffer);
+    console.log(`✅ 파일 저장 완료: ${filePath}`);
+    return { success: true };
+  } catch (error) {
+    console.error('❌ 파일 저장 실패:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+// 디렉토리 생성 IPC 핸들러
+ipcMain.handle('ensure-dir', async (event, dirPath) => {
+  try {
+    if (!fs.existsSync(dirPath)) {
+      await fs.promises.mkdir(dirPath, { recursive: true });
+      console.log(`📁 폴더 생성 완료: ${dirPath}`);
+    }
+    return { success: true };
+  } catch (error) {
+    console.error('❌ 폴더 생성 실패:', error);
+    return { success: false, error: error.message };
+  }
+});
+
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
 if (require('electron-squirrel-startup')) {
   app.quit();

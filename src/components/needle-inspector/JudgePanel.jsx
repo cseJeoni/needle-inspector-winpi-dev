@@ -79,28 +79,23 @@ export default function JudgePanel({ onJudge, isStarted, onReset, camera1Ref, ca
       
       const fileName = `${captureDate}_${captureTime}_${tipType}_${mfgDate}_${workerCode}_${workerName}.png`;
 
-      // 이미지 데이터를 Buffer로 변환
-      const blob = await (await fetch(mergedImageData)).blob();
-      const buffer = Buffer.from(await blob.arrayBuffer());
-
-      // 사용자 기반 저장 경로 설정
-      const fs = window.require('fs');
-      const path = window.require('path');
-      
       // 사용자 정보 기반 폴더 경로 생성
       const baseDir = generateUserBasedPath ? generateUserBasedPath(judgeResult) : 
                      (judgeResult === 'NG' ? 'C:\\Inspect\\NG' : 'C:\\Inspect\\PASS');
       
-      // 폴더가 없으면 생성 (recursive: true로 중간 폴더들도 자동 생성)
-      if (!fs.existsSync(baseDir)) {
-        fs.mkdirSync(baseDir, { recursive: true });
-        console.log(`📁 폴더 생성 완료: ${baseDir}`);
-      }
+      // 폴더가 없으면 생성 (Electron API 사용)
+      await window.electronAPI.ensureDir(baseDir);
       
-      const savePath = path.join(baseDir, fileName);
-      // 비동기 저장으로 UI 지연 최소화
-      await fs.promises.writeFile(savePath, buffer);
-      console.log(`✅ 병합 이미지 저장 완료: ${savePath}`);
+      const savePath = `${baseDir}\\${fileName}`;
+      
+      // Electron API를 통해 파일 저장
+      const result = await window.electronAPI.saveFile(savePath, mergedImageData);
+      
+      if (result.success) {
+        console.log(`✅ 병합 이미지 저장 완료: ${savePath}`);
+      } else {
+        throw new Error(result.error);
+      }
       
     } catch (error) {
       console.error('❌ 병합 이미지 저장 실패:', error);
