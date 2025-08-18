@@ -769,23 +769,20 @@ export default function NeedleInspectorUI() {
       return
     }
 
-    // 수동 버튼 클릭은 모터 연결 상태 무시하고 실행 (테스트용)
-    console.log("🔍 모터 연결 상태 무시하고 명령 전송")
-
     const msg = {
       cmd: "move",
       position: targetPosition,
       mode: "position",
     }
 
-    console.log(`🎯 니들 ${targetPosition === 840 ? 'UP' : 'DOWN'} 명령 전송:`, msg)
+    console.log(`🎯 니들 ${targetPosition > 0 ? 'UP' : 'DOWN'} 명령 전송:`, msg)
     ws.send(JSON.stringify(msg))
     setMotorError(null)
   }
 
   // 니들 UP 함수
   const handleNeedleUp = () => {
-    handleNeedlePosition(840)
+    handleNeedlePosition(calculatedMotorPosition)
   }
 
   // 니들 DOWN 함수
