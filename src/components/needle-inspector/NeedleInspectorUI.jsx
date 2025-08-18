@@ -245,25 +245,46 @@ export default function NeedleInspectorUI() {
     }
   }
 
-  // 선 그리기 및 정보 표시 함수 (캘리브레이션 값 적용)
+  // H 형태 선 그리기 및 정보 표시 함수 (캘리브레이션 값 적용)
   const drawLineWithInfo = (ctx, line, color, showText, calibrationValue = 19.8) => {
     const { x1, y1, x2, y2 } = line
     
     // ctx가 null이 아닐 때만 그리기 실행
     if (ctx) {
+      ctx.strokeStyle = color
+      ctx.lineWidth = 2
+      
+      // 메인 선 그리기
       ctx.beginPath()
       ctx.moveTo(x1, y1)
       ctx.lineTo(x2, y2)
-      ctx.strokeStyle = color
-      ctx.lineWidth = 2
+      ctx.stroke()
+      
+      // H 형태를 위한 수직선 길이 (8px 고정)
+      const dx = x2 - x1
+      const dy = y2 - y1
+      const length = Math.sqrt(dx * dx + dy * dy)
+      const perpLength = 14 // 8px 고정
+      
+      // 수직 방향 벡터 계산 (메인 선에 수직)
+      const perpX = -dy / length * perpLength
+      const perpY = dx / length * perpLength
+      
+      // 시작점 수직선
+      ctx.beginPath()
+      ctx.moveTo(x1 - perpX / 2, y1 - perpY / 2)
+      ctx.lineTo(x1 + perpX / 2, y1 + perpY / 2)
+      ctx.stroke()
+      
+      // 끝점 수직선
+      ctx.beginPath()
+      ctx.moveTo(x2 - perpX / 2, y2 - perpY / 2)
+      ctx.lineTo(x2 + perpX / 2, y2 + perpY / 2)
       ctx.stroke()
 
       if (showText) {
         ctx.fillStyle = color
         ctx.font = '14px Arial'
-        const dx = x2 - x1
-        const dy = y2 - y1
-        const length = Math.sqrt(dx * dx + dy * dy)
         const mm = length / calibrationValue // 올바른 공식: 픽셀거리 / (px/mm) = mm
         let angle = Math.atan2(dy, dx) * 180 / Math.PI
         ctx.fillText(`${length.toFixed(1)}px / ${mm.toFixed(2)}mm (${angle.toFixed(1)}°)`, (x1 + x2) / 2 + 5, (y1 + y2) / 2 - 5)
@@ -278,6 +299,37 @@ export default function NeedleInspectorUI() {
     let angle = Math.atan2(dy, dx) * 180 / Math.PI
 
     return { length: length.toFixed(1), mm: mm.toFixed(2), angle: angle.toFixed(2) }
+  }
+
+  // 기존 선의 모든 점에 스냅하는 함수
+  const snapToExistingLines = (pos, lines, snapDistance = 15) => {
+    let snappedPos = { ...pos }
+    let minDistance = snapDistance
+    
+    lines.forEach(line => {
+      // 선의 시작점과 끝점
+      const dx = line.x2 - line.x1
+      const dy = line.y2 - line.y1
+      const lineLength = Math.sqrt(dx * dx + dy * dy)
+      
+      if (lineLength === 0) return // 길이가 0인 선은 무시
+      
+      // 마우스 위치에서 선까지의 가장 가까운 점 계산
+      const t = Math.max(0, Math.min(1, ((pos.x - line.x1) * dx + (pos.y - line.y1) * dy) / (lineLength * lineLength)))
+      const closestX = line.x1 + t * dx
+      const closestY = line.y1 + t * dy
+      
+      // 가장 가까운 점까지의 거리 계산
+      const distance = Math.sqrt(Math.pow(pos.x - closestX, 2) + Math.pow(pos.y - closestY, 2))
+      
+      // 스냅 거리 내에 있으면 스냅
+      if (distance < minDistance) {
+        snappedPos = { x: closestX, y: closestY }
+        minDistance = distance
+      }
+    })
+    
+    return snappedPos
   }
 
   // 각도 스냅 함수
@@ -350,7 +402,9 @@ export default function NeedleInspectorUI() {
       if (!drawMode1 || !isDrawing1 || !startPoint1) return
       
       const currentPos = getMousePos(canvasRef1.current, e)
-      const snappedPos = snapAngle(startPoint1, currentPos)
+      // 먼저 기존 선에 스냅, 그 다음 각도 스냅 적용
+      const lineSnappedPos = snapToExistingLines(currentPos, lines1)
+      const snappedPos = snapAngle(startPoint1, lineSnappedPos)
       
       const canvas = canvasRef1.current
       const ctx = canvas.getContext('2d')
@@ -359,15 +413,28 @@ export default function NeedleInspectorUI() {
       // 기존 선들 그리기
       drawLines(ctx, lines1, selectedIndex1, calibrationValue1)
       
-      // 임시 선 그리기
+      // 임시 선 그리기 (H 형태)
       const tempLine = { x1: startPoint1.x, y1: startPoint1.y, x2: snappedPos.x, y2: snappedPos.y }
       drawLineWithInfo(ctx, tempLine, selectedLineColor1, true, calibrationValue1)
+      
+      // 스냅 포인트 표시 (작은 원으로 표시)
+      if (lineSnappedPos.x !== currentPos.x || lineSnappedPos.y !== currentPos.y) {
+        ctx.beginPath()
+        ctx.arc(snappedPos.x, snappedPos.y, 4, 0, 2 * Math.PI)
+        ctx.fillStyle = 'yellow'
+        ctx.fill()
+        ctx.strokeStyle = 'orange'
+        ctx.lineWidth = 1
+        ctx.stroke()
+      }
     },
     handleMouseUp: (e) => {
       if (!drawMode1 || !isDrawing1 || !startPoint1) return
       
       const currentPos = getMousePos(canvasRef1.current, e)
-      const snappedPos = snapAngle(startPoint1, currentPos)
+      // 먼저 기존 선에 스냅, 그 다음 각도 스냅 적용
+      const lineSnappedPos = snapToExistingLines(currentPos, lines1)
+      const snappedPos = snapAngle(startPoint1, lineSnappedPos)
       
       const newLine = { x1: startPoint1.x, y1: startPoint1.y, x2: snappedPos.x, y2: snappedPos.y, color: selectedLineColor1 }
       const newLines = [...lines1, newLine]
@@ -421,7 +488,9 @@ export default function NeedleInspectorUI() {
       if (!drawMode2 || !isDrawing2 || !startPoint2) return
       
       const currentPos = getMousePos(canvasRef2.current, e)
-      const snappedPos = snapAngle(startPoint2, currentPos)
+      // 먼저 기존 선에 스냅, 그 다음 각도 스냅 적용
+      const lineSnappedPos = snapToExistingLines(currentPos, lines2)
+      const snappedPos = snapAngle(startPoint2, lineSnappedPos)
       
       const canvas = canvasRef2.current
       const ctx = canvas.getContext('2d')
@@ -430,15 +499,28 @@ export default function NeedleInspectorUI() {
       // 기존 선들 그리기
       drawLines(ctx, lines2, selectedIndex2, calibrationValue2)
       
-      // 임시 선 그리기
+      // 임시 선 그리기 (H 형태)
       const tempLine = { x1: startPoint2.x, y1: startPoint2.y, x2: snappedPos.x, y2: snappedPos.y }
       drawLineWithInfo(ctx, tempLine, selectedLineColor2, true, calibrationValue2)
+      
+      // 스냅 포인트 표시 (작은 원으로 표시)
+      if (lineSnappedPos.x !== currentPos.x || lineSnappedPos.y !== currentPos.y) {
+        ctx.beginPath()
+        ctx.arc(snappedPos.x, snappedPos.y, 4, 0, 2 * Math.PI)
+        ctx.fillStyle = 'yellow'
+        ctx.fill()
+        ctx.strokeStyle = 'orange'
+        ctx.lineWidth = 1
+        ctx.stroke()
+      }
     },
     handleMouseUp: (e) => {
       if (!drawMode2 || !isDrawing2 || !startPoint2) return
       
       const currentPos = getMousePos(canvasRef2.current, e)
-      const snappedPos = snapAngle(startPoint2, currentPos)
+      // 먼저 기존 선에 스냅, 그 다음 각도 스냅 적용
+      const lineSnappedPos = snapToExistingLines(currentPos, lines2)
+      const snappedPos = snapAngle(startPoint2, lineSnappedPos)
       
       const newLine = { x1: startPoint2.x, y1: startPoint2.y, x2: snappedPos.x, y2: snappedPos.y, color: selectedLineColor2 }
       const newLines = [...lines2, newLine]
