@@ -858,7 +858,7 @@ export default function NeedleInspectorUI() {
         mode: 'servo',
         position: targetPosition
       }
-      
+      // 얌얌얌
       console.log(`📦 전송할 명령:`, JSON.stringify(command))
       autoSocket.send(JSON.stringify(command))
       
