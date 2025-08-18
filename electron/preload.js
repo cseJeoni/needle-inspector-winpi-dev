@@ -48,6 +48,16 @@ contextBridge.exposeInMainWorld('electronAPI', {
     return ipcRenderer.invoke('ensure-dir', dirPath);
   },
   
+  // 파일 선택 API
+  selectFile: (options) => {
+    return ipcRenderer.invoke('select-file', options);
+  },
+  
+  // 폴더 선택 API
+  selectFolder: (options) => {
+    return ipcRenderer.invoke('select-folder', options);
+  },
+  
   // 사용자 CSV 파일 로드 API
   loadUsersCSV: () => {
     return ipcRenderer.invoke('load-users-csv');

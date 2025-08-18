@@ -253,6 +253,44 @@ ipcMain.handle('load-users-csv', async (event) => {
   }
 });
 
+// 파일 선택 다이얼로그 IPC 핸들러
+ipcMain.handle('select-file', async (event, options = {}) => {
+  try {
+    const result = await dialog.showOpenDialog(win, {
+      title: '파일 선택',
+      properties: ['openFile'],
+      filters: [
+        { name: 'CSV 파일', extensions: ['csv'] },
+        { name: '모든 파일', extensions: ['*'] }
+      ],
+      ...options
+    });
+    
+    console.log(`[INFO] 파일 선택 결과:`, result);
+    return result;
+  } catch (error) {
+    console.error('[ERROR] 파일 선택 실패:', error);
+    return { canceled: true, filePaths: [] };
+  }
+});
+
+// 폴더 선택 다이얼로그 IPC 핸들러
+ipcMain.handle('select-folder', async (event, options = {}) => {
+  try {
+    const result = await dialog.showOpenDialog(win, {
+      title: '폴더 선택',
+      properties: ['openDirectory'],
+      ...options
+    });
+    
+    console.log(`[INFO] 폴더 선택 결과:`, result);
+    return result;
+  } catch (error) {
+    console.error('[ERROR] 폴더 선택 실패:', error);
+    return { canceled: true, filePaths: [] };
+  }
+});
+
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
 if (require('electron-squirrel-startup')) {
   app.quit();
