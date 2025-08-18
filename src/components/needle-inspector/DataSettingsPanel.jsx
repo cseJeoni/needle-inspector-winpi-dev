@@ -25,7 +25,8 @@ export default function DataSettingsPanel({
   needleTipConnected,
   websocket, // 메인 WebSocket 연결
   isWsConnected, // WebSocket 연결 상태
-  onWaitingEepromReadChange // EEPROM 읽기 대기 상태 변경 함수
+  onWaitingEepromReadChange, // EEPROM 읽기 대기 상태 변경 함수
+  calculatedMotorPosition // 계산된 모터 위치
 }) {
   // isStarted와 readEepromData는 이제 props로 받아서 사용
   const [selectedYear, setSelectedYear] = useState("")
@@ -372,10 +373,10 @@ export default function DataSettingsPanel({
         console.log('🚀 동기 EEPROM 처리 시작')
         // START 시 상태 변경 제거 - EEPROM 쓰기 완료 시에만 상태 변경
         
-        // 1단계: 니들 UP 명령 전송
+        // 1단계: 니들 UP 명령 전송 (계산된 모터 위치 사용)
         if (websocket && isWsConnected) {
-          console.log('1️⃣ 니들 UP 명령 전송')
-          websocket.send(JSON.stringify({ cmd: "move", position: 840, mode: "position" }))
+          console.log('1️⃣ 니들 UP 명령 전송 - 위치:', calculatedMotorPosition)
+          websocket.send(JSON.stringify({ cmd: "move", position: calculatedMotorPosition, mode: "position" }))
         } else {
           console.error('WebSocket 연결되지 않음 - 니들 UP 명령 실패')
           return
@@ -470,7 +471,7 @@ export default function DataSettingsPanel({
                     backgroundColor: mtrVersion === '2.0' ? '#4A90E2' : '#171C26',
                     color: 'white',
                     border: `1px solid ${mtrVersion === '2.0' ? '#4A90E2' : '#374151'}`,
-                    fontSize: '1.5dvh',
+                    fontSize: '1.4dvh',
                     padding: '0.8dvh 0',
                 }}
             >
@@ -487,7 +488,7 @@ export default function DataSettingsPanel({
                     backgroundColor: mtrVersion === '4.0' ? '#4A90E2' : '#171C26',
                     color: 'white',
                     border: `1px solid ${mtrVersion === '4.0' ? '#4A90E2' : '#374151'}`,
-                    fontSize: '1.5dvh',
+                    fontSize: '1.4dvh',
                     padding: '0.8dvh 0',
                 }}
             >
@@ -496,7 +497,7 @@ export default function DataSettingsPanel({
         </div>
         <div style={{ display: 'flex', gap: '0.5dvw' }}>
           <div style={{ display: 'flex', alignItems: 'center', flex: 1, gap: '0.5dvw' }}>
-            <label style={{ width: '20%', fontSize: '1.5dvh', color: '#D1D5DB' }}>국가</label>
+            <label style={{ width: '20%', fontSize: '1.2dvh', color: '#D1D5DB' }}>국가</label>
             <Select value={selectedCountry} onValueChange={handleCountryChange} disabled={isStarted || !isDataSettingsEnabled}>
               <SelectTrigger style={{ backgroundColor: '#171C26', border: 'none', color: 'white', fontSize: '1.2dvh', width: '100%', height: '3.5dvh' }}>
                 <SelectValue />
@@ -511,7 +512,7 @@ export default function DataSettingsPanel({
             </Select>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', flex: 1, gap: '1dvw' }}>
-            <label style={{ width: '20%', fontSize: '1.5dvh', color: '#D1D5DB' }}>니들</label>
+            <label style={{ width: '20%', fontSize: '1.2dvh', color: '#D1D5DB' }}>니들</label>
             <Select value={selectedNeedleType} onValueChange={handleNeedleTypeChange} disabled={isStarted || !isDataSettingsEnabled}>
               <SelectTrigger style={{ backgroundColor: '#171C26', border: 'none', color: 'white', fontSize: '1.2dvh', width: '100%', height: '3.5dvh' }}>
                 <SelectValue />
@@ -527,7 +528,7 @@ export default function DataSettingsPanel({
           </div>
         </div>
         <div style={{ display: 'flex', alignItems: 'center' }}>
-          <label style={{ width: '25%', fontSize: '1.5dvh', color: '#D1D5DB' }}>날짜</label>
+          <label style={{ width: '25%', fontSize: '1.2dvh', color: '#D1D5DB' }}>날짜</label>
           <div style={{ display: 'flex', width: '100%', gap: '0.8dvw' }}>
             <Select value={selectedYear} onValueChange={handleYearChange} disabled={isStarted || !isDataSettingsEnabled}>
               <SelectTrigger style={{ backgroundColor: '#171C26', border: 'none', color: 'white', fontSize: '1.2dvh', height: '3.5dvh' }}>
@@ -594,16 +595,16 @@ export default function DataSettingsPanel({
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5dvh', borderTop: '1px solid #374151' }}>
           <div style={{ display: 'flex', gap: '2dvw' }}>
             <div style={{ display: 'flex', alignItems: 'center', flex: 1, gap: '0.5dvw' }}>
-              <label style={{ width: '3dvw', fontSize: '1.5dvh', color: '#D1D5DB' }}>TIP TYPE</label>
+              <label style={{ width: '3dvw', fontSize: '1.2dvh', color: '#D1D5DB' }}>TIP TYPE</label>
               <Input type="text" value={readTipType} readOnly style={{ backgroundColor: '#171C26', border: 'none', width: '5dvw', color: 'white', fontSize: '1.2dvh', height: '3.5dvh' }} />
             </div>
             <div style={{ display: 'flex', alignItems: 'center', flex: 1, gap: '1dvw' }}>
-              <label style={{ width: '5dvw', fontSize: '1.5dvh', color: '#D1D5DB' }}>SHOT COUNT</label>
+              <label style={{ width: '5dvw', fontSize: '1.2dvh', color: '#D1D5DB' }}>SHOT COUNT</label>
               <Input type="text" value={readShotCount} readOnly style={{ backgroundColor: '#171C26', width: '5dvw', border: 'none', color: 'white', fontSize: '1.2dvh', height: '3.5dvh' }} />
             </div>
           </div>
           <div style={{ display: 'flex', alignItems: 'center' }}>
-            <label style={{ width: '15%', fontSize: '1.5dvh', color: '#D1D5DB' }}>제조일</label>
+            <label style={{ width: '15%', fontSize: '1.2dvh', color: '#D1D5DB' }}>제조일</label>
             <Input type="text" value={readRawDate} readOnly style={{ flex: 1, backgroundColor: '#171C26', border: 'none', color: 'white', fontSize: '1.2dvh', height: '3.5dvh' }} />
           </div>
         </div>

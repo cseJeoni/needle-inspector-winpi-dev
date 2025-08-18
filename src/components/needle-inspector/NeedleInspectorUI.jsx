@@ -36,6 +36,7 @@ export default function NeedleInspectorUI() {
   const [motorError, setMotorError] = useState(null)
   const [currentPosition, setCurrentPosition] = useState(0)
   const [needlePosition, setNeedlePosition] = useState('UNKNOWN') // UP, DOWN, UNKNOWN
+  const [calculatedMotorPosition, setCalculatedMotorPosition] = useState(310) // (니들 오프셋 + 돌출 부분) * 100 기본값: (0.1 + 3.0) * 100 = 310
   
   // GPIO 18번 관련 상태
   const [gpioState, setGpioState] = useState('LOW') // HIGH, LOW (초기값 LOW로 설정)
@@ -666,14 +667,9 @@ export default function NeedleInspectorUI() {
           const { position, gpio18, gpio23, needle_tip_connected, eeprom } = res.data
           setCurrentPosition(position)
           
-          // 니들 위치 판단 (840: UP, 0: DOWN)
-          if (position >= 800) {
-            setNeedlePosition('UP')
-          } else if (position <= 50) {
-            setNeedlePosition('DOWN')
-          } else {
-            setNeedlePosition('MOVING')
-          }
+          // 니들 위치를 기본 'UP'으로 설정 (하드코딩 제거)
+          // 실제 위치와 관계없이 항상 UP 상태로 처리
+          setNeedlePosition('UP')
           
           // GPIO23 기반 니들팁 연결 상태 업데이트
           if (typeof needle_tip_connected === 'boolean') {
@@ -837,18 +833,17 @@ export default function NeedleInspectorUI() {
     let targetPosition
     let commandDirection
     
-    if (needlePosition === 'DOWN') {
-      targetPosition = 840 // UP 명령
+    // 현재 위치 기반으로 반대 명령 결정 (하드코딩 제거)
+    if (currentPosition <= 50) {
+      // 현재 DOWN 위치 → UP 명령 (현재 위치 + 800)
+      targetPosition = currentPosition + 800
       commandDirection = 'UP'
-      console.log("✅ DOWN 상태 감지 - UP 명령 준비")
-    } else if (needlePosition === 'UP') {
-      targetPosition = 0 // DOWN 명령
-      commandDirection = 'DOWN'
-      console.log("✅ UP 상태 감지 - DOWN 명령 준비")
+      console.log("✅ DOWN 위치 감지 - UP 명령 준비")
     } else {
-      console.log("⚠️ 모터 상태 불명 (", needlePosition, ") - 기본 UP 명령 전송")
-      targetPosition = 840 // 기본값: UP
-      commandDirection = 'UP'
+      // 현재 UP 위치 → DOWN 명령 (0으로 이동)
+      targetPosition = 0
+      commandDirection = 'DOWN'
+      console.log("✅ UP 위치 감지 - DOWN 명령 준비")
     }
     
     console.log(`🎯 모터 상태: ${needlePosition} (position: ${currentPosition}) → ${commandDirection} 명령 (위치: ${targetPosition})`)
@@ -1020,6 +1015,7 @@ export default function NeedleInspectorUI() {
             websocket={ws} // WebSocket 연결 전달
             isWsConnected={isWsConnected} // WebSocket 연결 상태 전달
             onWaitingEepromReadChange={setIsWaitingEepromRead} // EEPROM 읽기 대기 상태 변경 함수 전달
+            calculatedMotorPosition={calculatedMotorPosition} // 계산된 모터 위치 전달
           />
           <NeedleCheckPanel 
             mode={mode} 
@@ -1027,6 +1023,9 @@ export default function NeedleInspectorUI() {
             needlePosition={needlePosition}
             onNeedleUp={handleNeedleUp}
             onNeedleDown={handleNeedleDown}
+            websocket={ws}
+            isWsConnected={isWsConnected}
+            onMotorPositionChange={setCalculatedMotorPosition}
           />
           <JudgePanel 
             onJudge={(result) => console.log(`판정 결과: ${result}`)}
