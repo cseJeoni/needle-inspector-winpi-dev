@@ -71,6 +71,7 @@ export default function NeedleInspectorUI() {
   const [selectedIndex1, setSelectedIndex1] = useState(-1)
   const [lineInfo1, setLineInfo1] = useState('선 정보: 없음')
   const [calibrationValue1, setCalibrationValue1] = useState(19.8) // 실측 캘리브레이션 값 (99px = 5mm)
+  const [selectedLineColor1, setSelectedLineColor1] = useState('red') // 선택된 선 색상 (red, blue)
   const canvasRef1 = useRef(null)
   const videoContainerRef1 = useRef(null)
   const cameraViewRef1 = useRef(null) // CameraView ref 추가
@@ -80,6 +81,7 @@ export default function NeedleInspectorUI() {
   const [selectedIndex2, setSelectedIndex2] = useState(-1)
   const [lineInfo2, setLineInfo2] = useState('선 정보: 없음')
   const [calibrationValue2, setCalibrationValue2] = useState(19.8) // 실측 캘리브레이션 값 (99px = 5mm)
+  const [selectedLineColor2, setSelectedLineColor2] = useState('red') // 선택된 선 색상 (red, blue)
   const canvasRef2 = useRef(null)
   const videoContainerRef2 = useRef(null)
   const cameraViewRef2 = useRef(null) // CameraView ref 추가
@@ -334,7 +336,7 @@ export default function NeedleInspectorUI() {
       for (let i = lines1.length - 1; i >= 0; i--) {
         if (isPointOnLine(pos, lines1[i])) {
           setSelectedIndex1(i)
-          const lineData = drawLineWithInfo(null, lines1[i], 'blue', false, calibrationValue1)
+          const lineData = drawLineWithInfo(null, lines1[i], lines1[i].color || 'red', false, calibrationValue1)
           setLineInfo1(`선 ${i + 1}: ${lineData.mm}mm (${lineData.angle}°)`)
           redrawCanvas1()
           return
@@ -359,7 +361,7 @@ export default function NeedleInspectorUI() {
       
       // 임시 선 그리기
       const tempLine = { x1: startPoint1.x, y1: startPoint1.y, x2: snappedPos.x, y2: snappedPos.y }
-      drawLineWithInfo(ctx, tempLine, 'orange', true, calibrationValue1)
+      drawLineWithInfo(ctx, tempLine, selectedLineColor1, true, calibrationValue1)
     },
     handleMouseUp: (e) => {
       if (!drawMode1 || !isDrawing1 || !startPoint1) return
@@ -367,7 +369,7 @@ export default function NeedleInspectorUI() {
       const currentPos = getMousePos(canvasRef1.current, e)
       const snappedPos = snapAngle(startPoint1, currentPos)
       
-      const newLine = { x1: startPoint1.x, y1: startPoint1.y, x2: snappedPos.x, y2: snappedPos.y }
+      const newLine = { x1: startPoint1.x, y1: startPoint1.y, x2: snappedPos.x, y2: snappedPos.y, color: selectedLineColor1 }
       const newLines = [...lines1, newLine]
       setLines1(newLines)
       
@@ -376,7 +378,7 @@ export default function NeedleInspectorUI() {
       setDrawMode1(false)
       setSelectedIndex1(newLines.length - 1)
       
-      const lineData = drawLineWithInfo(null, newLine, 'blue', false, calibrationValue1)
+      const lineData = drawLineWithInfo(null, newLine, selectedLineColor1, false, calibrationValue1)
       setLineInfo1(`선 ${newLines.length}: ${lineData.mm}mm (${lineData.angle}°)`)
     },
     handleDeleteLine: () => {
@@ -405,7 +407,7 @@ export default function NeedleInspectorUI() {
       for (let i = lines2.length - 1; i >= 0; i--) {
         if (isPointOnLine(pos, lines2[i])) {
           setSelectedIndex2(i)
-          const lineData = drawLineWithInfo(null, lines2[i], 'blue', false, calibrationValue2)
+          const lineData = drawLineWithInfo(null, lines2[i], lines2[i].color || 'red', false, calibrationValue2)
           setLineInfo2(`선 ${i + 1}: ${lineData.mm}mm (${lineData.angle}°)`)
           redrawCanvas2()
           return
@@ -430,7 +432,7 @@ export default function NeedleInspectorUI() {
       
       // 임시 선 그리기
       const tempLine = { x1: startPoint2.x, y1: startPoint2.y, x2: snappedPos.x, y2: snappedPos.y }
-      drawLineWithInfo(ctx, tempLine, 'orange', true, calibrationValue2)
+      drawLineWithInfo(ctx, tempLine, selectedLineColor2, true, calibrationValue2)
     },
     handleMouseUp: (e) => {
       if (!drawMode2 || !isDrawing2 || !startPoint2) return
@@ -438,7 +440,7 @@ export default function NeedleInspectorUI() {
       const currentPos = getMousePos(canvasRef2.current, e)
       const snappedPos = snapAngle(startPoint2, currentPos)
       
-      const newLine = { x1: startPoint2.x, y1: startPoint2.y, x2: snappedPos.x, y2: snappedPos.y }
+      const newLine = { x1: startPoint2.x, y1: startPoint2.y, x2: snappedPos.x, y2: snappedPos.y, color: selectedLineColor2 }
       const newLines = [...lines2, newLine]
       setLines2(newLines)
       
@@ -447,7 +449,7 @@ export default function NeedleInspectorUI() {
       setDrawMode2(false)
       setSelectedIndex2(newLines.length - 1)
       
-      const lineData = drawLineWithInfo(null, newLine, 'blue', false, calibrationValue2)
+      const lineData = drawLineWithInfo(null, newLine, selectedLineColor2, false, calibrationValue2)
       setLineInfo2(`선 ${newLines.length}: ${lineData.mm}mm (${lineData.angle}°)`)
     },
     handleDeleteLine: () => {
@@ -465,7 +467,8 @@ export default function NeedleInspectorUI() {
   const drawLines = (ctx, lines, selectedIndex, calibrationValue) => {
     lines.forEach((line, index) => {
       const isSelected = index === selectedIndex
-      drawLineWithInfo(ctx, line, isSelected ? 'cyan' : 'red', true, calibrationValue)
+      const lineColor = isSelected ? 'cyan' : (line.color || 'red') // 저장된 색상 사용, 기본값은 빨간색
+      drawLineWithInfo(ctx, line, lineColor, true, calibrationValue)
     })
   }
 
@@ -896,6 +899,8 @@ export default function NeedleInspectorUI() {
             videoContainerRef={videoContainerRef1}
             calibrationValue={calibrationValue1}
             onCalibrationChange={setCalibrationValue1}
+            selectedLineColor={selectedLineColor1}
+            onLineColorChange={setSelectedLineColor1}
             ref={cameraViewRef1} // CameraView ref 추가
           />
           <CameraView 
@@ -913,6 +918,8 @@ export default function NeedleInspectorUI() {
             videoContainerRef={videoContainerRef2}
             calibrationValue={calibrationValue2}
             onCalibrationChange={setCalibrationValue2}
+            selectedLineColor={selectedLineColor2}
+            onLineColorChange={setSelectedLineColor2}
             ref={cameraViewRef2} // CameraView ref 추가
           />
         </div>

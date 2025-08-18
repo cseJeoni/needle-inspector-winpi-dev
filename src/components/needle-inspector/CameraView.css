@@ -42,6 +42,59 @@
   flex-wrap: wrap;
 }
 
+.color-selection-container {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.color-button {
+  width: 15px !important;
+  height: 15px !important;
+  padding: 0 !important;
+  margin: 0;
+  border: 1px solid #333;
+  border-radius: 2px;
+  cursor: pointer;
+  outline: none !important;
+  min-width: 0;
+  min-height: 0;
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  display: inline-block;
+  box-sizing: border-box;
+  transition: all 0.2s ease;
+}
+
+.color-button:focus {
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+.color-button:active {
+  outline: none !important;
+}
+
+.color-button:hover {
+
+  border-width: 1px;
+}
+
+.color-button.selected {
+  transform: scale(1.05);
+  border: 1px solid #fff;
+  box-shadow: 0 0 4px rgba(255, 255, 255, 0.5);
+}
+
+.color-button.red-button {
+  background-color: #dc2626;
+}
+
+.color-button.blue-button {
+  background-color: #2563eb;
+}
+
 .control-button {
   padding: 0.25rem 0.75rem;
   font-size: 0.75rem;
@@ -50,6 +103,13 @@
   cursor: pointer;
   color: #000000; /* 검정색 텍스트 */
   font-weight: 500;
+  min-width: 4rem; /* 최소 너비를 rem 단위로 변경 */
+  height: 1.75rem; /* 높이를 rem 단위로 설정 */
+  text-align: center; /* 텍스트 가운데 정렬 */
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .control-button:disabled {
@@ -71,6 +131,11 @@
   color: #FFFFFF;
 }
 
+.draw-button:focus {
+  outline: none !important;
+  box-shadow: none !important;
+}
+
 .delete-button {
   background-color: #EF4444;
   color: #FFFFFF;
@@ -78,6 +143,11 @@
 
 .delete-button:hover {
   background-color: #DC2626;
+}
+
+.delete-button:focus {
+  outline: none !important;
+  box-shadow: none !important;
 }
 
 .line-info {
@@ -123,18 +193,21 @@
   padding: 0.25rem 0.5rem;
   border-radius: 0.25rem;
   font-size: 0.75rem;
+  height: 1.75rem; /* 버튼과 동일한 높이 (rem 단위) */
+  box-sizing: border-box;
 }
 
 .calibration-label {
   color: #D1D5DB;
-  font-size: 0.7rem;
+  font-size: 0.75rem; /* 버튼과 동일한 폰트 크기 */
   white-space: nowrap;
 }
 
 .calibration-input {
   width: 60px;
+  height: 1.5rem;
   padding: 0.125rem 0.25rem;
-  font-size: 0.7rem;
+  font-size: 0.75rem; /* 버튼과 동일한 폰트 크기 */
   border: 1px solid #6B7280;
   border-radius: 0.125rem;
   background-color: #374151;

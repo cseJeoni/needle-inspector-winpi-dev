@@ -33,7 +33,9 @@ const CameraView = forwardRef(({
   canvasRef, 
   videoContainerRef,
   calibrationValue,
-  onCalibrationChange
+  onCalibrationChange,
+  selectedLineColor,
+  onLineColorChange
 }, ref) => {
 
   // 카메라 이미지 + 캔버스 오버레이 + 시간 텍스트를 포함한 이미지 캡처
@@ -182,6 +184,18 @@ const CameraView = forwardRef(({
           <h2 className="camera-title">{title}</h2>
         </div>
         <div className="controls-container">
+          <div className="color-selection-container">
+            <button 
+              onClick={() => onLineColorChange('red')}
+              className={`color-button red-button ${selectedLineColor === 'red' ? 'selected' : ''}`}
+              title="빨간색 선"
+            />
+            <button 
+              onClick={() => onLineColorChange('blue')}
+              className={`color-button blue-button ${selectedLineColor === 'blue' ? 'selected' : ''}`}
+              title="파란색 선"
+            />
+          </div>
           <button 
             onClick={onDrawModeToggle}
             className={`control-button draw-button ${drawMode ? 'active' : ''}`}
