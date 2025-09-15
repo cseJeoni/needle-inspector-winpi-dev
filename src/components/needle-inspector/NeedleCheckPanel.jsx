@@ -22,6 +22,12 @@ export default function NeedleCheckPanel({ mode, isMotorConnected, needlePositio
   const [isNeedleCheckEnabled, setIsNeedleCheckEnabled] = useState(false)
   // 니들 소음 확인 상태
   const [isNeedleNoiseChecking, setIsNeedleNoiseChecking] = useState(false)
+  
+  // 저항 측정 상태
+  const [resistance1, setResistance1] = useState('N/A')
+  const [resistance2, setResistance2] = useState('N/A')
+  const [resistance1Status, setResistance1Status] = useState('N/A')
+  const [resistance2Status, setResistance2Status] = useState('N/A')
 
   // WebSocket을 통한 모터 위치 명령 전송 함수
   const sendMotorCommand = (targetPosition) => {
@@ -39,6 +45,8 @@ export default function NeedleCheckPanel({ mode, isMotorConnected, needlePositio
     console.log(` 모터 위치 명령 전송:`, msg);
     websocket.send(JSON.stringify(msg));
   }
+  
+
   
   // 니들 오프셋과 돌출 부분의 UP/DOWN 상태 (기본값: UP)
   const [needleOffsetState, setNeedleOffsetState] = useState('UP')
@@ -67,6 +75,42 @@ export default function NeedleCheckPanel({ mode, isMotorConnected, needlePositio
       onMotorPositionChange(calculatedPosition);
     }
   }, [needleOffset, needleProtrusion, onMotorPositionChange])
+  
+  // WebSocket 메시지 처리 (상태 메시지에서 저항값 수신)
+  useEffect(() => {
+    if (!websocket) return;
+    
+    const handleMessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        
+        // 상태 메시지에서 저항값 추출
+        if (data.type === 'status' && data.data) {
+          // 저항값 업데이트 (실시간)
+          if (data.data.resistance1 !== undefined) {
+            setResistance1(data.data.resistance1);
+          }
+          if (data.data.resistance2 !== undefined) {
+            setResistance2(data.data.resistance2);
+          }
+          if (data.data.resistance1_status !== undefined) {
+            setResistance1Status(data.data.resistance1_status);
+          }
+          if (data.data.resistance2_status !== undefined) {
+            setResistance2Status(data.data.resistance2_status);
+          }
+        }
+      } catch (error) {
+        console.error('WebSocket 메시지 처리 오류:', error);
+      }
+    };
+    
+    websocket.addEventListener('message', handleMessage);
+    
+    return () => {
+      websocket.removeEventListener('message', handleMessage);
+    };
+  }, [websocket])
 
   const toggleNeedleStatus = () => {
     if (!isMotorConnected) {
@@ -293,6 +337,61 @@ export default function NeedleCheckPanel({ mode, isMotorConnected, needlePositio
               </Button>
             </div>
           </div>
+        </div>
+
+        {/* 저항 검사 */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5dvh' }}>
+          <label style={{ fontSize: '1.3dvh', color: '#D1D5DB' }}>저항검사</label>
+          
+          {/* 저항1 */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5dvw' }}>
+            <label style={{ width: '20%', fontSize: '1.2dvh', color: '#D1D5DB' }}>저항1</label>
+            <Input 
+              type="text"
+              value={resistance1}
+              readOnly
+              style={{ 
+                backgroundColor: '#171C26', 
+                color: resistance1Status === 'OK' ? '#10B981' : resistance1Status === 'ERROR' ? '#EF4444' : '#D1D5DB',
+                textAlign: 'center',
+                width: '25%',
+                fontSize: '1.2dvh', 
+                height: '4dvh',
+                border: `1px solid ${resistance1Status === 'OK' ? '#10B981' : resistance1Status === 'ERROR' ? '#EF4444' : '#6B7280'}`
+              }}
+            />
+            <span style={{ 
+              fontSize: '1.2dvh', 
+              color: resistance1Status === 'OK' ? '#10B981' : resistance1Status === 'ERROR' ? '#EF4444' : '#D1D5DB',
+              width: '5%'
+            }}>Ω</span>
+          </div>
+          
+          {/* 저항2 */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5dvw' }}>
+            <label style={{ width: '20%', fontSize: '1.2dvh', color: '#D1D5DB' }}>저항2</label>
+            <Input 
+              type="text"
+              value={resistance2}
+              readOnly
+              style={{ 
+                backgroundColor: '#171C26', 
+                color: resistance2Status === 'OK' ? '#10B981' : resistance2Status === 'ERROR' ? '#EF4444' : '#D1D5DB',
+                textAlign: 'center',
+                width: '25%',
+                fontSize: '1.2dvh', 
+                height: '4dvh',
+                border: `1px solid ${resistance2Status === 'OK' ? '#10B981' : resistance2Status === 'ERROR' ? '#EF4444' : '#6B7280'}`
+              }}
+            />
+            <span style={{ 
+              fontSize: '1.2dvh', 
+              color: resistance2Status === 'OK' ? '#10B981' : resistance2Status === 'ERROR' ? '#EF4444' : '#D1D5DB',
+              width: '5%'
+            }}>Ω</span>
+          </div>
+          
+
         </div>
       </div>
     </Panel>

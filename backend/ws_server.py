@@ -4,6 +4,15 @@ import json
 import time
 from motor_threaded_controller import MotorThreadedController
 
+# 저항 측정 관련 import
+try:
+    from resistance import init_resistance_monitor, get_resistance_values, close_resistance_monitor
+    resistance_available = True
+    print("[OK] 저항 측정 기능 활성화 (resistance.py)")
+except ImportError as e:
+    resistance_available = False
+    print(f"[ERROR] resistance.py 모듈을 찾을 수 없습니다: {e}. 저항 측정 기능이 비활성화됩니다.")
+
 # EEPROM 관련 import
 try:
     import smbus2
@@ -507,6 +516,55 @@ async def handler(websocket):
                         "result": result
                     }))
 
+                elif data["cmd"] == "resistance_init":
+                    if resistance_available:
+                        port = data.get("port", "/dev/usb-resistance")
+                        try:
+                            result = init_resistance_monitor(port)
+                            if result:
+                                print(f"[INFO] 저항 모니터 초기화 성공: {port}")
+                                await websocket.send(json.dumps({
+                                    "type": "resistance_init",
+                                    "result": {"success": True, "message": "저항 모니터 초기화 성공"}
+                                }))
+                            else:
+                                await websocket.send(json.dumps({
+                                    "type": "resistance_init",
+                                    "result": {"success": False, "error": "저항 모니터 초기화 실패"}
+                                }))
+                        except Exception as e:
+                            print(f"[ERROR] 저항 모니터 초기화 오류: {e}")
+                            await websocket.send(json.dumps({
+                                "type": "resistance_init",
+                                "result": {"success": False, "error": str(e)}
+                            }))
+                    else:
+                        await websocket.send(json.dumps({
+                            "type": "error",
+                            "result": "저항 측정 기능이 비활성화되어 있습니다."
+                        }))
+
+                elif data["cmd"] == "resistance_read":
+                    if resistance_available:
+                        try:
+                            result = get_resistance_values()
+                            print(f"[INFO] 저항값 읽기: {result}")
+                            await websocket.send(json.dumps({
+                                "type": "resistance_read",
+                                "result": result
+                            }))
+                        except Exception as e:
+                            print(f"[ERROR] 저항값 읽기 오류: {e}")
+                            await websocket.send(json.dumps({
+                                "type": "resistance_read",
+                                "result": {"success": False, "error": str(e)}
+                            }))
+                    else:
+                        await websocket.send(json.dumps({
+                            "type": "error",
+                            "result": "저항 측정 기능이 비활성화되어 있습니다."
+                        }))
+
                 else:
                     await websocket.send(json.dumps({
                         "type": "error",
@@ -540,6 +598,41 @@ async def push_motor_status():
                 # gpiozero Button 객체에서 상태 읽기 (is_pressed가 True이면 LOW 상태)
                 gpio23_state = "LOW" if pin23.is_pressed else "HIGH"
 
+            # 저항값 읽기 (실시간)
+            resistance_data = {}
+            if resistance_available:
+                try:
+                    resistance_result = get_resistance_values()
+                    if resistance_result and resistance_result.get('success'):
+                        resistance_data = {
+                            "resistance1": resistance_result.get('resistance1', 'N/A'),
+                            "resistance2": resistance_result.get('resistance2', 'N/A'),
+                            "resistance1_status": resistance_result.get('status1', 'N/A'),
+                            "resistance2_status": resistance_result.get('status2', 'N/A')
+                        }
+                    else:
+                        resistance_data = {
+                            "resistance1": 'N/A',
+                            "resistance2": 'N/A',
+                            "resistance1_status": 'N/A',
+                            "resistance2_status": 'N/A'
+                        }
+                except Exception as e:
+                    # 저항 읽기 오류 시 기본값 설정
+                    resistance_data = {
+                        "resistance1": 'ERROR',
+                        "resistance2": 'ERROR',
+                        "resistance1_status": 'ERROR',
+                        "resistance2_status": 'ERROR'
+                    }
+            else:
+                resistance_data = {
+                    "resistance1": 'N/A',
+                    "resistance2": 'N/A',
+                    "resistance1_status": 'N/A',
+                    "resistance2_status": 'N/A'
+                }
+
             # EEPROM 데이터는 GPIO23 인터럽트에서 관리되므로 전역 변수 사용
             data = {
                 "type": "status",
@@ -551,6 +644,7 @@ async def push_motor_status():
                     "gpio18": gpio18_state,  # 기존 GPIO18 상태
                     "gpio23": gpio23_state,  # 새로운 GPIO23 상태 추가
                     "needle_tip_connected": needle_tip_connected,  # 니들팁 연결 상태
+                    **resistance_data  # 저항 데이터 추가
                 }
             }
 
@@ -564,21 +658,41 @@ async def push_motor_status():
                     connected_clients.discard(ws)
 
 async def main():
+    # 저항 모니터 자동 초기화
+    if resistance_available:
+        try:
+            result = init_resistance_monitor("/dev/usb-resistance")
+            if result:
+                print("[INFO] 저항 모니터 자동 초기화 성공")
+            else:
+                print("[WARN] 저항 모니터 자동 초기화 실패")
+        except Exception as e:
+            print(f"[ERROR] 저항 모니터 초기화 오류: {e}")
+    
     async with websockets.serve(handler, "0.0.0.0", 8765):
         print("[INFO] WebSocket 모터 서버 실행 중 (ws://0.0.0.0:8765)")
         await push_motor_status()  # 상태 주기 전송 루프 시작
 
 def cleanup_gpio():
-    """GPIO 리소스 정리"""
-    if gpio_available:
+    """GPIO 및 저항 모니터 리소스 정리"""
+    global pin18, pin23
+    try:
+        if pin18:
+            pin18.close()
+            print("[INFO] GPIO 18번 핀 정리 완료")
+        if pin23:
+            pin23.close()
+            print("[INFO] GPIO 23번 핀 정리 완료")
+    except Exception as e:
+        print(f"[ERROR] GPIO 정리 중 오류: {e}")
+    
+    # 저항 모니터 정리
+    if resistance_available:
         try:
-            if pin18:
-                pin18.close()
-            if pin23:
-                pin23.close()
-            print("[OK] GPIO 리소스 정리 완룼 (gpiozero)")
+            close_resistance_monitor()
+            print("[INFO] 저항 모니터 정리 완료")
         except Exception as e:
-            print(f"[ERROR] GPIO 정리 오류: {e}")
+            print(f"[ERROR] 저항 모니터 정리 중 오류: {e}")
 
 if __name__ == "__main__":
     try:
