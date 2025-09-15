@@ -616,7 +616,7 @@ export default function NeedleInspectorUI() {
   // 모터 WebSocket 연결 및 자동 연결
   useEffect(() => {
     console.log('🔧 모터 WebSocket 연결 시도...')
-    const socket = new WebSocket("ws://192.168.0.122:8765")
+    const socket = new WebSocket("ws://192.168.0.129:8765")
 
     socket.onopen = () => {
       console.log("✅ 모터 WebSocket 연결 성공")

@@ -24,27 +24,24 @@ MTR20_CUTERA_OFFSET = 0x80
 MTR40_EEPROM_ADDRESS = 0x51
 MTR40_OFFSET = 0x70
 
-# GPIO 초기화 (RPi.GPIO 사용)
+# GPIO 초기화 (gpiozero 사용)
 gpio_available = False
 pin18 = None
+pin23 = None  # GPIO23 객체 (니들팁 연결 감지용)
 needle_tip_connected = False  # 니들팁 연결 상태 (전역 변수)
 last_eeprom_data = {"success": False, "error": "니들팁이 연결되지 않음"}  # 마지막 EEPROM 상태
 
 try:
-    import RPi.GPIO as GPIO
-    from gpiozero import DigitalInputDevice  # pin18용으로 gpiozero 유지
+    from gpiozero import DigitalInputDevice, Button
     
-    # GPIO 모드 설정
-    GPIO.setmode(GPIO.BCM)
-    
-    # GPIO18은 기존 gpiozero 방식 유지
+    # GPIO18: 기존 DigitalInputDevice 유지
     pin18 = DigitalInputDevice(18)
     
-    # GPIO23은 RPi.GPIO 방식으로 설정
-    GPIO.setup(23, GPIO.IN, pull_up_down=GPIO.PUD_UP)  # 풀업 저항 활성화
+    # GPIO23: Button 클래스로 니들팁 연결 감지 (내부 풀업, 바운스 타임 지원)
+    pin23 = Button(23, pull_up=True, bounce_time=0.2)
     
     gpio_available = True
-    print("[OK] GPIO 18번(gpiozero), 23번(RPi.GPIO) 핀 입력 모드로 초기화 완료")
+    print("[OK] GPIO 18번, 23번 핀 초기화 완료 (gpiozero 라이브러리)")
 except ImportError as ie:
     print(f"[ERROR] GPIO 모듈을 찾을 수 없습니다: {ie}. GPIO 기능이 비활성화됩니다.")
 except Exception as e:
@@ -53,37 +50,33 @@ except Exception as e:
 motor = MotorThreadedController()
 connected_clients = set()
 
-# GPIO23 인터럽트 핸들러 (RPi.GPIO 방식) - 니들팁 상태만 관리
-def gpio23_callback(channel):
-    """GPIO23 상태 변화 시 호출되는 인터럽트 핸들러 - 니들팁 체결 상태만 확인"""
+# GPIO23 이벤트 핸들러 (gpiozero 방식) - 니들팁 상태만 관리
+def _on_tip_connected():
+    """니들팁 연결 시 호출되는 이벤트 핸들러"""
     global needle_tip_connected
-    
-    if not gpio_available:
-        return
-    
-    # GPIO23 상태 읽기 (LOW = 니들팁 연결됨, HIGH = 니들팁 분리됨)
-    current_state = not GPIO.input(23)  # 반전 (LOW일 때 True)
-    
-    if current_state != needle_tip_connected:
-        needle_tip_connected = current_state
-        print(f"[GPIO23] 니들팁 상태 변경: {'연결됨' if needle_tip_connected else '분리됨'}")
-        
-        # EEPROM 데이터는 명시적으로 지우기 전까지 유지 (자동 초기화 제거)
+    needle_tip_connected = True
+    print("[GPIO23] 니들팁 상태 변경: 연결됨")
 
-# GPIO23 인터럽트 설정 (RPi.GPIO 방식) - 니들팁 상태만 감지
-if gpio_available:
+def _on_tip_disconnected():
+    """니들팁 분리 시 호출되는 이벤트 핸들러"""
+    global needle_tip_connected
+    needle_tip_connected = False
+    print("[GPIO23] 니들팁 상태 변경: 분리됨")
+
+# GPIO23 이벤트 핸들러 설정 (gpiozero 방식)
+if gpio_available and pin23:
     try:
-        # 초기 상태 설정
-        needle_tip_connected = not GPIO.input(23)  # LOW일 때 True
+        # 초기 니들팁 상태 설정 (is_pressed는 풀업 상태에서 LOW일 때 True)
+        needle_tip_connected = pin23.is_pressed
         print(f"[GPIO23] 초기 니들팁 상태: {'연결됨' if needle_tip_connected else '분리됨'}")
         
-        # 인터럽트 핸들러 등록 (BOTH 엣지에서 상태 변화 감지)
-        GPIO.add_event_detect(23, GPIO.BOTH, callback=gpio23_callback, bouncetime=200)
+        # 이벤트 핸들러 할당
+        pin23.when_pressed = _on_tip_connected
+        pin23.when_released = _on_tip_disconnected
         
-        # EEPROM 읽기는 write 명령 시에만 수행하므로 초기 로드 안 함
-        print("[OK] GPIO23 인터럽트 핸들러 등록 완료 (RPi.GPIO) - 니들팁 상태만 감지")
+        print("[OK] GPIO23 이벤트 핸들러 등록 완료 (gpiozero) - 니들팁 상태 감지")
     except Exception as e:
-        print(f"[ERROR] GPIO23 인터럽트 설정 오류: {e}")
+        print(f"[ERROR] GPIO23 이벤트 설정 오류: {e}")
 
 
 # EEPROM 관련 함수들 - 간소화된 API
@@ -543,9 +536,9 @@ async def push_motor_status():
                 gpio_value = pin18.value
                 gpio18_state = "HIGH" if gpio_value else "LOW"
             
-            if gpio_available:
-                gpio23_value = GPIO.input(23)
-                gpio23_state = "HIGH" if gpio23_value else "LOW"
+            if gpio_available and pin23:
+                # gpiozero Button 객체에서 상태 읽기 (is_pressed가 True이면 LOW 상태)
+                gpio23_state = "LOW" if pin23.is_pressed else "HIGH"
 
             # EEPROM 데이터는 GPIO23 인터럽트에서 관리되므로 전역 변수 사용
             data = {
@@ -579,8 +572,11 @@ def cleanup_gpio():
     """GPIO 리소스 정리"""
     if gpio_available:
         try:
-            GPIO.cleanup()
-            print("[OK] GPIO 리소스 정리 완료")
+            if pin18:
+                pin18.close()
+            if pin23:
+                pin23.close()
+            print("[OK] GPIO 리소스 정리 완룼 (gpiozero)")
         except Exception as e:
             print(f"[ERROR] GPIO 정리 오류: {e}")
 
