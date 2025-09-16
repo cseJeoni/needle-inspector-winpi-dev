@@ -28,6 +28,8 @@ export default function NeedleCheckPanel({ mode, isMotorConnected, needlePositio
   const [resistance2, setResistance2] = useState('N/A')
   const [resistance1Status, setResistance1Status] = useState('N/A')
   const [resistance2Status, setResistance2Status] = useState('N/A')
+  const [isResistanceMeasuring, setIsResistanceMeasuring] = useState(false)
+  const [resistanceWs, setResistanceWs] = useState(null)
 
   // WebSocket을 통한 모터 위치 명령 전송 함수
   const sendMotorCommand = (targetPosition) => {
@@ -76,41 +78,63 @@ export default function NeedleCheckPanel({ mode, isMotorConnected, needlePositio
     }
   }, [needleOffset, needleProtrusion, onMotorPositionChange])
   
-  // WebSocket 메시지 처리 (상태 메시지에서 저항값 수신)
+  // 저항 측정 WebSocket 연결 관리
   useEffect(() => {
-    if (!websocket) return;
-    
-    const handleMessage = (event) => {
+    // 저항 측정 서버에 연결 (포트 8766)
+    const connectToResistanceServer = () => {
       try {
-        const data = JSON.parse(event.data);
+        const ws = new WebSocket('ws://localhost:8766');
         
-        // 상태 메시지에서 저항값 추출
-        if (data.type === 'status' && data.data) {
-          // 저항값 업데이트 (실시간)
-          if (data.data.resistance1 !== undefined) {
-            setResistance1(data.data.resistance1);
+        ws.onopen = () => {
+          console.log('저항 측정 서버 연결 성공');
+          setResistanceWs(ws);
+        };
+        
+        ws.onmessage = (event) => {
+          try {
+            const data = JSON.parse(event.data);
+            
+            if (data.type === 'resistance_measurement') {
+              // 저항 측정 결과 수신
+              const result = data.data;
+              setResistance1(result.resistance1 || 'N/A');
+              setResistance2(result.resistance2 || 'N/A');
+              setResistance1Status(result.status1 || 'N/A');
+              setResistance2Status(result.status2 || 'N/A');
+              setIsResistanceMeasuring(false);
+              console.log('저항 측정 결과:', result);
+            }
+          } catch (error) {
+            console.error('저항 측정 메시지 처리 오류:', error);
+            setIsResistanceMeasuring(false);
           }
-          if (data.data.resistance2 !== undefined) {
-            setResistance2(data.data.resistance2);
-          }
-          if (data.data.resistance1_status !== undefined) {
-            setResistance1Status(data.data.resistance1_status);
-          }
-          if (data.data.resistance2_status !== undefined) {
-            setResistance2Status(data.data.resistance2_status);
-          }
-        }
+        };
+        
+        ws.onclose = () => {
+          console.log('저항 측정 서버 연결 종료');
+          setResistanceWs(null);
+          // 3초 후 재연결 시도
+          setTimeout(connectToResistanceServer, 3000);
+        };
+        
+        ws.onerror = (error) => {
+          console.error('저항 측정 서버 연결 오류:', error);
+          setResistanceWs(null);
+        };
+        
       } catch (error) {
-        console.error('WebSocket 메시지 처리 오류:', error);
+        console.error('저항 측정 WebSocket 생성 오류:', error);
       }
     };
     
-    websocket.addEventListener('message', handleMessage);
+    connectToResistanceServer();
     
     return () => {
-      websocket.removeEventListener('message', handleMessage);
+      if (resistanceWs) {
+        resistanceWs.close();
+      }
     };
-  }, [websocket])
+  }, [])
 
   const toggleNeedleStatus = () => {
     if (!isMotorConnected) {
@@ -166,6 +190,34 @@ export default function NeedleCheckPanel({ mode, isMotorConnected, needlePositio
     }
     
     console.log(`✅ 니들 UP & DOWN ${repeatCount}회 완료`)
+  }
+
+  // 저항 측정 버튼 클릭 함수
+  const handleResistanceMeasure = () => {
+    if (!resistanceWs || resistanceWs.readyState !== WebSocket.OPEN) {
+      console.error('❌ 저항 측정 서버에 연결되지 않았습니다.');
+      return;
+    }
+
+    if (isResistanceMeasuring) {
+      console.log('⏳ 이미 저항 측정 중입니다.');
+      return;
+    }
+
+    console.log('🔍 저항 측정 시작');
+    setIsResistanceMeasuring(true);
+    
+    // 저항 측정 명령 전송
+    const command = {
+      command: 'measure_resistance'
+    };
+    
+    try {
+      resistanceWs.send(JSON.stringify(command));
+    } catch (error) {
+      console.error('저항 측정 명령 전송 오류:', error);
+      setIsResistanceMeasuring(false);
+    }
   }
 
   // 1.0부터 20.0까지 0.1 간격으로 생성
@@ -341,7 +393,26 @@ export default function NeedleCheckPanel({ mode, isMotorConnected, needlePositio
 
         {/* 저항 검사 */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5dvh' }}>
-          <label style={{ fontSize: '1.3dvh', color: '#D1D5DB' }}>저항검사</label>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <label style={{ fontSize: '1.3dvh', color: '#D1D5DB' }}>저항검사</label>
+            <Button
+              onClick={handleResistanceMeasure}
+              disabled={!resistanceWs || resistanceWs.readyState !== WebSocket.OPEN || isResistanceMeasuring}
+              style={{
+                backgroundColor: '#171C26',
+                color: (!resistanceWs || resistanceWs.readyState !== WebSocket.OPEN || isResistanceMeasuring) ? '#6B7280' : '#10B981',
+                fontSize: '1.1dvh',
+                height: '3.5dvh',
+                padding: '0 1dvw',
+                border: `1px solid ${(!resistanceWs || resistanceWs.readyState !== WebSocket.OPEN || isResistanceMeasuring) ? '#6B7280' : '#10B981'}`,
+                borderRadius: '0.375rem',
+                cursor: (!resistanceWs || resistanceWs.readyState !== WebSocket.OPEN || isResistanceMeasuring) ? 'not-allowed' : 'pointer',
+                opacity: (!resistanceWs || resistanceWs.readyState !== WebSocket.OPEN || isResistanceMeasuring) ? 0.6 : 1
+              }}
+            >
+              {isResistanceMeasuring ? '측정 중...' : '측정'}
+            </Button>
+          </div>
           
           {/* 저항1 */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5dvw' }}>
@@ -390,7 +461,6 @@ export default function NeedleCheckPanel({ mode, isMotorConnected, needlePositio
               width: '5%'
             }}>Ω</span>
           </div>
-          
 
         </div>
       </div>
