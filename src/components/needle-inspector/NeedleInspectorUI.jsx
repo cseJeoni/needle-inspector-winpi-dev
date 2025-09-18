@@ -3,6 +3,8 @@ import CameraView from "./CameraView"
 import StatusPanel from "./StatusPanel"
 import DataSettingsPanel from "./DataSettingsPanel"
 import NeedleCheckPanel from "./NeedleCheckPanel"
+import NeedleCheckPanelV2 from "./NeedleCheckPanelV2"
+import NeedleCheckPanelV4 from "./NeedleCheckPanelV4"
 import ModePanel from "./ModePanel"
 import JudgePanel from "./JudgePanel" // Import JudgePanel
 import { useAuth } from "../../hooks/useAuth.jsx" // Firebase 사용자 정보
@@ -48,8 +50,16 @@ export default function NeedleInspectorUI() {
   // DataSettingsPanel 상태 관리
   const [isStarted, setIsStarted] = useState(false) // START/STOP 상태
   const [readEepromData, setReadEepromData] = useState(null) // EEPROM 읽기 데이터
+  const [mtrVersion, setMtrVersion] = useState('2.0') // MTR 버전 상태
   const [needleTipConnected, setNeedleTipConnected] = useState(false) // GPIO23 기반 니들팁 연결 상태
   const [isWaitingEepromRead, setIsWaitingEepromRead] = useState(false) // EEPROM 읽기 응답 대기 상태
+
+  // 저항 측정 상태 (MTR 4.0에서만 사용)
+  const [resistance1, setResistance1] = useState('N/A')
+  const [resistance2, setResistance2] = useState('N/A')
+  const [resistance1Status, setResistance1Status] = useState('N/A')
+  const [resistance2Status, setResistance2Status] = useState('N/A')
+  const [isResistanceMeasuring, setIsResistanceMeasuring] = useState(false)
 
   // 니들팁 연결 상태에 따른 작업 상태 업데이트
   useEffect(() => {
@@ -695,6 +705,19 @@ export default function NeedleInspectorUI() {
             prevGpioRef.current = gpio18
             setGpioState(gpio18)
           }
+        } else if (res.type === "resistance") {
+          // 저항 측정 결과 처리
+          console.log('📊 저항 측정 결과 수신:', res.data)
+          
+          if (res.data) {
+            setResistance1(res.data.resistance1 || 'N/A')
+            setResistance2(res.data.resistance2 || 'N/A')
+            setResistance1Status(res.data.status1 || 'N/A')
+            setResistance2Status(res.data.status2 || 'N/A')
+          }
+          
+          // 측정 완료 상태로 변경
+          setIsResistanceMeasuring(false)
         // EEPROM 관련 메시지는 DataSettingsPanel에서 Promise 기반으로 직접 처리
         // 중복 처리 방지를 위해 메인 UI에서는 제거
         } else if (res.type === "error") {
@@ -1013,17 +1036,37 @@ export default function NeedleInspectorUI() {
             isWsConnected={isWsConnected} // WebSocket 연결 상태 전달
             onWaitingEepromReadChange={setIsWaitingEepromRead} // EEPROM 읽기 대기 상태 변경 함수 전달
             calculatedMotorPosition={calculatedMotorPosition} // 계산된 모터 위치 전달
+            onMtrVersionChange={setMtrVersion} // MTR 버전 변경 콜백 함수 전달
           />
-          <NeedleCheckPanel 
-            mode={mode} 
-            isMotorConnected={isMotorConnected}
-            needlePosition={needlePosition}
-            onNeedleUp={handleNeedleUp}
-            onNeedleDown={handleNeedleDown}
-            websocket={ws}
-            isWsConnected={isWsConnected}
-            onMotorPositionChange={setCalculatedMotorPosition}
-          />
+          {mtrVersion === '2.0' ? (
+            <NeedleCheckPanelV2 
+              mode={mode} 
+              isMotorConnected={isMotorConnected}
+              needlePosition={needlePosition}
+              onNeedleUp={handleNeedleUp}
+              onNeedleDown={handleNeedleDown}
+              websocket={ws}
+              isWsConnected={isWsConnected}
+              onMotorPositionChange={setCalculatedMotorPosition}
+            />
+          ) : (
+            <NeedleCheckPanelV4 
+              mode={mode} 
+              isMotorConnected={isMotorConnected}
+              needlePosition={needlePosition}
+              onNeedleUp={handleNeedleUp}
+              onNeedleDown={handleNeedleDown}
+              websocket={ws}
+              isWsConnected={isWsConnected}
+              onMotorPositionChange={setCalculatedMotorPosition}
+              resistance1={resistance1}
+              resistance2={resistance2}
+              resistance1Status={resistance1Status}
+              resistance2Status={resistance2Status}
+              isResistanceMeasuring={isResistanceMeasuring}
+              onResistanceMeasuringChange={setIsResistanceMeasuring}
+            />
+          )}
           <JudgePanel 
             onJudge={(result) => console.log(`판정 결과: ${result}`)}
             isStarted={isStarted}

@@ -57,6 +57,15 @@ class MotorThreadedController:
         
         return port
 
+    def __enter__(self):
+        """컨텍스트 매니저 진입 - with문 사용 시 자동 연결"""
+        return self
+    
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        """컨텍스트 매니저 종료 - 예외 발생 여부와 관계없이 자동 해제"""
+        self.disconnect()
+        return False
+
     def connect(self, port, baudrate, parity, databits, stopbits):
         if self.serial and self.serial.is_open:
             return "이미 연결되어 있습니다."

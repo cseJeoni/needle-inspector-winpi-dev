@@ -26,7 +26,8 @@ export default function DataSettingsPanel({
   websocket, // 메인 WebSocket 연결
   isWsConnected, // WebSocket 연결 상태
   onWaitingEepromReadChange, // EEPROM 읽기 대기 상태 변경 함수
-  calculatedMotorPosition // 계산된 모터 위치
+  calculatedMotorPosition, // 계산된 모터 위치
+  onMtrVersionChange // MTR 버전 변경 콜백 함수
 }) {
   // isStarted와 readEepromData는 이제 props로 받아서 사용
   const [selectedYear, setSelectedYear] = useState("")
@@ -211,7 +212,12 @@ export default function DataSettingsPanel({
       setSelectedCountry("");
       setSelectedNeedleType("");
     }
-  }, [mtrVersion, cacheReady]);
+    
+    // 상위 컴포넌트에 MTR 버전 변경 알림
+    if (onMtrVersionChange) {
+      onMtrVersionChange(mtrVersion);
+    }
+  }, [mtrVersion, cacheReady, onMtrVersionChange]);
   
   // 국가가 변경될 때 니들 종류 초기화
   useEffect(() => {

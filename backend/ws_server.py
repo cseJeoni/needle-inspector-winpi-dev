@@ -512,7 +512,7 @@ async def handler(websocket):
                     
                     # 결과를 요청한 클라이언트에게 전송
                     response = {
-                        "type": "resistance_measurement",
+                        "type": "resistance",
                         "data": result
                     }
                     await websocket.send(json.dumps(response))
@@ -592,9 +592,26 @@ def cleanup_gpio():
             print(f"[ERROR] GPIO 정리 오류: {e}")
 
 if __name__ == "__main__":
+    import signal
+    import sys
+    
+    def signal_handler(signum, frame):
+        """시그널 핸들러 - 강제 종료 시에도 자원 정리"""
+        print(f"\n[INFO] 시그널 {signum} 수신 - 프로그램 종료 중...")
+        cleanup_gpio()
+        if motor:
+            motor.disconnect()
+        sys.exit(0)
+    
+    # 시그널 핸들러 등록
+    signal.signal(signal.SIGINT, signal_handler)   # Ctrl+C
+    signal.signal(signal.SIGTERM, signal_handler)  # 종료 시그널
+    
     try:
         asyncio.run(main())
     except KeyboardInterrupt:
         print("\n[INFO] 프로그램 종료 중...")
+    except Exception as e:
+        print(f"\n[ERROR] 예상치 못한 오류: {e}")
     finally:
         cleanup_gpio()

@@ -12,6 +12,16 @@ class ResistanceMeasurer:
         self.slave_id_2 = 2
         self.client = None
     
+    def __enter__(self):
+        """컨텍스트 매니저 진입 - with문 사용 시 자동 연결"""
+        self.connect()
+        return self
+    
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        """컨텍스트 매니저 종료 - 예외 발생 여부와 관계없이 자동 해제"""
+        self.disconnect()
+        return False  # 예외를 다시 발생시킴
+    
     def connect(self):
         """저항 측정기에 연결"""
         try:
@@ -88,28 +98,17 @@ class ResistanceMeasurer:
 
 def measure_resistance_once(port="/dev/usb-resistance"):
     """
-    저항 측정을 위한 일회성 함수
+    저항 측정을 위한 일회성 함수 - 컨텍스트 매니저로 확실한 자원 해제
     연결 -> 측정 -> 즉시 해제하여 자원 충돌 방지
     """
-    measurer = None
     try:
         print("[Resistance] 임시 연결 시작...")
-        measurer = ResistanceMeasurer(port=port)
-        
-        # 연결 시도
-        if not measurer.connect():
-            return {
-                'resistance1': 'N/A', 'resistance2': 'N/A',
-                'status1': 'CONNECTION_FAILED', 'status2': 'CONNECTION_FAILED',
-                'connected': False,
-                'error': '저항 측정기 연결 실패'
-            }
-        
-        # 측정 수행
-        result = measurer.measure_resistance()
-        print("[Resistance] 측정 완료, 연결 해제 중...")
-        
-        return result
+        # with문 사용으로 예외 발생 시에도 자동으로 연결 해제
+        with ResistanceMeasurer(port=port) as measurer:
+            # 측정 수행
+            result = measurer.measure_resistance()
+            print("[Resistance] 측정 완료, 자동 연결 해제 중...")
+            return result
         
     except Exception as e:
         print(f"[Resistance] 측정 중 오류: {e}")
@@ -119,11 +118,3 @@ def measure_resistance_once(port="/dev/usb-resistance"):
             'connected': False,
             'error': str(e)
         }
-    finally:
-        # 반드시 연결 해제
-        if measurer:
-            try:
-                measurer.disconnect()
-                print("[Resistance] 임시 연결 해제 완료")
-            except Exception as e:
-                print(f"[Resistance] 연결 해제 중 오류: {e}")
