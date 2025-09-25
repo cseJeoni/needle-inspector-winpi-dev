@@ -42,10 +42,18 @@ export default function NeedleCheckPanelV4({
   
   // 니들 설정 활성화 상태 (기본값: 비활성화)
   const [isNeedleCheckEnabled, setIsNeedleCheckEnabled] = useState(false)
+  // 저항 검사 설정 활성화 상태 (기본값: 비활성화)
+  const [isResistanceCheckEnabled, setIsResistanceCheckEnabled] = useState(false)
   // 니들 소음 확인 상태
   const [isNeedleNoiseChecking, setIsNeedleNoiseChecking] = useState(false)
   
   // 저항 측정 상태는 props로 받음 (로컬 상태 제거)
+  
+  // 저항 검사 설정 상태
+  const [resistanceDelay, setResistanceDelay] = useState(1000) // 기본 1초
+  const [normalRangeValue, setNormalRangeValue] = useState(100)
+  const [normalRangeMin, setNormalRangeMin] = useState(0)
+  const [normalRangeMax, setNormalRangeMax] = useState(100)
 
   // WebSocket을 통한 모터 위치 명령 전송 함수 (모터 ID 포함)
   const sendMotorCommand = (targetPosition, motorId = 1) => {
@@ -76,6 +84,11 @@ export default function NeedleCheckPanelV4({
   // 니들 설정 잠금/해제 토글 함수
   const handleNeedleCheckToggle = () => {
     setIsNeedleCheckEnabled(!isNeedleCheckEnabled)
+  }
+
+  // 저항 검사 설정 잠금/해제 토글 함수
+  const handleResistanceCheckToggle = () => {
+    setIsResistanceCheckEnabled(!isResistanceCheckEnabled)
   }
 
   // needlePosition prop이 변경될 때마다 needleStatus 동기화
@@ -533,74 +546,152 @@ export default function NeedleCheckPanelV4({
         </div>
 
         {/* 저항 검사 */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5dvh' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5dvh', color: '#D1D5DB' }}>
+          {/* 저항검사 제목과 자물쇠 */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <h2 className="text-lg font-bold">저항 검사</h2>
+            <img
+              src={isResistanceCheckEnabled ? unlockIcon : lockIcon}
+              alt={isResistanceCheckEnabled ? 'Unlocked' : 'Locked'}
+              style={{ cursor: 'pointer', height: '1.25rem' }}
+              onClick={handleResistanceCheckToggle}
+              title={isResistanceCheckEnabled ? '설정 잠금' : '설정 잠금 해제'}
+            />
+          </div>
+          
+          {/* DELAY, 정상 범주, 설정 버튼 */}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <label style={{ fontSize: '1.3dvh', color: '#D1D5DB' }}>저항검사</label>
+            <label style={{ fontSize: '1.2dvh', color: '#D1D5DB', minWidth: '10%' }}>DELAY (ms)</label>
+            <Input 
+              type="number"
+              value={resistanceDelay}
+              onChange={(e) => setResistanceDelay(Number(e.target.value))}
+              min="0"
+              step="100"
+              disabled={!isResistanceCheckEnabled}
+              style={{ 
+                backgroundColor: '#171C26', 
+                color: !isResistanceCheckEnabled ? '#D1D5DB' : 'white',
+                textAlign: 'center',
+                width: '20%',
+                fontSize: '1.1dvh', 
+                height: '3.5dvh',
+                opacity: !isResistanceCheckEnabled ? 0.6 : 1
+              }}
+            />
+            <label style={{ fontSize: '1.2dvh', color: '#D1D5DB', minWidth: '12%' }}>정상 값</label>
+            <Input 
+              type="number"
+              value={normalRangeValue}
+              onChange={(e) => setNormalRangeValue(Number(e.target.value))}
+              min="0"
+              step="1"
+              placeholder="정상값"
+              disabled={!isResistanceCheckEnabled}
+              style={{ 
+                backgroundColor: '#171C26', 
+                color: !isResistanceCheckEnabled ? '#D1D5DB' : 'white',
+                textAlign: 'center',
+                width: '22%',
+                fontSize: '1.1dvh', 
+                height: '3.5dvh',
+                opacity: !isResistanceCheckEnabled ? 0.6 : 1
+              }}
+            />
+            <span style={{ fontSize: '1.2dvh', color: '#D1D5DB' }}>Ω</span>
             <Button
-              onClick={handleResistanceMeasure}
-              disabled={!websocket || !isWsConnected || isResistanceMeasuring}
+              onClick={() => {
+                console.log('저항 검사 설정 저장:', {
+                  delay: resistanceDelay,
+                  normalValue: normalRangeValue
+                });
+              }}
+              disabled={!isResistanceCheckEnabled}
               style={{
                 backgroundColor: '#171C26',
-                color: (!websocket || !isWsConnected || isResistanceMeasuring) ? '#6B7280' : '#10B981',
+                color: !isResistanceCheckEnabled ? '#D1D5DB' : '#10B981',
                 fontSize: '1.1dvh',
                 height: '3.5dvh',
                 padding: '0 1dvw',
-                border: `1px solid ${(!websocket || !isWsConnected || isResistanceMeasuring) ? '#6B7280' : '#10B981'}`,
+                border: `1px solid ${!isResistanceCheckEnabled ? '#6B7280' : '#10B981'}`,
                 borderRadius: '0.375rem',
-                cursor: (!websocket || !isWsConnected || isResistanceMeasuring) ? 'not-allowed' : 'pointer',
-                opacity: (!websocket || !isWsConnected || isResistanceMeasuring) ? 0.6 : 1
+                cursor: !isResistanceCheckEnabled ? 'not-allowed' : 'pointer',
+                opacity: !isResistanceCheckEnabled ? 0.6 : 1,
+                minWidth: '8%'
               }}
             >
-              {isResistanceMeasuring ? '측정 중...' : '측정'}
+              설정
             </Button>
           </div>
           
-          {/* 저항1 */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5dvw' }}>
-            <label style={{ width: '20%', fontSize: '1.2dvh', color: '#D1D5DB' }}>저항1</label>
-            <Input 
-              type="text"
-              value={resistance1}
-              readOnly
-              style={{ 
-                backgroundColor: '#171C26', 
-                color: resistance1Status === 'OK' ? '#10B981' : (resistance1Status === 'ERROR' || resistance1Status === 'READ_FAIL') ? '#EF4444' : '#D1D5DB',
-                textAlign: 'center',
-                width: '25%',
+          {/* 저항1, 저항2 한 줄에 표시 */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            {/* 저항1 */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.3dvw', flex: 1 }}>
+              <label style={{ fontSize: '1.2dvh', color: '#D1D5DB', minWidth: '15%' }}>저항 1</label>
+              <Input 
+                type="text"
+                value={0.001 *resistance1}
+                readOnly
+                style={{ 
+                  backgroundColor: '#171C26', 
+                  color: resistance1Status === 'OK' ? '#10B981' : (resistance1Status === 'ERROR' || resistance1Status === 'read_FAIL') ? '#EF4444' : '#D1D5DB',
+                  textAlign: 'center',
+                  width: '50%',
+                  fontSize: '1.2dvh', 
+                  height: '3.5dvh',
+                  border: `1px solid ${resistance1Status === 'OK' ? '#10B981' : (resistance1Status === 'ERROR' || resistance1Status === 'read_FAIL') ? '#EF4444' : '#6B7280'}`
+                }}
+              />
+              <span style={{ 
                 fontSize: '1.2dvh', 
-                height: '4dvh',
-                border: `1px solid ${resistance1Status === 'OK' ? '#10B981' : (resistance1Status === 'ERROR' || resistance1Status === 'READ_FAIL') ? '#EF4444' : '#6B7280'}`
-              }}
-            />
-            <span style={{ 
-              fontSize: '1.2dvh', 
-              color: resistance1Status === 'OK' ? '#10B981' : (resistance1Status === 'ERROR' || resistance1Status === 'READ_FAIL') ? '#EF4444' : '#D1D5DB',
-              width: '5%'
-            }}>Ω</span>
-          </div>
-          
-          {/* 저항2 */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5dvw' }}>
-            <label style={{ width: '20%', fontSize: '1.2dvh', color: '#D1D5DB' }}>저항2</label>
-            <Input 
-              type="text"
-              value={resistance2}
-              readOnly
-              style={{ 
-                backgroundColor: '#171C26', 
-                color: resistance2Status === 'OK' ? '#10B981' : (resistance2Status === 'ERROR' || resistance2Status === 'READ_FAIL') ? '#EF4444' : '#D1D5DB',
-                textAlign: 'center',
-                width: '25%',
+                color: resistance1Status === 'OK' ? '#10B981' : (resistance1Status === 'ERROR' || resistance1Status === 'read_FAIL') ? '#EF4444' : '#D1D5DB',
+                minWidth: '3%'
+              }}>Ω</span>
+            </div>
+            
+            {/* 저항2 */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.3dvw', flex: 1 }}>
+              <label style={{ fontSize: '1.2dvh', color: '#D1D5DB', minWidth: '15%' }}>저항 2</label>
+              <Input 
+                type="text"
+                value={0.001 *resistance2}
+                readOnly
+                style={{ 
+                  backgroundColor: '#171C26', 
+                  color: resistance2Status === 'OK' ? '#10B981' : (resistance2Status === 'ERROR' || resistance2Status === 'read_FAIL') ? '#EF4444' : '#D1D5DB',
+                  textAlign: 'center',
+                  width: '50%',
+                  fontSize: '1.2dvh', 
+                  height: '3.5dvh',
+                  border: `1px solid ${resistance2Status === 'OK' ? '#10B981' : (resistance2Status === 'ERROR' || resistance2Status === 'read_FAIL') ? '#EF4444' : '#6B7280'}`
+                }}
+              />
+              <span style={{ 
                 fontSize: '1.2dvh', 
-                height: '4dvh',
-                border: `1px solid ${resistance2Status === 'OK' ? '#10B981' : (resistance2Status === 'ERROR' || resistance2Status === 'READ_FAIL') ? '#EF4444' : '#6B7280'}`
+                color: resistance2Status === 'OK' ? '#10B981' : (resistance2Status === 'ERROR' || resistance2Status === 'read_FAIL') ? '#EF4444' : '#D1D5DB',
+                minWidth: '3%'
+              }}>Ω</span>
+            </div>
+            
+            {/* 측정 버튼 */}
+            <Button
+              onClick={handleResistanceMeasure}
+              disabled={!isWsConnected || isResistanceMeasuring}
+              style={{
+                backgroundColor: '#171C26',
+                color: '#10B981',
+                fontSize: '1.1dvh',
+                height: '3.5dvh',
+                padding: '0 1dvw',
+                border: '1px solid #10B981',
+                borderRadius: '0.375rem',
+                cursor: 'pointer',
+                minWidth: '8%'
               }}
-            />
-            <span style={{ 
-              fontSize: '1.2dvh', 
-              color: resistance2Status === 'OK' ? '#10B981' : (resistance2Status === 'ERROR' || resistance2Status === 'READ_FAIL') ? '#EF4444' : '#D1D5DB',
-              width: '5%'
-            }}>Ω</span>
+            >
+              측정
+            </Button>
           </div>
 
         </div>
