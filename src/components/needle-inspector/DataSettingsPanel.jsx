@@ -27,14 +27,16 @@ export default function DataSettingsPanel({
   isWsConnected, // WebSocket 연결 상태
   onWaitingEepromReadChange, // EEPROM 읽기 대기 상태 변경 함수
   calculatedMotorPosition, // 계산된 모터 위치
-  onMtrVersionChange // MTR 버전 변경 콜백 함수
+  onMtrVersionChange, // MTR 버전 변경 콜백 함수
+  selectedNeedleType, // 선택된 니들 타입 (상위에서 전달)
+  onSelectedNeedleTypeChange // 선택된 니들 타입 변경 콜백 함수
 }) {
   // isStarted와 readEepromData는 이제 props로 받아서 사용
   const [selectedYear, setSelectedYear] = useState("")
   const [selectedMonth, setSelectedMonth] = useState("")
   const [selectedDay, setSelectedDay] = useState("")
   const [selectedCountry, setSelectedCountry] = useState("")
-  const [selectedNeedleType, setSelectedNeedleType] = useState("")
+  // selectedNeedleType는 props로 받아서 사용 (로컬 상태 제거)
   const [mtrVersion, setMtrVersion] = useState('2.0'); // MTR 버전 상태 추가, 기본값 '2.0'
   
   // 저장 데이터 설정 활성화 상태 (기본값: 비활성화)
@@ -168,8 +170,8 @@ export default function DataSettingsPanel({
             if (countryOptions.length > 0) {
               setSelectedCountry(countryOptions[0].value);
               const needleOptions = getNeedleOptions(mtrVersion, countryOptions[0].value);
-              if (needleOptions.length > 0) {
-                setSelectedNeedleType(needleOptions[0].value);
+              if (needleOptions.length > 0 && onSelectedNeedleTypeChange) {
+                onSelectedNeedleTypeChange(needleOptions[0].value);
               }
             }
           } else {
@@ -203,14 +205,16 @@ export default function DataSettingsPanel({
       setSelectedCountry(firstCountry);
       
       const needleOptions = getNeedleOptions(mtrVersion, firstCountry);
-      if (needleOptions.length > 0) {
-        setSelectedNeedleType(needleOptions[0].value);
-      } else {
-        setSelectedNeedleType("");
+      if (needleOptions.length > 0 && onSelectedNeedleTypeChange) {
+        onSelectedNeedleTypeChange(needleOptions[0].value);
+      } else if (onSelectedNeedleTypeChange) {
+        onSelectedNeedleTypeChange("");
       }
     } else {
       setSelectedCountry("");
-      setSelectedNeedleType("");
+      if (onSelectedNeedleTypeChange) {
+        onSelectedNeedleTypeChange("");
+      }
     }
     
     // 상위 컴포넌트에 MTR 버전 변경 알림
@@ -226,11 +230,11 @@ export default function DataSettingsPanel({
     const needleOptions = getNeedleOptions(mtrVersion, selectedCountry);
     if (needleOptions.length > 0) {
       // 현재 선택된 니들이 새 옵션에 없으면 첫번째 옵션으로 설정
-      if (!needleOptions.find(opt => opt.value === selectedNeedleType)) {
-        setSelectedNeedleType(needleOptions[0].value);
+      if (!needleOptions.find(opt => opt.value === selectedNeedleType) && onSelectedNeedleTypeChange) {
+        onSelectedNeedleTypeChange(needleOptions[0].value);
       }
-    } else {
-      setSelectedNeedleType("");
+    } else if (onSelectedNeedleTypeChange) {
+      onSelectedNeedleTypeChange("");
     }
   }, [selectedCountry, mtrVersion, cacheReady]);
 
@@ -432,7 +436,10 @@ export default function DataSettingsPanel({
   }
 
   const handleNeedleTypeChange = (value) => {
-    setSelectedNeedleType(value)
+    // 상위 컴포넌트의 상태 업데이트 함수 호출
+    if (onSelectedNeedleTypeChange) {
+      onSelectedNeedleTypeChange(value)
+    }
   }
 
   const handleYearChange = (value) => {

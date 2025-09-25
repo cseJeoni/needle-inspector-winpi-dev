@@ -51,6 +51,7 @@ export default function NeedleInspectorUI() {
   const [isStarted, setIsStarted] = useState(false) // START/STOP 상태
   const [readEepromData, setReadEepromData] = useState(null) // EEPROM 읽기 데이터
   const [mtrVersion, setMtrVersion] = useState('2.0') // MTR 버전 상태
+  const [selectedNeedleType, setSelectedNeedleType] = useState('') // 선택된 니들 타입 상태
   const [needleTipConnected, setNeedleTipConnected] = useState(false) // GPIO23 기반 니들팁 연결 상태
   const [isWaitingEepromRead, setIsWaitingEepromRead] = useState(false) // EEPROM 읽기 응답 대기 상태
 
@@ -1037,19 +1038,10 @@ export default function NeedleInspectorUI() {
             onWaitingEepromReadChange={setIsWaitingEepromRead} // EEPROM 읽기 대기 상태 변경 함수 전달
             calculatedMotorPosition={calculatedMotorPosition} // 계산된 모터 위치 전달
             onMtrVersionChange={setMtrVersion} // MTR 버전 변경 콜백 함수 전달
+            selectedNeedleType={selectedNeedleType} // 선택된 니들 타입 전달
+            onSelectedNeedleTypeChange={setSelectedNeedleType} // 선택된 니들 타입 변경 콜백 함수 전달
           />
-          {mtrVersion === '2.0' ? (
-            <NeedleCheckPanelV2 
-              mode={mode} 
-              isMotorConnected={isMotorConnected}
-              needlePosition={needlePosition}
-              onNeedleUp={handleNeedleUp}
-              onNeedleDown={handleNeedleDown}
-              websocket={ws}
-              isWsConnected={isWsConnected}
-              onMotorPositionChange={setCalculatedMotorPosition}
-            />
-          ) : (
+          {selectedNeedleType.startsWith('MULTI') ? (
             <NeedleCheckPanelV4 
               mode={mode} 
               isMotorConnected={isMotorConnected}
@@ -1065,6 +1057,17 @@ export default function NeedleInspectorUI() {
               resistance2Status={resistance2Status}
               isResistanceMeasuring={isResistanceMeasuring}
               onResistanceMeasuringChange={setIsResistanceMeasuring}
+            />
+          ) : (
+            <NeedleCheckPanelV2 
+              mode={mode} 
+              isMotorConnected={isMotorConnected}
+              needlePosition={needlePosition}
+              onNeedleUp={handleNeedleUp}
+              onNeedleDown={handleNeedleDown}
+              websocket={ws}
+              isWsConnected={isWsConnected}
+              onMotorPositionChange={setCalculatedMotorPosition}
             />
           )}
           <JudgePanel 
