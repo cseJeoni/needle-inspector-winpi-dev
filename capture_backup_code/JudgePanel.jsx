@@ -1,25 +1,7 @@
 import Panel from "./Panel"
 import { Button } from "./Button"
-import { useAuth } from "../../hooks/useAuth.jsx"
-import { useState, useRef } from "react"
 
 export default function JudgePanel({ onJudge, isStarted, onReset, camera1Ref, camera2Ref, hasNeedleTip = true, websocket, isWsConnected, onCaptureMergedImage, eepromData, generateUserBasedPath, isWaitingEepromRead = false, onWaitingEepromReadChange }) {
-  // 사용자 정보 가져오기
-  const { user } = useAuth()
-  
-  // 관리자 패널 상태
-  const [isAdminMode, setIsAdminMode] = useState(false)
-  const [adminPaths, setAdminPaths] = useState({
-    users: '',
-    mtr2: '',
-    mtr4: '',
-    savePath: ''
-  })
-  
-  // 3초 타이머 관련
-  const pressTimerRef = useRef(null)
-  const [isPressing, setIsPressing] = useState(false)
-  
   // 니들 DOWN 명령 전송 함수 (메인 WebSocket 사용)
   const sendNeedleDown = () => {
     if (websocket && isWsConnected) {
@@ -76,25 +58,23 @@ export default function JudgePanel({ onJudge, isStarted, onReset, camera1Ref, ca
         mfgDate = `${String(eepromData.year).slice(-2)}${String(eepromData.month).padStart(2, '0')}${String(eepromData.day).padStart(2, '0')}`;
       }
       
-      // 사용자 정보 추출 (CSV 기반 로그인 시스템)
+      // 사용자 정보 추출 (Firebase 사용자 정보 활용)
       let workerCode = 'unkn';
       let workerName = 'unknown';
       
-      // 직접 사용자 정보 사용
-      console.log('🔍 JudgePanel 사용자 정보 디버깅:', {
-        user: user,
-        userType: typeof user,
-        hasBirthLast4: user?.birthLast4,
-        hasId: user?.id,
-        userKeys: user ? Object.keys(user) : 'null'
-      });
-      
-      if (user && user.birthLast4 && user.id) {
-        workerCode = user.birthLast4; // birth 끝 4자리
-        workerName = user.id;         // CSV의 id 값
-        console.log(`👤 JudgePanel 사용자 정보 - 코드: ${workerCode}, 이름: ${workerName}`);
-      } else {
-        console.warn('⚠️ JudgePanel에서 사용자 정보를 찾을 수 없습니다.');
+      // generateUserBasedPath 함수를 통해 사용자 정보 확인 (임시로 사용)
+      if (generateUserBasedPath) {
+        const tempPath = generateUserBasedPath('TEMP');
+        const pathParts = tempPath.split('\\');
+        const userFolder = pathParts[2]; // C:\\Inspect\\{userFolder}\\...
+        
+        if (userFolder && userFolder !== 'undefined') {
+          const userParts = userFolder.split('-');
+          if (userParts.length === 2) {
+            workerCode = userParts[0];
+            workerName = userParts[1];
+          }
+        }
       }
       
       const fileName = `${captureDate}_${captureTime}_${tipType}_${mfgDate}_${workerCode}_${workerName}.png`;
@@ -162,143 +142,9 @@ export default function JudgePanel({ onJudge, isStarted, onReset, camera1Ref, ca
     handleJudge('PASS');
   };
 
-  // 3초간 누르기 핸들러
-  const handleMouseDown = (mode) => {
-    setIsPressing(true)
-    pressTimerRef.current = setTimeout(() => {
-      if (mode === 'admin') {
-        setIsAdminMode(true)
-      } else if (mode === 'judge') {
-        setIsAdminMode(false)
-      }
-      setIsPressing(false)
-    }, 3000)
-  }
-
-  const handleMouseUp = () => {
-    if (pressTimerRef.current) {
-      clearTimeout(pressTimerRef.current)
-      pressTimerRef.current = null
-    }
-    setIsPressing(false)
-  }
-
-  const handleMouseLeave = () => {
-    handleMouseUp()
-  }
-
-  // 파일/폴더 선택 핸들러
-  const handleFileSelect = async (type) => {
-    try {
-      let result
-      if (type === 'savePath') {
-        // 폴더 선택
-        result = await window.electronAPI.selectFolder()
-      } else {
-        // 파일 선택
-        result = await window.electronAPI.selectFile()
-      }
-      
-      if (result && !result.canceled && result.filePaths && result.filePaths.length > 0) {
-        setAdminPaths(prev => ({
-          ...prev,
-          [type]: result.filePaths[0]
-        }))
-      }
-    } catch (error) {
-      console.error('파일/폴더 선택 실패:', error)
-    }
-  }
-
-  // 관리자 패널 렌더링
-  const renderAdminPanel = () => {
-    const adminItems = [
-      { key: 'users', label: 'users', isFile: true },
-      { key: 'mtr2', label: 'mtr2', isFile: true },
-      { key: 'mtr4', label: 'mtr4', isFile: true },
-      { key: 'savePath', label: '저장 경로', isFile: false }
-    ]
-
-    return (
-      <Panel 
-        title="관리자 패널"
-        onMouseDown={() => handleMouseDown('judge')}
-        onMouseUp={handleMouseUp}
-      >
-        <div style={{ height: '100%', display: 'flex', flexDirection: 'column', gap: '1dvh' }}>
-
-          {/* 각 파일/경로 설정 행 */}
-          {adminItems.map(item => (
-            <div key={item.key} style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '1dvw',
-              padding: '1dvh',
-              borderRadius: '0.375rem'
-            }}>
-              {/* 라벨 */}
-              <div style={{
-                minWidth: '8dvw',
-                fontSize: '1.2dvh',
-                fontWeight: '500',
-                color: '#D1D5DB'
-              }}>
-                {item.label}
-              </div>
-              
-              {/* 경로 표시 */}
-              <div style={{
-                flex: 1,
-                padding: '0.5dvh 1dvw',
-                border: '1px solid #4A5568',
-                borderRadius: '0.25rem',
-                fontSize: '1dvh',
-                color: '#A0AEC0',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                whiteSpace: 'nowrap'
-                
-              }}>
-                {adminPaths[item.key] || '파일을 선택하세요'}
-              </div>
-              
-              {/* 찾기 버튼 */}
-              <Button
-                onClick={() => handleFileSelect(item.key)}
-                style={{
-                  minWidth: '3dvw',
-                  height: '3dvh',
-                  fontSize: '1dvh',
-                  backgroundColor: '#3B82F6',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '0.25rem',
-                  cursor: 'pointer'
-                }}
-              >
-                찾기
-              </Button>
-            </div>
-          ))}
-        </div>
-      </Panel>
-    )
-  }
-
-  // 관리자 모드인지에 따라 다른 패널 렌더링
-  if (isAdminMode) {
-    return renderAdminPanel()
-  }
-
   return (
-    <Panel 
-      title="판정"
-      onMouseDown={() => handleMouseDown('admin')}
-      onMouseUp={handleMouseUp}
-      onMouseLeave={handleMouseLeave}
-    >
+    <Panel title="판정">
       <div style={{ display: 'flex', gap: '1dvw', height: '100%' }}>
-        
         {/* NG 버튼 */}
         <Button
           onClick={handleNGClick}

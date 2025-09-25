@@ -3,11 +3,9 @@ import CameraView from "./CameraView"
 import StatusPanel from "./StatusPanel"
 import DataSettingsPanel from "./DataSettingsPanel"
 import NeedleCheckPanel from "./NeedleCheckPanel"
-import NeedleCheckPanelV2 from "./NeedleCheckPanelV2"
-import NeedleCheckPanelV4 from "./NeedleCheckPanelV4"
 import ModePanel from "./ModePanel"
 import JudgePanel from "./JudgePanel" // Import JudgePanel
-import { useAuth } from "../../hooks/useAuth.jsx" // Firebase 사용자 정보
+import { useAuth } from "../../hooks/useAuth" // Firebase 사용자 정보
 import "../../css/NeedleInspector.css"
 
 const PX_TO_MM = 1 / 3.78; // 1px 당 mm
@@ -38,7 +36,6 @@ export default function NeedleInspectorUI() {
   const [motorError, setMotorError] = useState(null)
   const [currentPosition, setCurrentPosition] = useState(0)
   const [needlePosition, setNeedlePosition] = useState('UNKNOWN') // UP, DOWN, UNKNOWN
-  const [calculatedMotorPosition, setCalculatedMotorPosition] = useState(310) // (니들 오프셋 + 돌출 부분) * 100 기본값: (0.1 + 3.0) * 100 = 310
   
   // GPIO 18번 관련 상태
   const [gpioState, setGpioState] = useState('LOW') // HIGH, LOW (초기값 LOW로 설정)
@@ -50,40 +47,27 @@ export default function NeedleInspectorUI() {
   // DataSettingsPanel 상태 관리
   const [isStarted, setIsStarted] = useState(false) // START/STOP 상태
   const [readEepromData, setReadEepromData] = useState(null) // EEPROM 읽기 데이터
-  const [mtrVersion, setMtrVersion] = useState('2.0') // MTR 버전 상태
-  const [selectedNeedleType, setSelectedNeedleType] = useState('') // 선택된 니들 타입 상태
   const [needleTipConnected, setNeedleTipConnected] = useState(false) // GPIO23 기반 니들팁 연결 상태
   const [isWaitingEepromRead, setIsWaitingEepromRead] = useState(false) // EEPROM 읽기 응답 대기 상태
-
-  // 저항 측정 상태 (MTR 4.0에서만 사용)
-  const [resistance1, setResistance1] = useState('N/A')
-  const [resistance2, setResistance2] = useState('N/A')
-  const [resistance1Status, setResistance1Status] = useState('N/A')
-  const [resistance2Status, setResistance2Status] = useState('N/A')
-  const [isResistanceMeasuring, setIsResistanceMeasuring] = useState(false)
 
   // 니들팁 연결 상태에 따른 작업 상태 업데이트
   useEffect(() => {
     if (needleTipConnected) {
       // 니들팁 연결 시: '저장 완료' 상태가 아닌 경우에만 '작업 대기'로 업데이트
-      setWorkStatus(prevStatus => {
-        if (prevStatus !== 'write_success') {
-          return 'waiting';
-        }
-        return prevStatus; // write_success 상태는 유지
-      });
+      if (workStatus !== 'write_success') {
+        setWorkStatus('waiting');
+      }
     } else {
       // 니들팁 분리 시: 항상 '니들팁 없음'으로 업데이트 (저장 완료 상태라도)
       setWorkStatus('disconnected');
     }
-  }, [needleTipConnected]); // workStatus 의존성 제거
+  }, [needleTipConnected, workStatus]);
   
   // Camera 1 상태
   const [drawMode1, setDrawMode1] = useState(false)
   const [selectedIndex1, setSelectedIndex1] = useState(-1)
   const [lineInfo1, setLineInfo1] = useState('선 정보: 없음')
   const [calibrationValue1, setCalibrationValue1] = useState(19.8) // 실측 캘리브레이션 값 (99px = 5mm)
-  const [selectedLineColor1, setSelectedLineColor1] = useState('red') // 선택된 선 색상 (red, blue)
   const canvasRef1 = useRef(null)
   const videoContainerRef1 = useRef(null)
   const cameraViewRef1 = useRef(null) // CameraView ref 추가
@@ -93,7 +77,6 @@ export default function NeedleInspectorUI() {
   const [selectedIndex2, setSelectedIndex2] = useState(-1)
   const [lineInfo2, setLineInfo2] = useState('선 정보: 없음')
   const [calibrationValue2, setCalibrationValue2] = useState(19.8) // 실측 캘리브레이션 값 (99px = 5mm)
-  const [selectedLineColor2, setSelectedLineColor2] = useState('red') // 선택된 선 색상 (red, blue)
   const canvasRef2 = useRef(null)
   const videoContainerRef2 = useRef(null)
   const cameraViewRef2 = useRef(null) // CameraView ref 추가
@@ -231,14 +214,14 @@ export default function NeedleInspectorUI() {
 
     let userFolder;
     // 사용자 정보 확인
-    if (!user) {
-      // 로그인하지 않은 경우 undefined 폴더에 저장
+    if (!user || !user.uid || !user.username) {
+      // 로그인하지 않은 경우 'undefined' 폴더 사용
       userFolder = 'undefined';
       console.warn('⚠️ 사용자 정보가 없어 undefined 폴더에 저장합니다.');
     } else {
-      // 로그인한 경우 사용자 정보 기반 폴더 사용 (CSV 기반)
-      const workerCode = user.birthLast4 || '0000'; // birth 끝 4자리
-      const workerName = user.id || 'unknown'; // CSV의 id 값
+      // 로그인한 경우 사용자 정보 기반 폴더 사용
+      const workerCode = user.uid.slice(-4);
+      const workerName = user.username;
       userFolder = `${workerCode}-${workerName}`;
       console.log(`👤 사용자 정보 - 코드: ${workerCode}, 이름: ${workerName}`);
     }
@@ -257,46 +240,25 @@ export default function NeedleInspectorUI() {
     }
   }
 
-  // H 형태 선 그리기 및 정보 표시 함수 (캘리브레이션 값 적용)
+  // 선 그리기 및 정보 표시 함수 (캘리브레이션 값 적용)
   const drawLineWithInfo = (ctx, line, color, showText, calibrationValue = 19.8) => {
     const { x1, y1, x2, y2 } = line
     
     // ctx가 null이 아닐 때만 그리기 실행
     if (ctx) {
-      ctx.strokeStyle = color
-      ctx.lineWidth = 2
-      
-      // 메인 선 그리기
       ctx.beginPath()
       ctx.moveTo(x1, y1)
       ctx.lineTo(x2, y2)
-      ctx.stroke()
-      
-      // H 형태를 위한 수직선 길이 (8px 고정)
-      const dx = x2 - x1
-      const dy = y2 - y1
-      const length = Math.sqrt(dx * dx + dy * dy)
-      const perpLength = 14 // 8px 고정
-      
-      // 수직 방향 벡터 계산 (메인 선에 수직)
-      const perpX = -dy / length * perpLength
-      const perpY = dx / length * perpLength
-      
-      // 시작점 수직선
-      ctx.beginPath()
-      ctx.moveTo(x1 - perpX / 2, y1 - perpY / 2)
-      ctx.lineTo(x1 + perpX / 2, y1 + perpY / 2)
-      ctx.stroke()
-      
-      // 끝점 수직선
-      ctx.beginPath()
-      ctx.moveTo(x2 - perpX / 2, y2 - perpY / 2)
-      ctx.lineTo(x2 + perpX / 2, y2 + perpY / 2)
+      ctx.strokeStyle = color
+      ctx.lineWidth = 2
       ctx.stroke()
 
       if (showText) {
         ctx.fillStyle = color
         ctx.font = '14px Arial'
+        const dx = x2 - x1
+        const dy = y2 - y1
+        const length = Math.sqrt(dx * dx + dy * dy)
         const mm = length / calibrationValue // 올바른 공식: 픽셀거리 / (px/mm) = mm
         let angle = Math.atan2(dy, dx) * 180 / Math.PI
         ctx.fillText(`${length.toFixed(1)}px / ${mm.toFixed(2)}mm (${angle.toFixed(1)}°)`, (x1 + x2) / 2 + 5, (y1 + y2) / 2 - 5)
@@ -311,37 +273,6 @@ export default function NeedleInspectorUI() {
     let angle = Math.atan2(dy, dx) * 180 / Math.PI
 
     return { length: length.toFixed(1), mm: mm.toFixed(2), angle: angle.toFixed(2) }
-  }
-
-  // 기존 선의 모든 점에 스냅하는 함수
-  const snapToExistingLines = (pos, lines, snapDistance = 15) => {
-    let snappedPos = { ...pos }
-    let minDistance = snapDistance
-    
-    lines.forEach(line => {
-      // 선의 시작점과 끝점
-      const dx = line.x2 - line.x1
-      const dy = line.y2 - line.y1
-      const lineLength = Math.sqrt(dx * dx + dy * dy)
-      
-      if (lineLength === 0) return // 길이가 0인 선은 무시
-      
-      // 마우스 위치에서 선까지의 가장 가까운 점 계산
-      const t = Math.max(0, Math.min(1, ((pos.x - line.x1) * dx + (pos.y - line.y1) * dy) / (lineLength * lineLength)))
-      const closestX = line.x1 + t * dx
-      const closestY = line.y1 + t * dy
-      
-      // 가장 가까운 점까지의 거리 계산
-      const distance = Math.sqrt(Math.pow(pos.x - closestX, 2) + Math.pow(pos.y - closestY, 2))
-      
-      // 스냅 거리 내에 있으면 스냅
-      if (distance < minDistance) {
-        snappedPos = { x: closestX, y: closestY }
-        minDistance = distance
-      }
-    })
-    
-    return snappedPos
   }
 
   // 각도 스냅 함수
@@ -400,7 +331,7 @@ export default function NeedleInspectorUI() {
       for (let i = lines1.length - 1; i >= 0; i--) {
         if (isPointOnLine(pos, lines1[i])) {
           setSelectedIndex1(i)
-          const lineData = drawLineWithInfo(null, lines1[i], lines1[i].color || 'red', false, calibrationValue1)
+          const lineData = drawLineWithInfo(null, lines1[i], 'blue', false, calibrationValue1)
           setLineInfo1(`선 ${i + 1}: ${lineData.mm}mm (${lineData.angle}°)`)
           redrawCanvas1()
           return
@@ -414,9 +345,7 @@ export default function NeedleInspectorUI() {
       if (!drawMode1 || !isDrawing1 || !startPoint1) return
       
       const currentPos = getMousePos(canvasRef1.current, e)
-      // 먼저 기존 선에 스냅, 그 다음 각도 스냅 적용
-      const lineSnappedPos = snapToExistingLines(currentPos, lines1)
-      const snappedPos = snapAngle(startPoint1, lineSnappedPos)
+      const snappedPos = snapAngle(startPoint1, currentPos)
       
       const canvas = canvasRef1.current
       const ctx = canvas.getContext('2d')
@@ -425,30 +354,17 @@ export default function NeedleInspectorUI() {
       // 기존 선들 그리기
       drawLines(ctx, lines1, selectedIndex1, calibrationValue1)
       
-      // 임시 선 그리기 (H 형태)
+      // 임시 선 그리기
       const tempLine = { x1: startPoint1.x, y1: startPoint1.y, x2: snappedPos.x, y2: snappedPos.y }
-      drawLineWithInfo(ctx, tempLine, selectedLineColor1, true, calibrationValue1)
-      
-      // 스냅 포인트 표시 (작은 원으로 표시)
-      if (lineSnappedPos.x !== currentPos.x || lineSnappedPos.y !== currentPos.y) {
-        ctx.beginPath()
-        ctx.arc(snappedPos.x, snappedPos.y, 4, 0, 2 * Math.PI)
-        ctx.fillStyle = 'yellow'
-        ctx.fill()
-        ctx.strokeStyle = 'orange'
-        ctx.lineWidth = 1
-        ctx.stroke()
-      }
+      drawLineWithInfo(ctx, tempLine, 'orange', true, calibrationValue1)
     },
     handleMouseUp: (e) => {
       if (!drawMode1 || !isDrawing1 || !startPoint1) return
       
       const currentPos = getMousePos(canvasRef1.current, e)
-      // 먼저 기존 선에 스냅, 그 다음 각도 스냅 적용
-      const lineSnappedPos = snapToExistingLines(currentPos, lines1)
-      const snappedPos = snapAngle(startPoint1, lineSnappedPos)
+      const snappedPos = snapAngle(startPoint1, currentPos)
       
-      const newLine = { x1: startPoint1.x, y1: startPoint1.y, x2: snappedPos.x, y2: snappedPos.y, color: selectedLineColor1 }
+      const newLine = { x1: startPoint1.x, y1: startPoint1.y, x2: snappedPos.x, y2: snappedPos.y }
       const newLines = [...lines1, newLine]
       setLines1(newLines)
       
@@ -457,7 +373,7 @@ export default function NeedleInspectorUI() {
       setDrawMode1(false)
       setSelectedIndex1(newLines.length - 1)
       
-      const lineData = drawLineWithInfo(null, newLine, selectedLineColor1, false, calibrationValue1)
+      const lineData = drawLineWithInfo(null, newLine, 'blue', false, calibrationValue1)
       setLineInfo1(`선 ${newLines.length}: ${lineData.mm}mm (${lineData.angle}°)`)
     },
     handleDeleteLine: () => {
@@ -486,7 +402,7 @@ export default function NeedleInspectorUI() {
       for (let i = lines2.length - 1; i >= 0; i--) {
         if (isPointOnLine(pos, lines2[i])) {
           setSelectedIndex2(i)
-          const lineData = drawLineWithInfo(null, lines2[i], lines2[i].color || 'red', false, calibrationValue2)
+          const lineData = drawLineWithInfo(null, lines2[i], 'blue', false, calibrationValue2)
           setLineInfo2(`선 ${i + 1}: ${lineData.mm}mm (${lineData.angle}°)`)
           redrawCanvas2()
           return
@@ -500,9 +416,7 @@ export default function NeedleInspectorUI() {
       if (!drawMode2 || !isDrawing2 || !startPoint2) return
       
       const currentPos = getMousePos(canvasRef2.current, e)
-      // 먼저 기존 선에 스냅, 그 다음 각도 스냅 적용
-      const lineSnappedPos = snapToExistingLines(currentPos, lines2)
-      const snappedPos = snapAngle(startPoint2, lineSnappedPos)
+      const snappedPos = snapAngle(startPoint2, currentPos)
       
       const canvas = canvasRef2.current
       const ctx = canvas.getContext('2d')
@@ -511,30 +425,17 @@ export default function NeedleInspectorUI() {
       // 기존 선들 그리기
       drawLines(ctx, lines2, selectedIndex2, calibrationValue2)
       
-      // 임시 선 그리기 (H 형태)
+      // 임시 선 그리기
       const tempLine = { x1: startPoint2.x, y1: startPoint2.y, x2: snappedPos.x, y2: snappedPos.y }
-      drawLineWithInfo(ctx, tempLine, selectedLineColor2, true, calibrationValue2)
-      
-      // 스냅 포인트 표시 (작은 원으로 표시)
-      if (lineSnappedPos.x !== currentPos.x || lineSnappedPos.y !== currentPos.y) {
-        ctx.beginPath()
-        ctx.arc(snappedPos.x, snappedPos.y, 4, 0, 2 * Math.PI)
-        ctx.fillStyle = 'yellow'
-        ctx.fill()
-        ctx.strokeStyle = 'orange'
-        ctx.lineWidth = 1
-        ctx.stroke()
-      }
+      drawLineWithInfo(ctx, tempLine, 'orange', true, calibrationValue2)
     },
     handleMouseUp: (e) => {
       if (!drawMode2 || !isDrawing2 || !startPoint2) return
       
       const currentPos = getMousePos(canvasRef2.current, e)
-      // 먼저 기존 선에 스냅, 그 다음 각도 스냅 적용
-      const lineSnappedPos = snapToExistingLines(currentPos, lines2)
-      const snappedPos = snapAngle(startPoint2, lineSnappedPos)
+      const snappedPos = snapAngle(startPoint2, currentPos)
       
-      const newLine = { x1: startPoint2.x, y1: startPoint2.y, x2: snappedPos.x, y2: snappedPos.y, color: selectedLineColor2 }
+      const newLine = { x1: startPoint2.x, y1: startPoint2.y, x2: snappedPos.x, y2: snappedPos.y }
       const newLines = [...lines2, newLine]
       setLines2(newLines)
       
@@ -543,7 +444,7 @@ export default function NeedleInspectorUI() {
       setDrawMode2(false)
       setSelectedIndex2(newLines.length - 1)
       
-      const lineData = drawLineWithInfo(null, newLine, selectedLineColor2, false, calibrationValue2)
+      const lineData = drawLineWithInfo(null, newLine, 'blue', false, calibrationValue2)
       setLineInfo2(`선 ${newLines.length}: ${lineData.mm}mm (${lineData.angle}°)`)
     },
     handleDeleteLine: () => {
@@ -561,8 +462,7 @@ export default function NeedleInspectorUI() {
   const drawLines = (ctx, lines, selectedIndex, calibrationValue) => {
     lines.forEach((line, index) => {
       const isSelected = index === selectedIndex
-      const lineColor = isSelected ? 'cyan' : (line.color || 'red') // 저장된 색상 사용, 기본값은 빨간색
-      drawLineWithInfo(ctx, line, lineColor, true, calibrationValue)
+      drawLineWithInfo(ctx, line, isSelected ? 'cyan' : 'red', true, calibrationValue)
     })
   }
 
@@ -599,15 +499,19 @@ export default function NeedleInspectorUI() {
     redrawCanvas2()
   }
 
-  // START/STOP 버튼 클릭 핸들러 - DataSettingsPanel에서 EEPROM 로직 처리
+  // START/STOP 버튼 클릭 핸들러 - 실시간 상태 관리 대신 버튼 기반으로 단순화
   const handleStartStopClick = () => {
     const nextStartedState = !isStarted;
     setIsStarted(nextStartedState);
 
     if (nextStartedState) {
-      // START 버튼 클릭 시: DataSettingsPanel에서 MTR 버전/국가 정보와 함께 EEPROM 읽기 처리
-      console.log("🚀 START 버튼 클릭 - DataSettingsPanel에서 EEPROM 처리");
-      // START 시 상태 변경 제거 - EEPROM 쓰기 완료 시에만 상태 변경
+      // START 버튼 클릭 시: EEPROM 데이터 읽기 요청
+      if (ws && isWsConnected) {
+        console.log("🚀 START 버튼 클릭 - EEPROM 데이터 읽기 요청");
+        ws.send(JSON.stringify({ cmd: "eeprom_read" }));
+      } else {
+        console.log("⚠️ WebSocket 연결되지 않음 - EEPROM 읽기 실패");
+      }
     } else {
       // STOP 버튼 클릭 시: 데이터 초기화
       console.log("🛑 STOP 버튼 클릭 - EEPROM 데이터 초기화");
@@ -627,7 +531,7 @@ export default function NeedleInspectorUI() {
   // 모터 WebSocket 연결 및 자동 연결
   useEffect(() => {
     console.log('🔧 모터 WebSocket 연결 시도...')
-    const socket = new WebSocket("ws://192.168.0.6:8765")
+    const socket = new WebSocket("ws://192.168.0.122:8765")
 
     socket.onopen = () => {
       console.log("✅ 모터 WebSocket 연결 성공")
@@ -678,9 +582,14 @@ export default function NeedleInspectorUI() {
           const { position, gpio18, gpio23, needle_tip_connected, eeprom } = res.data
           setCurrentPosition(position)
           
-          // 니들 위치를 기본 'UP'으로 설정 (하드코딩 제거)
-          // 실제 위치와 관계없이 항상 UP 상태로 처리
-          setNeedlePosition('UP')
+          // 니들 위치 판단 (840: UP, 0: DOWN)
+          if (position >= 800) {
+            setNeedlePosition('UP')
+          } else if (position <= 50) {
+            setNeedlePosition('DOWN')
+          } else {
+            setNeedlePosition('MOVING')
+          }
           
           // GPIO23 기반 니들팁 연결 상태 업데이트
           if (typeof needle_tip_connected === 'boolean') {
@@ -706,19 +615,6 @@ export default function NeedleInspectorUI() {
             prevGpioRef.current = gpio18
             setGpioState(gpio18)
           }
-        } else if (res.type === "resistance") {
-          // 저항 측정 결과 처리
-          console.log('📊 저항 측정 결과 수신:', res.data)
-          
-          if (res.data) {
-            setResistance1(res.data.resistance1 || 'N/A')
-            setResistance2(res.data.resistance2 || 'N/A')
-            setResistance1Status(res.data.status1 || 'N/A')
-            setResistance2Status(res.data.status2 || 'N/A')
-          }
-          
-          // 측정 완료 상태로 변경
-          setIsResistanceMeasuring(false)
         // EEPROM 관련 메시지는 DataSettingsPanel에서 Promise 기반으로 직접 처리
         // 중복 처리 방지를 위해 메인 UI에서는 제거
         } else if (res.type === "error") {
@@ -793,20 +689,23 @@ export default function NeedleInspectorUI() {
       return
     }
 
+    // 수동 버튼 클릭은 모터 연결 상태 무시하고 실행 (테스트용)
+    console.log("🔍 모터 연결 상태 무시하고 명령 전송")
+
     const msg = {
       cmd: "move",
       position: targetPosition,
       mode: "position",
     }
 
-    console.log(`🎯 니들 ${targetPosition > 0 ? 'UP' : 'DOWN'} 명령 전송:`, msg)
+    console.log(`🎯 니들 ${targetPosition === 840 ? 'UP' : 'DOWN'} 명령 전송:`, msg)
     ws.send(JSON.stringify(msg))
     setMotorError(null)
   }
 
   // 니들 UP 함수
   const handleNeedleUp = () => {
-    handleNeedlePosition(calculatedMotorPosition)
+    handleNeedlePosition(840)
   }
 
   // 니들 DOWN 함수
@@ -830,9 +729,9 @@ export default function NeedleInspectorUI() {
     setIsStarted(false);
     console.log('✅ START/STOP 상태 초기화 완료');
     
-    // 4. 작업 상태를 대기로 변경 (판정 후 정상 흐름)
+    // 4. 작업 상태를 대기로 변경
     setWorkStatus('waiting');
-    console.log('✅ 작업 상태 초기화 완료 (판정 후 대기 상태)');
+    console.log('✅ 작업 상태 초기화 완료');
     
     console.log('🎉 판정 후 상태 초기화 완료 - 동기 로직으로 race condition 해결');
   };
@@ -854,24 +753,25 @@ export default function NeedleInspectorUI() {
     let targetPosition
     let commandDirection
     
-    // 현재 위치 기반으로 반대 명령 결정 (하드코딩 제거)
-    if (currentPosition <= 50) {
-      // 현재 DOWN 위치 → UP 명령 (현재 위치 + 800)
-      targetPosition = currentPosition + 800
+    if (needlePosition === 'DOWN') {
+      targetPosition = 840 // UP 명령
       commandDirection = 'UP'
-      console.log("✅ DOWN 위치 감지 - UP 명령 준비")
-    } else {
-      // 현재 UP 위치 → DOWN 명령 (0으로 이동)
-      targetPosition = 0
+      console.log("✅ DOWN 상태 감지 - UP 명령 준비")
+    } else if (needlePosition === 'UP') {
+      targetPosition = 0 // DOWN 명령
       commandDirection = 'DOWN'
-      console.log("✅ UP 위치 감지 - DOWN 명령 준비")
+      console.log("✅ UP 상태 감지 - DOWN 명령 준비")
+    } else {
+      console.log("⚠️ 모터 상태 불명 (", needlePosition, ") - 기본 UP 명령 전송")
+      targetPosition = 840 // 기본값: UP
+      commandDirection = 'UP'
     }
     
     console.log(`🎯 모터 상태: ${needlePosition} (position: ${currentPosition}) → ${commandDirection} 명령 (위치: ${targetPosition})`)
 
     // 직접 모터 명령 WebSocket 생성
     console.log("🔗 모터 명령용 WebSocket 연결 생성...")
-    const autoSocket = new WebSocket('ws://192.168.0.6:8765')
+    const autoSocket = new WebSocket('ws://192.168.0.122:8765')
     
     autoSocket.onopen = () => {
       console.log("✅ 모터 명령용 WebSocket 연결 성공")
@@ -882,7 +782,7 @@ export default function NeedleInspectorUI() {
         mode: 'servo',
         position: targetPosition
       }
-      // 얌얌얌
+      
       console.log(`📦 전송할 명령:`, JSON.stringify(command))
       autoSocket.send(JSON.stringify(command))
       
@@ -997,8 +897,6 @@ export default function NeedleInspectorUI() {
             videoContainerRef={videoContainerRef1}
             calibrationValue={calibrationValue1}
             onCalibrationChange={setCalibrationValue1}
-            selectedLineColor={selectedLineColor1}
-            onLineColorChange={setSelectedLineColor1}
             ref={cameraViewRef1} // CameraView ref 추가
           />
           <CameraView 
@@ -1016,8 +914,6 @@ export default function NeedleInspectorUI() {
             videoContainerRef={videoContainerRef2}
             calibrationValue={calibrationValue2}
             onCalibrationChange={setCalibrationValue2}
-            selectedLineColor={selectedLineColor2}
-            onLineColorChange={setSelectedLineColor2}
             ref={cameraViewRef2} // CameraView ref 추가
           />
         </div>
@@ -1036,40 +932,14 @@ export default function NeedleInspectorUI() {
             websocket={ws} // WebSocket 연결 전달
             isWsConnected={isWsConnected} // WebSocket 연결 상태 전달
             onWaitingEepromReadChange={setIsWaitingEepromRead} // EEPROM 읽기 대기 상태 변경 함수 전달
-            calculatedMotorPosition={calculatedMotorPosition} // 계산된 모터 위치 전달
-            onMtrVersionChange={setMtrVersion} // MTR 버전 변경 콜백 함수 전달
-            selectedNeedleType={selectedNeedleType} // 선택된 니들 타입 전달
-            onSelectedNeedleTypeChange={setSelectedNeedleType} // 선택된 니들 타입 변경 콜백 함수 전달
           />
-          {selectedNeedleType.startsWith('MULTI') ? (
-            <NeedleCheckPanelV4 
-              mode={mode} 
-              isMotorConnected={isMotorConnected}
-              needlePosition={needlePosition}
-              onNeedleUp={handleNeedleUp}
-              onNeedleDown={handleNeedleDown}
-              websocket={ws}
-              isWsConnected={isWsConnected}
-              onMotorPositionChange={setCalculatedMotorPosition}
-              resistance1={resistance1}
-              resistance2={resistance2}
-              resistance1Status={resistance1Status}
-              resistance2Status={resistance2Status}
-              isResistanceMeasuring={isResistanceMeasuring}
-              onResistanceMeasuringChange={setIsResistanceMeasuring}
-            />
-          ) : (
-            <NeedleCheckPanelV2 
-              mode={mode} 
-              isMotorConnected={isMotorConnected}
-              needlePosition={needlePosition}
-              onNeedleUp={handleNeedleUp}
-              onNeedleDown={handleNeedleDown}
-              websocket={ws}
-              isWsConnected={isWsConnected}
-              onMotorPositionChange={setCalculatedMotorPosition}
-            />
-          )}
+          <NeedleCheckPanel 
+            mode={mode} 
+            isMotorConnected={isMotorConnected}
+            needlePosition={needlePosition}
+            onNeedleUp={handleNeedleUp}
+            onNeedleDown={handleNeedleDown}
+          />
           <JudgePanel 
             onJudge={(result) => console.log(`판정 결과: ${result}`)}
             isStarted={isStarted}
