@@ -2,7 +2,7 @@ import asyncio
 import websockets
 import json
 import time
-from motor_threaded_controller import MotorThreadedController
+from dual_motor_controller import DualMotorController
 from resistance import measure_resistance_once  # 저항 측정 일회성 함수 import
 
 # EEPROM 관련 import
@@ -48,7 +48,7 @@ except ImportError as ie:
 except Exception as e:
     print(f"[ERROR] GPIO 초기화 오류: {e}")
 
-motor = MotorThreadedController()
+motor = DualMotorController()
 connected_clients = set()
 
 # GPIO23 이벤트 핸들러 (gpiozero 방식) - 니들팁 상태만 관리
@@ -356,13 +356,17 @@ async def handler(websocket):
                     position = data.get("position")
                     speed = data.get("speed")
                     force = data.get("force")
+                    motor_id = data.get("motor_id", 1)  # 기본값은 모터 1
                     
                     # 모터 이동 명령 처리
                     
                     if mode == "servo" or mode == "position":
                         if position is not None:
-                            result = motor.move_to_position(position, mode)
-                            print(f"[INFO] 모터 이동 결과: {result}")
+                            if motor_id == 2:
+                                result = motor.move_to_position_motor2(position, mode)
+                            else:
+                                result = motor.move_to_position(position, mode)
+                            print(f"[INFO] 모터{motor_id} 이동 결과: {result}")
                             await websocket.send(json.dumps({
                                 "type": "serial",
                                 "result": result
@@ -375,7 +379,10 @@ async def handler(websocket):
                     
                     elif mode == "speed":
                         if speed is not None and position is not None:
-                            result = motor.move_with_speed(speed, position)
+                            if motor_id == 2:
+                                result = motor.move_with_speed_motor2(speed, position)
+                            else:
+                                result = motor.move_with_speed(speed, position)
                             await websocket.send(json.dumps({
                                 "type": "serial",
                                 "result": result
@@ -388,7 +395,10 @@ async def handler(websocket):
                     
                     elif mode == "speed_force":
                         if all(v is not None for v in [force, speed, position]):
-                            result = motor.move_with_speed_force(force, speed, position)
+                            if motor_id == 2:
+                                result = motor.move_with_speed_force_motor2(force, speed, position)
+                            else:
+                                result = motor.move_with_speed_force(force, speed, position)
                             await websocket.send(json.dumps({
                                 "type": "serial",
                                 "result": result
@@ -401,7 +411,10 @@ async def handler(websocket):
                     
                     elif mode == "force":
                         if force is not None:
-                            result = motor.set_force(force)
+                            if motor_id == 2:
+                                result = motor.set_force_motor2(force)
+                            else:
+                                result = motor.set_force(force)
                             await websocket.send(json.dumps({
                                 "type": "serial",
                                 "result": result
@@ -552,13 +565,23 @@ async def push_motor_status():
                 gpio23_state = "LOW" if pin23.is_pressed else "HIGH"
 
             # EEPROM 데이터는 GPIO23 인터럽트에서 관리되므로 전역 변수 사용
+            # 모터 2 상태 가져오기
+            motor2_status = motor.get_motor2_status()
+            
             data = {
                 "type": "status",
                 "data": {
+                    # Motor 1 상태 (기존 호환성)
                     "position": motor.position,
                     "force": motor.force,
                     "sensor": motor.sensor,
                     "setPos": motor.setPos,
+                    # Motor 2 상태 추가
+                    "motor2_position": motor2_status["position"],
+                    "motor2_force": motor2_status["force"],
+                    "motor2_sensor": motor2_status["sensor"],
+                    "motor2_setPos": motor2_status["setPos"],
+                    # GPIO 상태
                     "gpio18": gpio18_state,  # 기존 GPIO18 상태
                     "gpio23": gpio23_state,  # 새로운 GPIO23 상태 추가
                     "needle_tip_connected": needle_tip_connected,  # 니들팁 연결 상태
