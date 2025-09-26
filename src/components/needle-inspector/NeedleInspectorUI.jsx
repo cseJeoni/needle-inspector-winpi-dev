@@ -1126,7 +1126,6 @@ export default function NeedleInspectorUI() {
           </div>
         </div>
       </main>
-      <footer className="text-right text-xs text-gray-400 pr-2">Needle Inspector v1.0.0</footer>
     </div>
   )
 }

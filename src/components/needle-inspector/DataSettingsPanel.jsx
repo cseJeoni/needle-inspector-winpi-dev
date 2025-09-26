@@ -789,8 +789,8 @@ export default function DataSettingsPanel({
             border: isStarted ? '1px solid #FF5455' : '1px solid #4ADE80',
             borderRadius: '0.375rem',
             cursor: 'pointer',
-            marginTop: '2dvh',
-            marginBottom: '2dvh'
+            marginTop: '1.2dvh',
+            marginBottom: '1.2dvh'
           }}
         >
           {isStarted ? "STOP" : "START"}

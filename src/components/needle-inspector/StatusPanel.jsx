@@ -157,7 +157,7 @@ export default function StatusPanel({ mode, workStatus = 'waiting', needleTipCon
       <Panel title={
         <h2 className="text-lg font-bold text-responsive">작업 상태</h2>
       }>
-        <div className={`${statusInfo.bg} rounded-md flex items-center justify-center`} style={{ height: '12dvh' }}>
+        <div className={`${statusInfo.bg} rounded-md flex items-center justify-center`} style={{ height: '10dvh' }}>
           <span className={`font-bold ${statusInfo.textColor}`} style={{ fontSize: '2.2dvh' }}>{statusInfo.text}</span>
         </div>
       </Panel>
