@@ -59,7 +59,7 @@ export default function JudgePanel({ onJudge, isStarted, onReset, camera1Ref, ca
   // '이미 캡처된' 병합 이미지 데이터(URL)를 받아 파일로 저장하는 함수
   const saveMergedScreenshotFromData = async (mergedImageData, judgeResult, eepromData) => {
     try {
-      // 파일명 생성: 캡쳐날짜_캡쳐시각_팁타입_제조일자_작업자코드_작업자이름
+      // 파일명 생성: 캡쳐날짜_캡쳐시각_팁타입_제조일자_작업자코드_작업자이름 (로컬 시간 기준)
       const date = new Date();
       const captureDate = `${String(date.getFullYear()).slice(-2)}${String(date.getMonth() + 1).padStart(2, '0')}${String(date.getDate()).padStart(2, '0')}`;
       const captureTime = `${String(date.getHours()).padStart(2, '0')}${String(date.getMinutes()).padStart(2, '0')}${String(date.getSeconds()).padStart(2, '0')}`;

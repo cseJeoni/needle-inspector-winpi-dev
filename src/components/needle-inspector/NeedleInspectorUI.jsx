@@ -233,7 +233,7 @@ export default function NeedleInspectorUI() {
   // 사용자 정보 기반 폴더 경로 생성 함수
   const generateUserBasedPath = (judgeResult) => {
     const today = new Date();
-    const workDate = today.toISOString().split('T')[0]; // YYYY-MM-DD
+    const workDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`; // YYYY-MM-DD (로컬 시간)
 
     let userFolder;
     // 사용자 정보 확인
