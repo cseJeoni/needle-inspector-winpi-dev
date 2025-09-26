@@ -454,14 +454,15 @@ export default function DataSettingsPanel({
                   const isAbnormal = resistance1_mOhm > resistanceThreshold || resistance2_mOhm > resistanceThreshold;
                   
                   if (isAbnormal) {
-                    console.log('❌ 저항값 비정상 - NG 버튼만 활성화');
+                    console.log('❌ 저항값 비정상 - NG 버튼만 활성화하고 사이클 종료');
                     console.log(`저항1: ${resistance1_mOhm}Ω (임계값: ${resistanceThreshold}Ω)`);
                     console.log(`저항2: ${resistance2_mOhm}Ω (임계값: ${resistanceThreshold}Ω)`);
                     
                     // 저항 이상 상태를 상위 컴포넌트로 전달하여 PASS 버튼 비활성화
                     onResistanceAbnormalChange && onResistanceAbnormalChange(true);
+                    onWorkStatusChange && onWorkStatusChange('resistance_abnormal'); // 저항 비정상 상태로 변경
                     onStartedChange && onStartedChange(true); // 판정 버튼 활성화 (NG만 활성화됨)
-                    resolve('abnormal');
+                    reject(new Error('저항값 비정상 - 사이클 종료'));
                   } else {
                     console.log('✅ 저항값 정상 - 다음 단계 진행');
                     console.log(`저항1: ${resistance1_mOhm}Ω (임계값: ${resistanceThreshold}Ω)`);
@@ -469,6 +470,9 @@ export default function DataSettingsPanel({
                     
                     // 저항 정상 상태를 상위 컴포넌트로 전달하여 모든 버튼 활성화
                     onResistanceAbnormalChange && onResistanceAbnormalChange(false);
+                    
+                    // 저항값 정상 시 다음 단계 진행
+                    console.log('6️⃣ 저항값 정상 - 다음 단계 시작');
                     resolve('normal');
                   }
                 }
@@ -492,15 +496,57 @@ export default function DataSettingsPanel({
           return
         }
         
-        // 6단계: 판정 버튼 활성화 (write_success 상태 유지)
-        console.log('6️⃣ 판정 버튼 활성화 준비 완료 (저장 완료 상태 유지)')
+        // 6단계: 저항값 정상일 때만 다음 단계 진행 (비정상 시 Promise reject로 catch 블록으로 이동)
+        console.log('7️⃣ 모터 2 DOWN 명령 전송 - 위치: 0')
+        if (websocket && isWsConnected) {
+          websocket.send(JSON.stringify({ 
+            cmd: "move", 
+            position: 0, 
+            mode: "position", 
+            motor_id: 2 
+          }));
+        } else {
+          console.error('WebSocket 연결되지 않음 - 모터 2 DOWN 명령 실패')
+          return
+        }
+        
+        // 8단계: NeedleCheckPanelV4의 딜레이 값만큼 대기
+        console.log('8️⃣ 딜레이 대기 중... DELAY:', resistanceDelay, 'ms')
+        await new Promise(resolve => setTimeout(resolve, resistanceDelay))
+        
+        // 9단계: 모터 1 UP 명령 전송
+        console.log('9️⃣ 모터 1 UP 명령 전송 - 위치:', calculatedMotorPosition)
+        if (websocket && isWsConnected) {
+          websocket.send(JSON.stringify({ 
+            cmd: "move", 
+            position: calculatedMotorPosition, 
+            mode: "position", 
+            motor_id: 1 
+          }));
+        } else {
+          console.error('WebSocket 연결되지 않음 - 모터 1 UP 명령 실패')
+          return
+        }
+        
+        console.log('🔟 모터 시퀀스 완료 - 판정 버튼 활성화')
+        
+        // 판정 버튼 활성화 (write_success 상태 유지)
         onStartedChange && onStartedChange(true)
         
         console.log('🎉 동기 EEPROM 처리 완료 - 판정 버튼 활성화됨')
         
       } catch (error) {
         console.error('❌ 동기 EEPROM 처리 실패:', error.message)
-        onWorkStatusChange && onWorkStatusChange('write_failed')
+        
+        // 에러 메시지에 따라 상태 구분
+        if (error.message.includes('저항값 비정상')) {
+          // 저항값 비정상으로 인한 실패는 이미 위에서 처리됨 (resistance_abnormal 상태)
+          console.log('저항값 비정상으로 인한 사이클 종료 - 상태 유지')
+        } else {
+          // 실제 EEPROM 저장 실패나 기타 오류
+          onWorkStatusChange && onWorkStatusChange('write_failed')
+        }
+        
         // 실패 시 START 상태를 유지하지 않음
         return
       }
