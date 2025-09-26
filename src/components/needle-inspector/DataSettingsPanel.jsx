@@ -47,7 +47,7 @@ export default function DataSettingsPanel({
   const [selectedCountry, setSelectedCountry] = useState("")
   // selectedNeedleType는 props로 받아서 사용 (로컬 상태 제거)
   const [mtrVersion, setMtrVersion] = useState('2.0'); // MTR 버전 상태 추가, 기본값 '2.0'
-  const [manufacturer, setManufacturer] = useState(''); // 제조사 상태 추가
+  const [manufacturer, setManufacturer] = useState('4'); // 제조사 상태 추가
   
   // 저장 데이터 설정 활성화 상태 (기본값: 비활성화)
   const [isDataSettingsEnabled, setIsDataSettingsEnabled] = useState(false)
@@ -341,7 +341,7 @@ export default function DataSettingsPanel({
         year: parseInt(selectedYear),
         month: parseInt(selectedMonth),
         day: parseInt(selectedDay),
-        makerCode: 4,
+        makerCode: parseInt(manufacturer) || 4,
         mtrVersion: mtrVersion,
         country: selectedCountry
       };
@@ -621,6 +621,7 @@ export default function DataSettingsPanel({
   const readTipType = readEepromData?.tipType ?? '';
   const readShotCount = readEepromData?.shotCount ?? '';
   const readRawDate = readEepromData ? `Y:${readEepromData.year} M:${readEepromData.month} D:${readEepromData.day}` : '';
+  const readMakerCode = readEepromData?.makerCode ?? '';
 
   return (
     <div style={{ height: '35dvh' }}>
@@ -817,7 +818,7 @@ export default function DataSettingsPanel({
             </div>
             <div style={{ display: 'flex', alignItems: 'center', flex: 1, gap: '1dvw' }}>
               <label style={{ width: '5dvw', fontSize: '1.3dvh', color: '#D1D5DB' }}>제조사</label>
-              <Input type="text" value={readRawDate} readOnly style={{ backgroundColor: '#171C26', width: '5dvw', border: 'none', color: 'white', fontSize: '1.1dvh', height: '3dvh' }} />
+              <Input type="text" value={readMakerCode} readOnly style={{ backgroundColor: '#171C26', width: '5dvw', border: 'none', color: 'white', fontSize: '1.1dvh', height: '3dvh' }} />
             </div>
           </div>
         </div>
