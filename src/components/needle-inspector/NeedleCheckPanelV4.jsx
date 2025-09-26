@@ -253,11 +253,12 @@ export default function NeedleCheckPanelV4({
   return (
     <Panel title={
       <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-        <h2 className="text-lg font-bold">니들 설정</h2>
+        <h2 className="text-lg font-bold text-responsive">니들 설정</h2>
         <img
           src={isNeedleCheckEnabled ? unlockIcon : lockIcon}
           alt={isNeedleCheckEnabled ? 'Unlocked' : 'Locked'}
-          style={{ cursor: 'pointer', height: '1.25rem' }} // h-5 equivalent
+          className="responsive-icon"
+          style={{ cursor: 'pointer' }}
           onClick={handleNeedleCheckToggle}
           title={isNeedleCheckEnabled ? '설정 잠금' : '설정 잠금 해제'}
         />
@@ -554,11 +555,12 @@ export default function NeedleCheckPanelV4({
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5dvh', color: '#D1D5DB' }}>
           {/* 저항검사 제목과 자물쇠 */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <h2 className="text-lg font-bold">저항 검사</h2>
+            <h2 className="text-lg font-bold text-responsive">저항 검사</h2>
             <img
               src={isResistanceCheckEnabled ? unlockIcon : lockIcon}
               alt={isResistanceCheckEnabled ? 'Unlocked' : 'Locked'}
-              style={{ cursor: 'pointer', height: '1.25rem' }}
+              className="responsive-icon"
+              style={{ cursor: 'pointer' }}
               onClick={handleResistanceCheckToggle}
               title={isResistanceCheckEnabled ? '설정 잠금' : '설정 잠금 해제'}
             />
