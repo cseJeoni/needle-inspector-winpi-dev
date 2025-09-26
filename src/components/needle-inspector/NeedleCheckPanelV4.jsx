@@ -564,7 +564,7 @@ export default function NeedleCheckPanelV4({
             />
           </div>
           
-          {/* DELAY, 정상 범주, 설정 버튼 */}
+          {/* DELAY, 정상 범주 */}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <label style={{ fontSize: '1.2dvh', color: '#D1D5DB', minWidth: '10%' }}>DELAY (ms)</label>
             <Input 
@@ -604,29 +604,6 @@ export default function NeedleCheckPanelV4({
               }}
             />
             <span style={{ fontSize: '1.2dvh', color: '#D1D5DB' }}>Ω</span>
-            <Button
-              onClick={() => {
-                console.log('저항 검사 설정 저장:', {
-                  delay: resistanceDelay,
-                  normalValue: resistanceThreshold
-                });
-              }}
-              disabled={!isResistanceCheckEnabled}
-              style={{
-                backgroundColor: '#171C26',
-                color: !isResistanceCheckEnabled ? '#D1D5DB' : '#10B981',
-                fontSize: '1.1dvh',
-                height: '3.5dvh',
-                padding: '0 1dvw',
-                border: `1px solid ${!isResistanceCheckEnabled ? '#6B7280' : '#10B981'}`,
-                borderRadius: '0.375rem',
-                cursor: !isResistanceCheckEnabled ? 'not-allowed' : 'pointer',
-                opacity: !isResistanceCheckEnabled ? 0.6 : 1,
-                minWidth: '8%'
-              }}
-            >
-              설정
-            </Button>
           </div>
           
           {/* 저항1, 저항2 한 줄에 표시 */}
@@ -636,7 +613,7 @@ export default function NeedleCheckPanelV4({
               <label style={{ fontSize: '1.2dvh', color: '#D1D5DB', minWidth: '15%' }}>저항 1</label>
               <Input 
                 type="text"
-                value={0.001 *resistance1}
+                value={isNaN(resistance1) ? 'NaN' : (0.001 * resistance1).toFixed(3)}
                 readOnly
                 style={{ 
                   backgroundColor: '#171C26', 
@@ -660,7 +637,7 @@ export default function NeedleCheckPanelV4({
               <label style={{ fontSize: '1.2dvh', color: '#D1D5DB', minWidth: '15%' }}>저항 2</label>
               <Input 
                 type="text"
-                value={0.001 *resistance2}
+                value={isNaN(resistance2) ? 'NaN' : (0.001 * resistance2).toFixed(3)}
                 readOnly
                 style={{ 
                   backgroundColor: '#171C26', 

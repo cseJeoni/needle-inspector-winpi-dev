@@ -63,8 +63,8 @@ export default function NeedleInspectorUI() {
   const [isResistanceAbnormal, setIsResistanceAbnormal] = useState(false) // 저항 이상 여부
 
   // 저항 측정 상태 (MTR 4.0에서만 사용)
-  const [resistance1, setResistance1] = useState('N/A')
-  const [resistance2, setResistance2] = useState('N/A')
+  const [resistance1, setResistance1] = useState(NaN)
+  const [resistance2, setResistance2] = useState(NaN)
   const [resistance1Status, setResistance1Status] = useState('N/A')
   const [resistance2Status, setResistance2Status] = useState('N/A')
   const [isResistanceMeasuring, setIsResistanceMeasuring] = useState(false)
@@ -841,6 +841,13 @@ export default function NeedleInspectorUI() {
     setWorkStatus('waiting');
     console.log('✅ 작업 상태 초기화 완료 (판정 후 대기 상태)');
     
+    // 5. 저항 값 데이터 초기화
+    setResistance1(NaN);
+    setResistance2(NaN);
+    setResistance1Status('IDLE');
+    setResistance2Status('IDLE');
+    console.log('✅ 저항 값 데이터 초기화 완료');
+    
     console.log('🎉 판정 후 상태 초기화 완료 - 동기 로직으로 race condition 해결');
   };
 
@@ -1052,6 +1059,10 @@ export default function NeedleInspectorUI() {
             resistanceDelay={resistanceDelay} // 저항 측정 지연 시간 전달
             resistanceThreshold={resistanceThreshold} // 저항 임계값 전달
             onResistanceAbnormalChange={setIsResistanceAbnormal} // 저항 이상 상태 변경 함수 전달
+            onResistance1Change={setResistance1} // 저항1 값 변경 함수 전달
+            onResistance2Change={setResistance2} // 저항2 값 변경 함수 전달
+            onResistance1StatusChange={setResistance1Status} // 저항1 상태 변경 함수 전달
+            onResistance2StatusChange={setResistance2Status} // 저항2 상태 변경 함수 전달
           />
           {selectedNeedleType.startsWith('MULTI') ? (
             <NeedleCheckPanelV4 

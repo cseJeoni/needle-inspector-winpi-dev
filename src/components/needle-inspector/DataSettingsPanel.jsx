@@ -34,7 +34,11 @@ export default function DataSettingsPanel({
   needleProtrusion2,
   resistanceDelay,
   resistanceThreshold,
-  onResistanceAbnormalChange
+  onResistanceAbnormalChange,
+  onResistance1Change,
+  onResistance2Change,
+  onResistance1StatusChange,
+  onResistance2StatusChange
 }) {
   // isStarted와 readEepromData는 이제 props로 받아서 사용
   const [selectedYear, setSelectedYear] = useState("")
@@ -554,6 +558,13 @@ export default function DataSettingsPanel({
       // STOP 버튼을 눌렀을 때 모터1, 모터2 모두 DOWN 명령 전송 후 대기 상태로 복귀
       onWorkStatusChange && onWorkStatusChange('waiting')
       onWaitingEepromReadChange && onWaitingEepromReadChange(false) // EEPROM 읽기 대기 상태 초기화
+      
+      // 저항 값 데이터 초기화 (STOP 버튼 클릭 시)
+      onResistance1Change && onResistance1Change(NaN)
+      onResistance2Change && onResistance2Change(NaN)
+      onResistance1StatusChange && onResistance1StatusChange('IDLE')
+      onResistance2StatusChange && onResistance2StatusChange('IDLE')
+      console.log('✅ STOP 버튼 - 저항 값 데이터 초기화 완료')
       
       // 모터1, 모터2 모두 DOWN 명령 전송 (메인 WebSocket 사용)
       if (websocket && isWsConnected) {
