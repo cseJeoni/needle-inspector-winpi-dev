@@ -130,7 +130,7 @@ export default function NeedleCheckPanelV2({ mode, isMotorConnected, needlePosit
   return (
     <div style={{ height: '35dvh' }}>
       <Panel title={
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '1dvh' }}>
           <h2 className="text-lg font-bold text-responsive">니들 설정</h2>
           <img
             src={isNeedleCheckEnabled ? unlockIcon : lockIcon}
@@ -146,7 +146,7 @@ export default function NeedleCheckPanelV2({ mode, isMotorConnected, needlePosit
         {/* 니들 오프셋 (mm) */}
         <div style={{ display: 'flex', gap: '0.5dvw' }}>
           <div style={{ display: 'flex', alignItems: 'center', flex: 1, gap: '0.5dvw' }}>
-            <label style={{ width: '40%', fontSize: '1.3dvh', color: '#D1D5DB' }}>니들 오프셋 (mm)</label>
+            <label style={{ width: '40%', fontSize: '1.3dvh', color: '#D1D5DB' }}>니들 초기 위치 (mm)</label>
             <Input 
               type="number"
               value={needleOffset}
@@ -190,7 +190,7 @@ export default function NeedleCheckPanelV2({ mode, isMotorConnected, needlePosit
                 opacity: (!isNeedleCheckEnabled) ? 0.6 : 1
               }}
             >
-              {needleOffsetState}
+              {needleOffsetState === 'UP' ? '↑' : '↓'}
             </Button>
           </div>
         </div>
@@ -244,7 +244,7 @@ export default function NeedleCheckPanelV2({ mode, isMotorConnected, needlePosit
                 opacity: (!isNeedleCheckEnabled) ? 0.6 : 1
               }}
             >
-              {needleProtrusionState}
+              {needleProtrusionState === 'UP' ? '↑' : '↓'}
             </Button>
           </div>
         </div>

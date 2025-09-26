@@ -22,13 +22,6 @@ export default function NeedleCheckPanel({ mode, isMotorConnected, needlePositio
   const [isNeedleCheckEnabled, setIsNeedleCheckEnabled] = useState(false)
   // 니들 소음 확인 상태
   const [isNeedleNoiseChecking, setIsNeedleNoiseChecking] = useState(false)
-  
-  // 저항 측정 상태
-  const [resistance1, setResistance1] = useState('N/A')
-  const [resistance2, setResistance2] = useState('N/A')
-  const [resistance1Status, setResistance1Status] = useState('N/A')
-  const [resistance2Status, setResistance2Status] = useState('N/A')
-  const [isResistanceMeasuring, setIsResistanceMeasuring] = useState(false)
 
   // WebSocket을 통한 모터 위치 명령 전송 함수
   const sendMotorCommand = (targetPosition) => {
@@ -46,8 +39,6 @@ export default function NeedleCheckPanel({ mode, isMotorConnected, needlePositio
     console.log(` 모터 위치 명령 전송:`, msg);
     websocket.send(JSON.stringify(msg));
   }
-  
-
   
   // 니들 오프셋과 돌출 부분의 UP/DOWN 상태 (기본값: UP)
   const [needleOffsetState, setNeedleOffsetState] = useState('UP')
@@ -76,37 +67,6 @@ export default function NeedleCheckPanel({ mode, isMotorConnected, needlePositio
       onMotorPositionChange(calculatedPosition);
     }
   }, [needleOffset, needleProtrusion, onMotorPositionChange])
-  
-  // WebSocket 메시지 처리 (저항 측정 결과 수신)
-  useEffect(() => {
-    if (!websocket) return;
-    
-    const handleMessage = (event) => {
-      try {
-        const data = JSON.parse(event.data);
-        
-        if (data.type === 'resistance_measurement') {
-          // 저항 측정 결과 수신
-          const result = data.data;
-          setResistance1(result.resistance1 || 'N/A');
-          setResistance2(result.resistance2 || 'N/A');
-          setResistance1Status(result.status1 || 'N/A');
-          setResistance2Status(result.status2 || 'N/A');
-          setIsResistanceMeasuring(false);
-          console.log('저항 측정 결과:', result);
-        }
-      } catch (error) {
-        console.error('WebSocket 메시지 처리 오류:', error);
-        setIsResistanceMeasuring(false);
-      }
-    };
-    
-    websocket.addEventListener('message', handleMessage);
-    
-    return () => {
-      websocket.removeEventListener('message', handleMessage);
-    };
-  }, [websocket])
 
   const toggleNeedleStatus = () => {
     if (!isMotorConnected) {
@@ -164,56 +124,29 @@ export default function NeedleCheckPanel({ mode, isMotorConnected, needlePositio
     console.log(`✅ 니들 UP & DOWN ${repeatCount}회 완료`)
   }
 
-  // 저항 측정 버튼 클릭 함수
-  const handleResistanceMeasure = () => {
-    if (!websocket || !isWsConnected) {
-      console.error('❌ WebSocket에 연결되지 않았습니다.');
-      return;
-    }
-
-    if (isResistanceMeasuring) {
-      console.log('⏳ 이미 저항 측정 중입니다.');
-      return;
-    }
-
-    console.log('🔍 저항 측정 시작');
-    setIsResistanceMeasuring(true);
-    
-    // 저항 측정 명령 전송 (메인 WebSocket 사용)
-    const command = {
-      cmd: 'measure_resistance'
-    };
-    
-    try {
-      websocket.send(JSON.stringify(command));
-    } catch (error) {
-      console.error('저항 측정 명령 전송 오류:', error);
-      setIsResistanceMeasuring(false);
-    }
-  }
-
   // 1.0부터 20.0까지 0.1 간격으로 생성
   const needleLengthOptions = Array.from({ length: 191 }, (_, i) => (1 + i * 0.1).toFixed(1))
 
   return (
-    <Panel title={
-      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-        <h2 className="text-lg font-bold text-responsive">니들 설정</h2>
-        <img
-          src={isNeedleCheckEnabled ? unlockIcon : lockIcon}
-          alt={isNeedleCheckEnabled ? 'Unlocked' : 'Locked'}
-          className="responsive-icon"
-          style={{ cursor: 'pointer' }}
-          onClick={handleNeedleCheckToggle}
-          title={isNeedleCheckEnabled ? '설정 잠금' : '설정 잠금 해제'}
-        />
-      </div>
-    }>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5dvh' }}>
+    <div style={{ height: '35dvh' }}>
+      <Panel title={
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '1dvh' }}>
+          <h2 className="text-lg font-bold text-responsive">니들 설정</h2>
+          <img
+            src={isNeedleCheckEnabled ? unlockIcon : lockIcon}
+            alt={isNeedleCheckEnabled ? 'Unlocked' : 'Locked'}
+            className="responsive-icon"
+            style={{ cursor: 'pointer' }}
+            onClick={handleNeedleCheckToggle}
+            title={isNeedleCheckEnabled ? '설정 잠금' : '설정 잠금 해제'}
+          />
+        </div>
+      }>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8dvh', height: '100%', overflow: 'hidden' }}>
         {/* 니들 오프셋 (mm) */}
         <div style={{ display: 'flex', gap: '0.5dvw' }}>
           <div style={{ display: 'flex', alignItems: 'center', flex: 1, gap: '0.5dvw' }}>
-            <label style={{ width: '40%', fontSize: '1.3dvh', color: '#D1D5DB' }}>니들 오프셋 (mm)</label>
+            <label style={{ width: '40%', fontSize: '1.3dvh', color: '#D1D5DB' }}>니들 초기 위치 (mm)</label>
             <Input 
               type="number"
               value={needleOffset}
@@ -226,8 +159,8 @@ export default function NeedleCheckPanel({ mode, isMotorConnected, needlePositio
                 color: !isNeedleCheckEnabled ? '#D1D5DB' : 'white', 
                 textAlign: 'center',
                 width: '20%',
-                fontSize: '1.2dvh', 
-                height: '4dvh',
+                fontSize: '1.1dvh', 
+                height: '3dvh',
                 opacity: !isNeedleCheckEnabled ? 0.6 : 1
               }}
             />
@@ -249,18 +182,15 @@ export default function NeedleCheckPanel({ mode, isMotorConnected, needlePositio
               disabled={!isNeedleCheckEnabled}
               style={{
                 backgroundColor: '#171C26',
-                color: (!isNeedleCheckEnabled) ? '#D1D5DB' : '#BFB2E4',
-                width: '30%',
-                fontSize: '1.4dvh',
-                height: '4dvh',
-                border: `1px solid ${(!isNeedleCheckEnabled) ? '#6B7280' : '#BFB2E4'}`,
-                borderRadius: '0.375rem',
-                marginLeft: '1dvw',
-                cursor: (!isNeedleCheckEnabled) ? 'not-allowed' : 'pointer',
+                color: (!isNeedleCheckEnabled) ? '#D1D5DB' : 'white',
+                textAlign: 'center',
+                width: '20%',
+                fontSize: '1.1dvh', 
+                height: '3dvh',
                 opacity: (!isNeedleCheckEnabled) ? 0.6 : 1
               }}
             >
-              {needleOffsetState}
+              {needleOffsetState === 'UP' ? '↑' : '↓'}
             </Button>
           </div>
         </div>
@@ -281,8 +211,8 @@ export default function NeedleCheckPanel({ mode, isMotorConnected, needlePositio
                 color: !isNeedleCheckEnabled ? '#D1D5DB' : 'white', 
                 textAlign: 'center',
                 width: '20%',
-                fontSize: '1.2dvh', 
-                height: '4dvh',
+                fontSize: '1.1dvh', 
+                height: '3dvh',
                 opacity: !isNeedleCheckEnabled ? 0.6 : 1
               }}
             />
@@ -305,138 +235,61 @@ export default function NeedleCheckPanel({ mode, isMotorConnected, needlePositio
               style={{
                 backgroundColor: '#171C26',
                 color: (!isNeedleCheckEnabled) ? '#D1D5DB' : '#BFB2E4',
-                width: '30%',
-                fontSize: '1.4dvh',
-                height: '4dvh',
+                width: '20%',
+                fontSize: '1.1dvh', 
+                height: '3dvh',
                 border: `1px solid ${(!isNeedleCheckEnabled) ? '#6B7280' : '#BFB2E4'}`,
                 borderRadius: '0.375rem',
-                marginLeft: '1dvw',
                 cursor: (!isNeedleCheckEnabled) ? 'not-allowed' : 'pointer',
                 opacity: (!isNeedleCheckEnabled) ? 0.6 : 1
               }}
             >
-              {needleProtrusionState}
+              {needleProtrusionState === 'UP' ? '↑' : '↓'}
             </Button>
           </div>
         </div>
 
         {/* 니들 소음 확인 */}
-        <div style={{ display: 'flex' }}>
-          <div style={{ display: 'flex', gap: '0.5dvw' }}>
-            <div style={{ display: 'flex', alignItems: 'center', flex: 1, gap: '0.5dvw' }}>
-              <label style={{ width: '40%', fontSize: '1.3dvh', color: '#D1D5DB' }}>니들 소음 확인</label>
-              <Input 
-                type="number"
-                value={repeatCount}
-                onChange={(e) => setRepeatCount(Number(e.target.value))}
-                min={1}
-                disabled={false}
-                style={{ 
-                  backgroundColor: '#171C26', 
-                  color: 'white', 
-                  textAlign: 'center',
-                  width: '20%',
-                  fontSize: '1.2dvh', 
-                  height: '4dvh',
-                  opacity: 1
-                }}
-              />
-
-              <Button
-                onClick={handleUpDown}
-                disabled={!isMotorConnected || needleStatus === 'MOVING'}
-                style={{
-                  backgroundColor: '#171C26',
-                  color: (!isMotorConnected) ? '#D1D5DB' : '#BFB2E4',
-                  width: '30%',
-                  fontSize: '1.2dvh',
-                  height: '4dvh',
-                  border: `1px solid ${(!isMotorConnected) ? '#6B7280' : '#BFB2E4'}`,
-                  borderRadius: '0.375rem',
-                  marginLeft: '1dvw',
-                  cursor: (!isMotorConnected || needleStatus === 'MOVING') ? 'not-allowed' : 'pointer',
-                  opacity: (!isMotorConnected || needleStatus === 'MOVING') ? 0.6 : 1
-                }}
-              >
-                UP & DOWN
-              </Button>
-            </div>
-          </div>
-        </div>
-
-        {/* 저항 검사 */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5dvh' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <label style={{ fontSize: '1.3dvh', color: '#D1D5DB' }}>저항검사</label>
+        <div style={{ display: 'flex', gap: '0.5dvw' }}>
+          <div style={{ display: 'flex', alignItems: 'center', flex: 1, gap: '0.5dvw' }}>
+            <label style={{ width: '40%', fontSize: '1.3dvh', color: '#D1D5DB' }}>니들 소음 확인</label>
+            <Input 
+              type="number"
+              value={repeatCount}
+              onChange={(e) => setRepeatCount(Number(e.target.value))}
+              min={1}
+              disabled={false}
+              style={{ 
+                backgroundColor: '#171C26', 
+                color: 'white', 
+                textAlign: 'center',
+                width: '20%',
+                fontSize: '1.1dvh', 
+                height: '3dvh',
+                opacity: 1
+              }}
+            />
             <Button
-              onClick={handleResistanceMeasure}
-              disabled={!websocket || !isWsConnected || isResistanceMeasuring}
+              onClick={handleUpDown}
+              disabled={!isMotorConnected || needleStatus === 'MOVING'}
               style={{
                 backgroundColor: '#171C26',
-                color: (!websocket || !isWsConnected || isResistanceMeasuring) ? '#6B7280' : '#10B981',
-                fontSize: '1.1dvh',
-                height: '3.5dvh',
-                padding: '0 1dvw',
-                border: `1px solid ${(!websocket || !isWsConnected || isResistanceMeasuring) ? '#6B7280' : '#10B981'}`,
+                color: (!isMotorConnected) ? '#D1D5DB' : '#BFB2E4',
+                width: '20%',
+                fontSize: '1.1dvh', 
+                height: '3dvh',
+                border: `1px solid ${(!isMotorConnected) ? '#6B7280' : '#BFB2E4'}`,
                 borderRadius: '0.375rem',
-                cursor: (!websocket || !isWsConnected || isResistanceMeasuring) ? 'not-allowed' : 'pointer',
-                opacity: (!websocket || !isWsConnected || isResistanceMeasuring) ? 0.6 : 1
+                cursor: (!isMotorConnected || needleStatus === 'MOVING') ? 'not-allowed' : 'pointer',
+                opacity: (!isMotorConnected || needleStatus === 'MOVING') ? 0.6 : 1
               }}
             >
-              {isResistanceMeasuring ? '측정 중...' : '측정'}
+              UP
             </Button>
           </div>
-          
-          {/* 저항1 */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5dvw' }}>
-            <label style={{ width: '20%', fontSize: '1.2dvh', color: '#D1D5DB' }}>저항1</label>
-            <Input 
-              type="text"
-              value={resistance1}
-              readOnly
-              style={{ 
-                backgroundColor: '#171C26', 
-                color: resistance1Status === 'OK' ? '#10B981' : resistance1Status === 'ERROR' ? '#EF4444' : '#D1D5DB',
-                textAlign: 'center',
-                width: '25%',
-                fontSize: '1.2dvh', 
-                height: '4dvh',
-                border: `1px solid ${resistance1Status === 'OK' ? '#10B981' : resistance1Status === 'ERROR' ? '#EF4444' : '#6B7280'}`
-              }}
-            />
-            <span style={{ 
-              fontSize: '1.2dvh', 
-              color: resistance1Status === 'OK' ? '#10B981' : resistance1Status === 'ERROR' ? '#EF4444' : '#D1D5DB',
-              width: '5%'
-            }}>Ω</span>
-          </div>
-          
-          {/* 저항2 */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5dvw' }}>
-            <label style={{ width: '20%', fontSize: '1.2dvh', color: '#D1D5DB' }}>저항2</label>
-            <Input 
-              type="text"
-              value={resistance2}
-              readOnly
-              style={{ 
-                backgroundColor: '#171C26', 
-                color: resistance2Status === 'OK' ? '#10B981' : resistance2Status === 'ERROR' ? '#EF4444' : '#D1D5DB',
-                textAlign: 'center',
-                width: '25%',
-                fontSize: '1.2dvh', 
-                height: '4dvh',
-                border: `1px solid ${resistance2Status === 'OK' ? '#10B981' : resistance2Status === 'ERROR' ? '#EF4444' : '#6B7280'}`
-              }}
-            />
-            <span style={{ 
-              fontSize: '1.2dvh', 
-              color: resistance2Status === 'OK' ? '#10B981' : resistance2Status === 'ERROR' ? '#EF4444' : '#D1D5DB',
-              width: '5%'
-            }}>Ω</span>
-          </div>
-
         </div>
-      </div>
-    </Panel>
+        </div>
+      </Panel>
+    </div>
   )
 }

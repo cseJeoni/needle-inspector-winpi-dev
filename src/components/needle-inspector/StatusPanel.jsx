@@ -153,7 +153,7 @@ export default function StatusPanel({ mode, workStatus = 'waiting', needleTipCon
   const statusInfo = getStatusInfo(effectiveStatus, isWaitingEepromRead)
 
   return (
-    <div style={{ height: '35dvh', display: 'flex', flexDirection: 'column', gap: '0.5dvh' }}>
+    <div style={{ height: '35dvh', display: 'flex', flexDirection: 'column', gap: '1dvh' }}>
       <Panel title={
         <h2 className="text-lg font-bold text-responsive">작업 상태</h2>
       }>
@@ -239,7 +239,7 @@ export default function StatusPanel({ mode, workStatus = 'waiting', needleTipCon
                     width: '100%',
                     fontWeight: 'bold',
                     marginTop: '0.5dvh',
-                    padding: '0.8dvh 0',
+
                     fontSize: '1.3dvh',
                     backgroundColor: (!userId.trim() || !password.trim() || isLoggingIn) ? '#374151' : '#4ADE80',
                     color: (!userId.trim() || !password.trim() || isLoggingIn) ? '#9CA3AF' : 'white',
@@ -247,7 +247,7 @@ export default function StatusPanel({ mode, workStatus = 'waiting', needleTipCon
                     borderRadius: '0.375rem',
                     cursor: 'pointer',
                     transition: 'background-color 0.2s',
-                    height: '3.5dvh',
+                    height: '2.8dvh',
                   }}
                 >
                   {isLoggingIn ? '로그인 중...' : '로그인'}

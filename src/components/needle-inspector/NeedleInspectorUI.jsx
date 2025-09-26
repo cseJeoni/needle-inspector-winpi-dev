@@ -3,8 +3,7 @@ import CameraView from "./CameraView"
 import StatusPanel from "./StatusPanel"
 import DataSettingsPanel from "./DataSettingsPanel"
 import NeedleCheckPanel from "./NeedleCheckPanel"
-import NeedleCheckPanelV2 from "./NeedleCheckPanelV2"
-import NeedleCheckPanelV4 from "./NeedleCheckPanelV4"
+import NeedleCheckPanelV4Multi from "./NeedleCheckPanelV4Multi"
 import ModePanel from "./ModePanel"
 import JudgePanel from "./JudgePanel" // Import JudgePanel
 import { useAuth } from "../../hooks/useAuth.jsx" // Firebase 사용자 정보
@@ -1070,7 +1069,7 @@ export default function NeedleInspectorUI() {
           </div>
           <div className="w-[26.5%]">
             {selectedNeedleType.startsWith('MULTI') ? (
-            <NeedleCheckPanelV4 
+            <NeedleCheckPanelV4Multi 
               mode={mode} 
               isMotorConnected={isMotorConnected}
               needlePosition={needlePosition}
@@ -1095,7 +1094,7 @@ export default function NeedleInspectorUI() {
               onResistanceThresholdChange={setResistanceThreshold}
             />
           ) : (
-            <NeedleCheckPanelV2 
+            <NeedleCheckPanel 
               mode={mode} 
               isMotorConnected={isMotorConnected}
               needlePosition={needlePosition}

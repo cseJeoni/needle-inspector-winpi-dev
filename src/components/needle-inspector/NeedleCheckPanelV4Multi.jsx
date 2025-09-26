@@ -8,7 +8,7 @@ import { Input } from "./Input"
 import lockIcon from '../../assets/icon/lock.png';
 import unlockIcon from '../../assets/icon/unlock.png';
 
-export default function NeedleCheckPanelV4({ 
+export default function NeedleCheckPanelV4Multi({ 
   mode, 
   isMotorConnected, 
   needlePosition, 
@@ -253,7 +253,7 @@ export default function NeedleCheckPanelV4({
   return (
     <div style={{ height: '35dvh' }}>
       <Panel title={
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '1dvh' }}>
           <h2 className="text-lg font-bold text-responsive">니들 설정</h2>
           <img
             src={isNeedleCheckEnabled ? unlockIcon : lockIcon}
@@ -269,7 +269,7 @@ export default function NeedleCheckPanelV4({
         
         {/* 니들 오프셋 (mm) - 듀얼 모터 */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5dvw' }}>
-          <label style={{ width: '25%', fontSize: '1.4dvh', color: '#D1D5DB' }}>니들 오프셋 (mm)</label>
+          <label style={{ width: '35%', fontSize: '1.3dvh', color: '#D1D5DB' }}>니들 초기 위치 (mm)</label>
           
           {/* 모터 1 */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.3dvw', flex: 1 }}>
@@ -372,7 +372,7 @@ export default function NeedleCheckPanelV4({
 
         {/* 니들 돌출 부분 (mm) - 듀얼 모터 */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5dvw' }}>
-          <label style={{ width: '25%', fontSize: '1.4dvh', color: '#D1D5DB' }}>니들 돌출 부분 (mm)</label>
+          <label style={{ width: '35%', fontSize: '1.3dvh', color: '#D1D5DB' }}>니들 돌출 부분 (mm)</label>
           
           {/* 모터 1 */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.3dvw', flex: 1 }}>
@@ -475,7 +475,7 @@ export default function NeedleCheckPanelV4({
 
         {/* 니들 소음 확인 - 듀얼 모터 */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5dvw' }}>
-          <label style={{ width: '25%', fontSize: '1.4dvh', color: '#D1D5DB' }}>니들 소음 확인</label>
+          <label style={{ width: '35%', fontSize: '1.3dvh', color: '#D1D5DB' }}>니들 소음 확인</label>
           
           {/* 모터 1 */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.3dvw', flex: 1 }}>
@@ -547,7 +547,7 @@ export default function NeedleCheckPanelV4({
                 opacity: (!isMotorConnected || needleStatus === 'MOVING') ? 0.6 : 1
               }}
             >
-              ↑
+            ↑
             </Button>
           </div>
         </div>
@@ -555,7 +555,7 @@ export default function NeedleCheckPanelV4({
         {/* 저항 검사 */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5dvh', color: '#D1D5DB' }}>
           {/* 저항검사 제목과 자물쇠 */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '1.5dvh', marginBottom: '0.5dvh' }}>
             <h2 className="text-lg font-bold text-responsive">저항 검사</h2>
             <img
               src={isResistanceCheckEnabled ? unlockIcon : lockIcon}

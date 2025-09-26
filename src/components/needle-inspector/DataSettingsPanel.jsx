@@ -803,16 +803,22 @@ export default function DataSettingsPanel({
           <div style={{ display: 'flex', gap: '2dvw' }}>
             <div style={{ display: 'flex', alignItems: 'center', flex: 1, gap: '0.5dvw' }}>
               <label style={{ width: '3.5dvw', fontSize: '1.3dvh', color: '#D1D5DB' }}>TIP TYPE</label>
-              <Input type="text" value={readTipType} readOnly style={{ backgroundColor: '#171C26', border: 'none', width: '5dvw', color: 'white', fontSize: '1.1dvh', height: '3dvh' }} />
+              <Input type="text" value={readTipType} readOnly style={{ backgroundColor: '#171C26', border: 'none', width: '9dvw', color: 'white', fontSize: '1.1dvh', height: '3dvh' }} />
             </div>
             <div style={{ display: 'flex', alignItems: 'center', flex: 1, gap: '1dvw' }}>
               <label style={{ width: '5dvw', fontSize: '1.3dvh', color: '#D1D5DB' }}>SHOT COUNT</label>
               <Input type="text" value={readShotCount} readOnly style={{ backgroundColor: '#171C26', width: '5dvw', border: 'none', color: 'white', fontSize: '1.1dvh', height: '3dvh' }} />
             </div>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center' }}>
-            <label style={{ width: '15%', fontSize: '1.3dvh', color: '#D1D5DB' }}>제조일</label>
-            <Input type="text" value={readRawDate} readOnly style={{ flex: 1, backgroundColor: '#171C26', border: 'none', color: 'white', fontSize: '1.1dvh', height: '3dvh' }} />
+          <div style={{ display: 'flex', gap: '2dvw' }}>
+            <div style={{ display: 'flex', alignItems: 'center', flex: 1, gap: '0.5dvw' }}>
+              <label style={{ width: '3.5dvw', fontSize: '1.3dvh', color: '#D1D5DB' }}>제조일</label>
+              <Input type="text" value={readRawDate} readOnly style={{ backgroundColor: '#171C26', border: 'none', width: '9dvw', color: 'white', fontSize: '1.1dvh', height: '3dvh' }} />
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', flex: 1, gap: '1dvw' }}>
+              <label style={{ width: '5dvw', fontSize: '1.3dvh', color: '#D1D5DB' }}>제조사</label>
+              <Input type="text" value={readRawDate} readOnly style={{ backgroundColor: '#171C26', width: '5dvw', border: 'none', color: 'white', fontSize: '1.1dvh', height: '3dvh' }} />
+            </div>
           </div>
         </div>
       

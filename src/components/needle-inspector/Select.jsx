@@ -23,13 +23,7 @@ export function Select({ children, defaultValue, value, onValueChange, disabled,
       // 클릭된 요소의 위치를 직접 사용
       const triggerElement = event.currentTarget
       const rect = triggerElement.getBoundingClientRect()
-      console.log('트리거 위치 (직접):', rect)
       setDropdownPosition({
-        top: rect.bottom + window.scrollY + 2,
-        left: rect.left + window.scrollX,
-        width: rect.width
-      })
-      console.log('설정된 드롭다운 위치:', {
         top: rect.bottom + window.scrollY + 2,
         left: rect.left + window.scrollX,
         width: rect.width
@@ -123,11 +117,9 @@ export function SelectValue({ value }) {
 export function SelectContent({ children, onSelect, position }) {
   const items = Array.isArray(children) ? children : [children]
   
-  console.log('SelectContent 렌더링:', { position, hasTop: !!position?.top, hasLeft: !!position?.left })
   
   // position이 제대로 설정되지 않았으면 기본값 사용하지 않고 숨김
   if (!position || position.top === 0 || position.left === 0) {
-    console.warn('드롭다운 위치가 설정되지 않음:', position)
     return null
   }
   
