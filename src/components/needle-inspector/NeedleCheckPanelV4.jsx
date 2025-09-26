@@ -23,7 +23,16 @@ export default function NeedleCheckPanelV4({
   resistance1Status,
   resistance2Status,
   isResistanceMeasuring,
-  onResistanceMeasuringChange
+  onResistanceMeasuringChange,
+  // 모터 2 설정값 props
+  needleOffset2,
+  needleProtrusion2,
+  onNeedleOffset2Change,
+  onNeedleProtrusion2Change,
+  resistanceDelay,
+  onResistanceDelayChange,
+  resistanceThreshold,
+  onResistanceThresholdChange
 }) {
   // 모터 상태에 따라 needleStatus 동기화
   const [needleStatus, setNeedleStatus] = useState(needlePosition === 'UP' ? 'UP' : needlePosition === 'DOWN' ? 'DOWN' : 'MOVING')
@@ -35,9 +44,7 @@ export default function NeedleCheckPanelV4({
   const [needleProtrusion1, setNeedleProtrusion1] = useState(3.0)
   const [repeatCount1, setRepeatCount1] = useState(1)
   
-  // 모터 2 (저항 측정 모터) 설정
-  const [needleOffset2, setNeedleOffset2] = useState(0.1)
-  const [needleProtrusion2, setNeedleProtrusion2] = useState(3.0)
+  // 모터 2 (저항 측정 모터) 설정 - props에서 받아옴
   const [repeatCount2, setRepeatCount2] = useState(1)
   
   // 니들 설정 활성화 상태 (기본값: 비활성화)
@@ -49,9 +56,7 @@ export default function NeedleCheckPanelV4({
   
   // 저항 측정 상태는 props로 받음 (로컬 상태 제거)
   
-  // 저항 검사 설정 상태
-  const [resistanceDelay, setResistanceDelay] = useState(1000) // 기본 1초
-  const [normalRangeValue, setNormalRangeValue] = useState(100)
+  // 저항 검사 설정 상태 - resistanceDelay, resistanceThreshold는 props로 받아옴
   const [normalRangeMin, setNormalRangeMin] = useState(0)
   const [normalRangeMax, setNormalRangeMax] = useState(100)
 
@@ -318,7 +323,7 @@ export default function NeedleCheckPanelV4({
             <Input 
               type="number"
               value={needleOffset2}
-              onChange={(e) => setNeedleOffset2(Number(e.target.value))}
+              onChange={(e) => onNeedleOffset2Change && onNeedleOffset2Change(Number(e.target.value))}
               step="0.01"
               min="0"
               disabled={!isNeedleCheckEnabled}
@@ -421,7 +426,7 @@ export default function NeedleCheckPanelV4({
             <Input 
               type="number"
               value={needleProtrusion2}
-              onChange={(e) => setNeedleProtrusion2(Number(e.target.value))}
+              onChange={(e) => onNeedleProtrusion2Change && onNeedleProtrusion2Change(Number(e.target.value))}
               step="0.1"
               min="0"
               disabled={!isNeedleCheckEnabled}
@@ -565,7 +570,7 @@ export default function NeedleCheckPanelV4({
             <Input 
               type="number"
               value={resistanceDelay}
-              onChange={(e) => setResistanceDelay(Number(e.target.value))}
+              onChange={(e) => onResistanceDelayChange && onResistanceDelayChange(Number(e.target.value))}
               min="0"
               step="100"
               disabled={!isResistanceCheckEnabled}
@@ -582,8 +587,8 @@ export default function NeedleCheckPanelV4({
             <label style={{ fontSize: '1.2dvh', color: '#D1D5DB', minWidth: '12%' }}>정상 값</label>
             <Input 
               type="number"
-              value={normalRangeValue}
-              onChange={(e) => setNormalRangeValue(Number(e.target.value))}
+              value={resistanceThreshold}
+              onChange={(e) => onResistanceThresholdChange && onResistanceThresholdChange(Number(e.target.value))}
               min="0"
               step="1"
               placeholder="정상값"
@@ -603,7 +608,7 @@ export default function NeedleCheckPanelV4({
               onClick={() => {
                 console.log('저항 검사 설정 저장:', {
                   delay: resistanceDelay,
-                  normalValue: normalRangeValue
+                  normalValue: resistanceThreshold
                 });
               }}
               disabled={!isResistanceCheckEnabled}

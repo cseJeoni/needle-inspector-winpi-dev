@@ -3,7 +3,7 @@ import { Button } from "./Button"
 import { useAuth } from "../../hooks/useAuth.jsx"
 import { useState, useRef } from "react"
 
-export default function JudgePanel({ onJudge, isStarted, onReset, camera1Ref, camera2Ref, hasNeedleTip = true, websocket, isWsConnected, onCaptureMergedImage, eepromData, generateUserBasedPath, isWaitingEepromRead = false, onWaitingEepromReadChange }) {
+export default function JudgePanel({ onJudge, isStarted, onReset, camera1Ref, camera2Ref, hasNeedleTip = true, websocket, isWsConnected, onCaptureMergedImage, eepromData, generateUserBasedPath, isWaitingEepromRead = false, onWaitingEepromReadChange, isResistanceAbnormal = false }) {
   // 사용자 정보 가져오기
   const { user } = useAuth()
   
@@ -325,21 +325,21 @@ export default function JudgePanel({ onJudge, isStarted, onReset, camera1Ref, ca
         {/* PASS 버튼 */}
         <Button
           onClick={handlePassClick}
-          disabled={!isStarted || !hasNeedleTip || isWaitingEepromRead}
+          disabled={!isStarted || !hasNeedleTip || isWaitingEepromRead || isResistanceAbnormal}
           style={{
             flex: 1,
-            backgroundColor: (isStarted && hasNeedleTip && !isWaitingEepromRead) ? '#0CB56C' : '#6B7280',
+            backgroundColor: (isStarted && hasNeedleTip && !isWaitingEepromRead && !isResistanceAbnormal) ? '#0CB56C' : '#6B7280',
             color: 'white',
             fontSize: '2dvh',
             fontWeight: 'bold',
             border: 'none',
             borderRadius: '0.375rem',
-            cursor: (isStarted && hasNeedleTip && !isWaitingEepromRead) ? 'pointer' : 'not-allowed',
+            cursor: (isStarted && hasNeedleTip && !isWaitingEepromRead && !isResistanceAbnormal) ? 'pointer' : 'not-allowed',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             height: '30dvh',
-            opacity: (isStarted && hasNeedleTip && !isWaitingEepromRead) ? 1 : 0.6
+            opacity: (isStarted && hasNeedleTip && !isWaitingEepromRead && !isResistanceAbnormal) ? 1 : 0.6
           }}
         >
           PASS
