@@ -490,7 +490,6 @@ export default function DataSettingsPanel({
             // 타임아웃 설정 (10초)
             setTimeout(() => {
               websocket.removeEventListener('message', handleResistanceResponse);
-              console.error('저항 측정 응답 타임아웃');
               reject(new Error('저항 측정 타임아웃'));
             }, 10000);
           });
