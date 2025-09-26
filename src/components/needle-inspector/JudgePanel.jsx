@@ -221,7 +221,7 @@ export default function JudgePanel({ onJudge, isStarted, onReset, camera1Ref, ca
 
     return (
       <Panel 
-        title="관리자 패널"
+        title={<h2 className="text-lg font-bold text-responsive">관리자 패널</h2>}
         onMouseDown={() => handleMouseDown('judge')}
         onMouseUp={handleMouseUp}
       >
@@ -239,7 +239,7 @@ export default function JudgePanel({ onJudge, isStarted, onReset, camera1Ref, ca
               {/* 라벨 */}
               <div style={{
                 minWidth: '8dvw',
-                fontSize: '1.2dvh',
+                fontSize: '1.3dvh',
                 fontWeight: '500',
                 color: '#D1D5DB'
               }}>
@@ -252,7 +252,7 @@ export default function JudgePanel({ onJudge, isStarted, onReset, camera1Ref, ca
                 padding: '0.5dvh 1dvw',
                 border: '1px solid #4A5568',
                 borderRadius: '0.25rem',
-                fontSize: '1dvh',
+                fontSize: '1.3dvh',
                 color: '#A0AEC0',
                 overflow: 'hidden',
                 textOverflow: 'ellipsis',
@@ -268,7 +268,7 @@ export default function JudgePanel({ onJudge, isStarted, onReset, camera1Ref, ca
                 style={{
                   minWidth: '3dvw',
                   height: '3dvh',
-                  fontSize: '1dvh',
+                  fontSize: '1.3dvh',
                   backgroundColor: '#3B82F6',
                   color: 'white',
                   border: 'none',
@@ -292,7 +292,7 @@ export default function JudgePanel({ onJudge, isStarted, onReset, camera1Ref, ca
 
   return (
     <Panel 
-      title="판정"
+      title={<h2 className="text-lg font-bold text-responsive">판정</h2>}
       onMouseDown={() => handleMouseDown('admin')}
       onMouseUp={handleMouseUp}
       onMouseLeave={handleMouseLeave}
@@ -307,7 +307,7 @@ export default function JudgePanel({ onJudge, isStarted, onReset, camera1Ref, ca
             flex: 1,
             backgroundColor: (isStarted && hasNeedleTip && !isWaitingEepromRead) ? '#C22727' : '#6B7280',
             color: 'white',
-            fontSize: '2dvh',
+            fontSize: '1.8dvh',
             fontWeight: 'bold',
             border: 'none',
             borderRadius: '0.375rem',
@@ -315,7 +315,7 @@ export default function JudgePanel({ onJudge, isStarted, onReset, camera1Ref, ca
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            height: '30dvh',
+            height: '29.5dvh',
             opacity: (isStarted && hasNeedleTip && !isWaitingEepromRead) ? 1 : 0.6
           }}
         >
@@ -330,7 +330,7 @@ export default function JudgePanel({ onJudge, isStarted, onReset, camera1Ref, ca
             flex: 1,
             backgroundColor: (isStarted && hasNeedleTip && !isWaitingEepromRead && !isResistanceAbnormal) ? '#0CB56C' : '#6B7280',
             color: 'white',
-            fontSize: '2dvh',
+            fontSize: '1.8dvh',
             fontWeight: 'bold',
             border: 'none',
             borderRadius: '0.375rem',
@@ -338,7 +338,7 @@ export default function JudgePanel({ onJudge, isStarted, onReset, camera1Ref, ca
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            height: '30dvh',
+            height: '29.5dvh',
             opacity: (isStarted && hasNeedleTip && !isWaitingEepromRead && !isResistanceAbnormal) ? 1 : 0.6
           }}
         >

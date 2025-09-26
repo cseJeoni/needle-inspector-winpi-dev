@@ -47,6 +47,7 @@ export default function DataSettingsPanel({
   const [selectedCountry, setSelectedCountry] = useState("")
   // selectedNeedleType는 props로 받아서 사용 (로컬 상태 제거)
   const [mtrVersion, setMtrVersion] = useState('2.0'); // MTR 버전 상태 추가, 기본값 '2.0'
+  const [manufacturer, setManufacturer] = useState(''); // 제조사 상태 추가
   
   // 저장 데이터 설정 활성화 상태 (기본값: 비활성화)
   const [isDataSettingsEnabled, setIsDataSettingsEnabled] = useState(false)
@@ -162,6 +163,16 @@ export default function DataSettingsPanel({
         try {
           const csvData = await window.api.loadCsvData(); // 비동기로 CSV 데이터 로드
           console.log('CSV 데이터 로드 완료:', csvData);
+          console.log('MTR 2.0 데이터 개수:', csvData.mtr2?.length || 0);
+          console.log('MTR 4.0 데이터 개수:', csvData.mtr4?.length || 0);
+          
+          // 실제 데이터 샘플 확인
+          if (csvData.mtr2 && csvData.mtr2.length > 0) {
+            console.log('MTR 2.0 첫 번째 데이터 샘플:', csvData.mtr2[0]);
+          }
+          if (csvData.mtr4 && csvData.mtr4.length > 0) {
+            console.log('MTR 4.0 첫 번째 데이터 샘플:', csvData.mtr4[0]);
+          }
           
           // 데이터 형식을 csvCache가 기대하는 형식으로 변환
           const formattedData = {
@@ -169,6 +180,7 @@ export default function DataSettingsPanel({
             '4.0': csvData.mtr4 || []
           };
           
+          console.log('캐시 초기화 전 데이터 확인:', formattedData);
           initializeCache(formattedData); // 로드된 데이터로 캐시 초기화
           
           // 캐시 초기화 후, 상태 업데이트하여 UI 리렌더링
@@ -176,12 +188,16 @@ export default function DataSettingsPanel({
             console.log('캐시 준비 완료, UI 상태 업데이트');
             setCacheReady(true);
             const countryOptions = getCountryOptions(mtrVersion);
+            console.log(`MTR ${mtrVersion} 국가 옵션:`, countryOptions);
             if (countryOptions.length > 0) {
               setSelectedCountry(countryOptions[0].value);
               const needleOptions = getNeedleOptions(mtrVersion, countryOptions[0].value);
+              console.log(`${countryOptions[0].value} 니들 옵션:`, needleOptions);
               if (needleOptions.length > 0 && onSelectedNeedleTypeChange) {
                 onSelectedNeedleTypeChange(needleOptions[0].value);
               }
+            } else {
+              console.warn('국가 옵션이 없습니다. CSV 데이터를 확인하세요.');
             }
           } else {
             console.warn('캐시 준비 실패');
@@ -607,21 +623,22 @@ export default function DataSettingsPanel({
   const readRawDate = readEepromData ? `Y:${readEepromData.year} M:${readEepromData.month} D:${readEepromData.day}` : '';
 
   return (
-    <Panel title={
-      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-        <h2 className="text-lg font-bold text-responsive">저장 데이터 설정</h2>
-        <img
-          src={isDataSettingsEnabled ? unlockIcon : lockIcon}
-          alt={isDataSettingsEnabled ? 'Unlocked' : 'Locked'}
-          className="responsive-icon"
-          style={{ cursor: 'pointer' }}
-          onClick={handleDataSettingsToggle}
-          title={isDataSettingsEnabled ? '설정 잠금' : '설정 잠금 해제'}
-        />
-      </div>
-    }>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5dvh' }}>
-        <div style={{ display: 'flex', gap: '0.2dvw', marginBottom: '0.3dvh' }}>
+    <div style={{ height: '35dvh' }}>
+      <Panel title={
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <h2 className="text-lg font-bold text-responsive">데이터 설정</h2>
+          <img
+            src={isDataSettingsEnabled ? unlockIcon : lockIcon}
+            alt={isDataSettingsEnabled ? 'Unlocked' : 'Locked'}
+            className="responsive-icon"
+            style={{ cursor: 'pointer' }}
+            onClick={handleDataSettingsToggle}
+            title={isDataSettingsEnabled ? '설정 잠금' : '설정 잠금 해제'}
+          />
+        </div>
+      }>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8dvh', overflow: 'hidden' }}>
+        <div style={{ display: 'flex', gap: '1dvw', marginTop: '0.6dvh', marginBottom: '1dvh' }}>
             <Button 
                 onClick={() => {
                   console.log('[DEBUG] MTR 2.0 버튼 클릭');
@@ -633,8 +650,9 @@ export default function DataSettingsPanel({
                     backgroundColor: mtrVersion === '2.0' ? '#4A90E2' : '#171C26',
                     color: 'white',
                     border: `1px solid ${mtrVersion === '2.0' ? '#4A90E2' : '#374151'}`,
-                    fontSize: '1.4dvh',
-                    padding: '0.8dvh 0',
+                    fontSize: '1.3dvh',
+                    padding: '0.4dvh 0',
+                    height: '3.5dvh'
                 }}
             >
                 MTR 2.0
@@ -650,50 +668,56 @@ export default function DataSettingsPanel({
                     backgroundColor: mtrVersion === '4.0' ? '#4A90E2' : '#171C26',
                     color: 'white',
                     border: `1px solid ${mtrVersion === '4.0' ? '#4A90E2' : '#374151'}`,
-                    fontSize: '1.4dvh',
-                    padding: '0.8dvh 0',
+                    fontSize: '1.3dvh',
+                    padding: '0.4dvh 0',
+                    height: '3.5dvh'
                 }}
             >
                 MTR 4.0
             </Button>
         </div>
-        <div style={{ display: 'flex', gap: '0.5dvw' }}>
-          <div style={{ display: 'flex', alignItems: 'center', flex: 1, gap: '0.5dvw' }}>
-            <label style={{ width: '20%', fontSize: '1.2dvh', color: '#D1D5DB' }}>국가</label>
-            <Select value={selectedCountry} onValueChange={handleCountryChange} disabled={isStarted || !isDataSettingsEnabled}>
-              <SelectTrigger style={{ backgroundColor: '#171C26', border: 'none', color: 'white', fontSize: '1.2dvh', width: '100%', height: '3.5dvh' }}>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {getCountryOptionsForUI().map((option) => (
-                  <SelectItem key={option.value} value={option.value}>
-                    {option.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+        <div style={{ display: 'flex', gap: '1dvw' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5dvw', width: '40%' }}>
+            <label style={{ width: '20%', fontSize: '1.3dvh', color: '#D1D5DB', flexShrink: 0 }}>국가</label>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <Select value={selectedCountry} onValueChange={handleCountryChange} disabled={isStarted || !isDataSettingsEnabled}>
+                <SelectTrigger style={{ backgroundColor: '#171C26', border: 'none', color: 'white', fontSize: '1.1dvh', width: '100%', height: '3dvh' }}>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {getCountryOptionsForUI().map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', flex: 1, gap: '1dvw' }}>
-            <label style={{ width: '20%', fontSize: '1.2dvh', color: '#D1D5DB' }}>니들</label>
-            <Select value={selectedNeedleType} onValueChange={handleNeedleTypeChange} disabled={isStarted || !isDataSettingsEnabled}>
-              <SelectTrigger style={{ backgroundColor: '#171C26', border: 'none', color: 'white', fontSize: '1.2dvh', width: '100%', height: '3.5dvh' }}>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {getNeedleOptionsForUI().map((option) => (
-                  <SelectItem key={option.value} value={option.value}>
-                    {option.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5dvw', width: '60%' }}>
+            <label style={{ width: '12%', fontSize: '1.3dvh', color: '#D1D5DB', flexShrink: 0 }}>니들</label>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <Select value={selectedNeedleType} onValueChange={handleNeedleTypeChange} disabled={isStarted || !isDataSettingsEnabled}>
+                <SelectTrigger style={{ backgroundColor: '#171C26', border: 'none', color: 'white', fontSize: '1.1dvh', width: '100%', height: '3dvh' }}>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {getNeedleOptionsForUI().map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center' }}>
-          <label style={{ width: '25%', fontSize: '1.2dvh', color: '#D1D5DB' }}>날짜</label>
-          <div style={{ display: 'flex', width: '100%', gap: '0.8dvw' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1dvw' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5dvw', flex: 1 }}>
+            <label style={{ width: '20%', fontSize: '1.3dvh', color: '#D1D5DB' }}>날짜</label>
+            <div style={{ display: 'flex', width: '100%', gap: '0.8dvw' }}>
             <Select value={selectedYear} onValueChange={handleYearChange} disabled={isStarted || !isDataSettingsEnabled}>
-              <SelectTrigger style={{ backgroundColor: '#171C26', border: 'none', color: 'white', fontSize: '1.2dvh', height: '3.5dvh' }}>
+              <SelectTrigger style={{ backgroundColor: '#171C26', border: 'none', color: 'white', fontSize: '1.1dvh', height: '3dvh' }}>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -705,7 +729,7 @@ export default function DataSettingsPanel({
               </SelectContent>
             </Select>
             <Select value={selectedMonth} onValueChange={handleMonthChange} disabled={isStarted || !isDataSettingsEnabled}>
-              <SelectTrigger style={{ backgroundColor: '#171C26', border: 'none', color: 'white', fontSize: '1.2dvh', height: '3.5dvh' }}>
+              <SelectTrigger style={{ backgroundColor: '#171C26', border: 'none', color: 'white', fontSize: '1.1dvh', height: '3dvh' }}>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -717,7 +741,7 @@ export default function DataSettingsPanel({
               </SelectContent>
             </Select>
             <Select value={selectedDay} onValueChange={handleDayChange} disabled={isStarted || !isDataSettingsEnabled}>
-              <SelectTrigger style={{ backgroundColor: '#171C26', border: 'none', color: 'white', fontSize: '1.2dvh', height: '3.5dvh' }}>
+              <SelectTrigger style={{ backgroundColor: '#171C26', border: 'none', color: 'white', fontSize: '1.1dvh', height: '3dvh' }}>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -728,6 +752,25 @@ export default function DataSettingsPanel({
                 ))}
               </SelectContent>
             </Select>
+            </div>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5dvw', width: '30%' }}>
+            <label style={{ width: '30%', fontSize: '1.3dvh', color: '#D1D5DB', flexShrink: 0 }}>제조사</label>
+            <Input 
+              type="text"
+              value={manufacturer}
+              onChange={(e) => setManufacturer(e.target.value)}
+              placeholder="제조사"
+              disabled={isStarted || !isDataSettingsEnabled}
+              style={{ 
+                backgroundColor: '#171C26', 
+                color: (!isDataSettingsEnabled || isStarted) ? '#D1D5DB' : 'white',
+                fontSize: '1.1dvh', 
+                height: '3dvh',
+                opacity: (!isDataSettingsEnabled || isStarted) ? 0.6 : 1,
+                width: '100%'
+              }}
+            />
           </div>
         </div>
       </div>
@@ -739,12 +782,14 @@ export default function DataSettingsPanel({
             width: '100%',
             fontWeight: 'bold',
             padding: '0.8dvh 0',
-            fontSize: '1.8dvh',
+            fontSize: '1.4dvh',
             backgroundColor: '#171C26',
             color: isStarted ? '#FF5455' : '#4ADE80',
             border: isStarted ? '1px solid #FF5455' : '1px solid #4ADE80',
             borderRadius: '0.375rem',
-            cursor: 'pointer'
+            cursor: 'pointer',
+            marginTop: '2dvh',
+            marginBottom: '2dvh'
           }}
         >
           {isStarted ? "STOP" : "START"}
@@ -757,20 +802,21 @@ export default function DataSettingsPanel({
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5dvh', borderTop: '1px solid #374151' }}>
           <div style={{ display: 'flex', gap: '2dvw' }}>
             <div style={{ display: 'flex', alignItems: 'center', flex: 1, gap: '0.5dvw' }}>
-              <label style={{ width: '3dvw', fontSize: '1.2dvh', color: '#D1D5DB' }}>TIP TYPE</label>
-              <Input type="text" value={readTipType} readOnly style={{ backgroundColor: '#171C26', border: 'none', width: '5dvw', color: 'white', fontSize: '1.2dvh', height: '3.5dvh' }} />
+              <label style={{ width: '3.5dvw', fontSize: '1.3dvh', color: '#D1D5DB' }}>TIP TYPE</label>
+              <Input type="text" value={readTipType} readOnly style={{ backgroundColor: '#171C26', border: 'none', width: '5dvw', color: 'white', fontSize: '1.1dvh', height: '3dvh' }} />
             </div>
             <div style={{ display: 'flex', alignItems: 'center', flex: 1, gap: '1dvw' }}>
-              <label style={{ width: '5dvw', fontSize: '1.2dvh', color: '#D1D5DB' }}>SHOT COUNT</label>
-              <Input type="text" value={readShotCount} readOnly style={{ backgroundColor: '#171C26', width: '5dvw', border: 'none', color: 'white', fontSize: '1.2dvh', height: '3.5dvh' }} />
+              <label style={{ width: '5dvw', fontSize: '1.3dvh', color: '#D1D5DB' }}>SHOT COUNT</label>
+              <Input type="text" value={readShotCount} readOnly style={{ backgroundColor: '#171C26', width: '5dvw', border: 'none', color: 'white', fontSize: '1.1dvh', height: '3dvh' }} />
             </div>
           </div>
           <div style={{ display: 'flex', alignItems: 'center' }}>
-            <label style={{ width: '15%', fontSize: '1.2dvh', color: '#D1D5DB' }}>제조일</label>
-            <Input type="text" value={readRawDate} readOnly style={{ flex: 1, backgroundColor: '#171C26', border: 'none', color: 'white', fontSize: '1.2dvh', height: '3.5dvh' }} />
+            <label style={{ width: '15%', fontSize: '1.3dvh', color: '#D1D5DB' }}>제조일</label>
+            <Input type="text" value={readRawDate} readOnly style={{ flex: 1, backgroundColor: '#171C26', border: 'none', color: 'white', fontSize: '1.1dvh', height: '3dvh' }} />
           </div>
         </div>
       
-    </Panel>
+      </Panel>
+    </div>
   )
 }

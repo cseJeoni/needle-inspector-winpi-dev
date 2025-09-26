@@ -198,11 +198,12 @@ export default function NeedleCheckPanel({ mode, isMotorConnected, needlePositio
   return (
     <Panel title={
       <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-        <h2 className="text-lg font-bold">니들 설정</h2>
+        <h2 className="text-lg font-bold text-responsive">니들 설정</h2>
         <img
           src={isNeedleCheckEnabled ? unlockIcon : lockIcon}
           alt={isNeedleCheckEnabled ? 'Unlocked' : 'Locked'}
-          style={{ cursor: 'pointer', height: '1.25rem' }} // h-5 equivalent
+          className="responsive-icon"
+          style={{ cursor: 'pointer' }}
           onClick={handleNeedleCheckToggle}
           title={isNeedleCheckEnabled ? '설정 잠금' : '설정 잠금 해제'}
         />

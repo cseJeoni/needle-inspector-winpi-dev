@@ -1037,9 +1037,12 @@ export default function NeedleInspectorUI() {
         </div>
 
         {/* Bottom Control Panels */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 flex-1 min-h-0 overflow-y-auto">
-          <StatusPanel mode={mode} workStatus={workStatus} needleTipConnected={needleTipConnected} isWaitingEepromRead={isWaitingEepromRead} />
-          <DataSettingsPanel 
+        <div className="flex gap-4" style={{ height: '35dvh' }}>
+          <div className="w-[20%]">
+            <StatusPanel mode={mode} workStatus={workStatus} needleTipConnected={needleTipConnected} isWaitingEepromRead={isWaitingEepromRead} />
+          </div>
+          <div className="w-[31%]">
+            <DataSettingsPanel 
             makerCode={makerCode} 
             onWorkStatusChange={setWorkStatus}
             isStarted={isStarted}
@@ -1064,7 +1067,9 @@ export default function NeedleInspectorUI() {
             onResistance1StatusChange={setResistance1Status} // 저항1 상태 변경 함수 전달
             onResistance2StatusChange={setResistance2Status} // 저항2 상태 변경 함수 전달
           />
-          {selectedNeedleType.startsWith('MULTI') ? (
+          </div>
+          <div className="w-[26.5%]">
+            {selectedNeedleType.startsWith('MULTI') ? (
             <NeedleCheckPanelV4 
               mode={mode} 
               isMotorConnected={isMotorConnected}
@@ -1101,7 +1106,9 @@ export default function NeedleInspectorUI() {
               onMotorPositionChange={setCalculatedMotorPosition}
             />
           )}
-          <JudgePanel 
+          </div>
+          <div className="w-[22.5%]">
+            <JudgePanel 
             onJudge={(result) => console.log(`판정 결과: ${result}`)}
             isStarted={isStarted}
             onReset={handleJudgeReset}
@@ -1116,10 +1123,11 @@ export default function NeedleInspectorUI() {
             isWaitingEepromRead={isWaitingEepromRead} // EEPROM 읽기 대기 상태 전달
             onWaitingEepromReadChange={setIsWaitingEepromRead} // EEPROM 읽기 대기 상태 변경 함수 전달
             isResistanceAbnormal={isResistanceAbnormal} // 저항 이상 상태 전달
-          />
+            />
+          </div>
         </div>
       </main>
-      <footer className="text-right text-xs text-gray-400 pr-2">SAVE MODE v1</footer>
+      <footer className="text-right text-xs text-gray-400 pr-2">Needle Inspector v1.0.0</footer>
     </div>
   )
 }

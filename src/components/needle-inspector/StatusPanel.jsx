@@ -153,14 +153,18 @@ export default function StatusPanel({ mode, workStatus = 'waiting', needleTipCon
   const statusInfo = getStatusInfo(effectiveStatus, isWaitingEepromRead)
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '1dvh' }}>
-      <Panel title="작업 상태">
-        <div className={`${statusInfo.bg} rounded-md flex items-center justify-center`} style={{ height: '10dvh' }}>
-          <span className={`text-2xl font-bold ${statusInfo.textColor}`}>{statusInfo.text}</span>
+    <div style={{ height: '35dvh', display: 'flex', flexDirection: 'column', gap: '0.5dvh' }}>
+      <Panel title={
+        <h2 className="text-lg font-bold text-responsive">작업 상태</h2>
+      }>
+        <div className={`${statusInfo.bg} rounded-md flex items-center justify-center`} style={{ height: '12dvh' }}>
+          <span className={`font-bold ${statusInfo.textColor}`} style={{ fontSize: '2.2dvh' }}>{statusInfo.text}</span>
         </div>
       </Panel>
       
-      <Panel title="작업자 로그인">
+      <Panel title={
+        <h2 className="text-lg font-bold text-responsive">사용자 로그인</h2>
+      }>
         <div>
           
           {/* Firebase 로딩 상태 */}
@@ -168,14 +172,14 @@ export default function StatusPanel({ mode, workStatus = 'waiting', needleTipCon
             <div style={{ 
               textAlign: 'center', 
               color: '#9CA3AF', 
-              fontSize: '1.2dvh' 
+              fontSize: '1.4dvh' 
             }}>
               인증 상태 확인 중...
             </div>
           ) : !isAuthenticated ? (
             <>
               <div style={{ display: 'flex', alignItems: 'center', gap: '1dvw', padding: '0.5dvh' }}>
-                <label style={{ width: '7dvw', fontSize: '1.5dvh', color: '#D1D5DB' }}>아이디</label>
+                <label style={{ width: '7dvw', fontSize: '1.3dvh', color: '#D1D5DB' }}>아이디</label>
                 <Input 
                   type="text" 
                   value={userId} 
@@ -186,15 +190,15 @@ export default function StatusPanel({ mode, workStatus = 'waiting', needleTipCon
                     backgroundColor: '#171C26', 
                     border: '1px solid #374151', 
                     color: 'white', 
-                    fontSize: '1.2dvh', 
-                    height: '3.5dvh' 
+                    fontSize: '1.1dvh', 
+                    height: '3dvh' 
                   }} 
                   placeholder="아이디를 입력하세요"
                   disabled={isLoggingIn}
                 />
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '1dvw', padding: '0.5dvh' }}>
-                <label style={{ width: '7dvw', fontSize: '1.5dvh', color: '#D1D5DB' }}>비밀번호</label>
+                <label style={{ width: '7dvw', fontSize: '1.3dvh', color: '#D1D5DB' }}>비밀번호</label>
                 <Input 
                   type="password" 
                   value={password} 
@@ -205,8 +209,8 @@ export default function StatusPanel({ mode, workStatus = 'waiting', needleTipCon
                     backgroundColor: '#171C26', 
                     border: '1px solid #374151', 
                     color: 'white', 
-                    fontSize: '1.2dvh', 
-                    height: '3.5dvh' 
+                    fontSize: '1.1dvh', 
+                    height: '3dvh' 
                   }} 
                   placeholder="비밀번호를 입력하세요"
                   disabled={isLoggingIn}
@@ -216,10 +220,10 @@ export default function StatusPanel({ mode, workStatus = 'waiting', needleTipCon
                 <div style={{
                   color: loginMessage.includes('성공') ? '#4ADE80' : '#F87171',
                   textAlign: 'center',
-                  fontSize: '1.4dvh',
-                  padding: '0.8dvh 0',
-                  marginTop: '0.5dvh',
-                  height: '3.5dvh', // 버튼과 높이를 맞춤
+                  fontSize: '1.3dvh',
+                  padding: '0.5dvh 0',
+                  marginTop: '0.3dvh',
+                  height: '3dvh', // 버튼과 높이를 맞춤
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
@@ -236,14 +240,14 @@ export default function StatusPanel({ mode, workStatus = 'waiting', needleTipCon
                     fontWeight: 'bold',
                     marginTop: '0.5dvh',
                     padding: '0.8dvh 0',
-                    fontSize: '1.5dvh',
+                    fontSize: '1.3dvh',
                     backgroundColor: (!userId.trim() || !password.trim() || isLoggingIn) ? '#374151' : '#4ADE80',
                     color: (!userId.trim() || !password.trim() || isLoggingIn) ? '#9CA3AF' : 'white',
                     border: 'none',
                     borderRadius: '0.375rem',
                     cursor: 'pointer',
                     transition: 'background-color 0.2s',
-                    height: '3.5dvh', // 에러 메시지와 높이를 맞춤
+                    height: '3.5dvh',
                   }}
                 >
                   {isLoggingIn ? '로그인 중...' : '로그인'}
@@ -263,19 +267,20 @@ export default function StatusPanel({ mode, workStatus = 'waiting', needleTipCon
                 borderRadius: '0.375rem',
                 color: 'white'
               }}>
-                <span style={{ fontSize: '1.5dvh', fontWeight: 'bold' }}>
+                <span style={{ fontSize: '1.3dvh', fontWeight: 'bold' }}>
                   작업자 : {user?.name || user?.id}
                 </span>
                 <Button 
                   onClick={handleLogout}
                   style={{
                     padding: '0.5dvh 1dvw',
-                    fontSize: '1.2dvh',
+                    fontSize: '1.3dvh',
                     backgroundColor: 'transparent',
                     color: 'white',
                     border: '1px solid white',
                     borderRadius: '0.25rem',
-                    cursor: 'pointer'
+                    cursor: 'pointer',
+                    height: '3dvh'
                   }}
                 >
                   로그아웃

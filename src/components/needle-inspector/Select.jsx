@@ -1,8 +1,10 @@
-import { useState, cloneElement } from "react"
+import { useState, cloneElement, useRef, useEffect } from "react"
 
 export function Select({ children, defaultValue, value, onValueChange, disabled, style }) {
   const [isOpen, setIsOpen] = useState(false)
   const [selectedValue, setSelectedValue] = useState(value || defaultValue || "")
+  const [dropdownPosition, setDropdownPosition] = useState({ top: 0, left: 0, width: 0 })
+  const triggerRef = useRef(null)
 
   const currentValue = value !== undefined ? value : selectedValue
 
@@ -12,6 +14,28 @@ export function Select({ children, defaultValue, value, onValueChange, disabled,
       onValueChange(newValue)
     }
     setIsOpen(false)
+  }
+
+  const handleToggle = (event) => {
+    if (disabled) return
+    
+    if (!isOpen) {
+      // 클릭된 요소의 위치를 직접 사용
+      const triggerElement = event.currentTarget
+      const rect = triggerElement.getBoundingClientRect()
+      console.log('트리거 위치 (직접):', rect)
+      setDropdownPosition({
+        top: rect.bottom + window.scrollY + 2,
+        left: rect.left + window.scrollX,
+        width: rect.width
+      })
+      console.log('설정된 드롭다운 위치:', {
+        top: rect.bottom + window.scrollY + 2,
+        left: rect.left + window.scrollX,
+        width: rect.width
+      })
+    }
+    setIsOpen(!isOpen)
   }
 
   // SelectContent에서 SelectItem들 찾기
@@ -38,7 +62,7 @@ export function Select({ children, defaultValue, value, onValueChange, disabled,
   const modifiedChildren = Array.isArray(children) ? children.map(child => {
     if (child && child.type && child.type.name === 'SelectTrigger') {
       return cloneElement(child, {
-        onClick: () => !disabled && setIsOpen(!isOpen),
+        onClick: handleToggle,
         disabled,
         currentValue: displayText,
         style: {
@@ -51,14 +75,15 @@ export function Select({ children, defaultValue, value, onValueChange, disabled,
     if (child && child.type && child.type.name === 'SelectContent') {
       if (!isOpen || disabled) return null
       return cloneElement(child, {
-        onSelect: handleSelect
+        onSelect: handleSelect,
+        position: dropdownPosition
       })
     }
     return child
   }) : children
 
   return (
-    <div style={{ position: 'relative', ...style }}>
+    <div style={{ position: 'relative', overflow: 'visible', ...style }}>
       {modifiedChildren}
     </div>
   )
@@ -95,22 +120,33 @@ export function SelectValue({ value }) {
   return null // SelectTrigger에서 직접 처리
 }
 
-export function SelectContent({ children, onSelect }) {
+export function SelectContent({ children, onSelect, position }) {
   const items = Array.isArray(children) ? children : [children]
+  
+  console.log('SelectContent 렌더링:', { position, hasTop: !!position?.top, hasLeft: !!position?.left })
+  
+  // position이 제대로 설정되지 않았으면 기본값 사용하지 않고 숨김
+  if (!position || position.top === 0 || position.left === 0) {
+    console.warn('드롭다운 위치가 설정되지 않음:', position)
+    return null
+  }
   
   return (
     <div style={{
-      position: 'absolute',
-      top: '100%',
-      left: 0,
+      position: 'fixed',
+      top: `${position.top}px`,
+      left: `${position.left}px`,
+      width: `${position.width}px`,
       backgroundColor: '#171C26',
       border: '1px solid #4B5563',
       borderRadius: '0.375rem',
-      marginTop: '0.25rem',
-      zIndex: 10,
-      maxHeight: '10rem',
-      minWidth: '15dvw',
-      overflowY: 'auto'
+      zIndex: 9999,
+      maxHeight: '9dvh',
+      overflowY: 'auto',
+      boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -1px rgba(0, 0, 0, 0.2)'
+    }}
+    onMouseDown={(e) => {
+      e.stopPropagation();
     }}>
       {items.map((item, index) => {
         if (!item || !item.props) return null
@@ -122,11 +158,15 @@ export function SelectContent({ children, onSelect }) {
               padding: '0.8dvh 1.2dvw',
               cursor: 'pointer',
               color: 'white',
-              fontSize: '1.3dvh',
+              fontSize: '1.1dvh',
               backgroundColor: 'transparent',
-              height: '3.5dvh',
+              height: '3dvh',
               display: 'flex',
-              alignItems: 'center'
+              alignItems: 'center',
+              borderBottom: index < items.length - 1 ? '1px solid #374151' : 'none',
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis'
             }}
             onMouseEnter={(e) => {
               e.target.style.backgroundColor = '#4B5563'

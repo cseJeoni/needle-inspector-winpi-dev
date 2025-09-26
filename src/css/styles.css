@@ -276,9 +276,6 @@ h6 {
 
 }
 
-.horizontal_alignment > li {
-
-}
 
 
 
@@ -344,10 +341,10 @@ textarea {
 
 /* 반응형 텍스트와 아이콘 */
 .text-responsive {
-    font-size: 1.7dvh !important;
+    font-size: 1.5dvh !important;
 }
 
 .responsive-icon {
-    height: 1.7dvh !important;
+    height: 1.5dvh !important;
     width: auto;
 }

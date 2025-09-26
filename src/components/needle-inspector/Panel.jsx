@@ -19,14 +19,15 @@ export default function Panel({
         borderRadius: '0.5rem', 
         display: 'flex', 
         flexDirection: 'column',
-        padding: '1.8dvh', 
-        gap: '2dvh' 
+        padding: '1.2dvh', 
+        gap: '1dvh',
+        height: '100%'
       }}
     >
       <h2
         className={titleClassName}
         style={{ 
-          fontSize: '1.7dvh',
+          fontSize: '1.8dvh',
           fontWeight: 'bold',
           color: '#D1D5DB',
           margin: 0
@@ -44,7 +45,8 @@ export default function Panel({
           flex: 1, 
           display: 'flex', 
           flexDirection: 'column',
-          gap: '1.8dvh' 
+          gap: '0.8dvh',
+          overflow: 'hidden'
         }}
       >
         {children}

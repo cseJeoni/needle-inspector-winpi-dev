@@ -128,19 +128,21 @@ export default function NeedleCheckPanelV2({ mode, isMotorConnected, needlePosit
   const needleLengthOptions = Array.from({ length: 191 }, (_, i) => (1 + i * 0.1).toFixed(1))
 
   return (
-    <Panel title={
-      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-        <h2 className="text-lg font-bold">니들 설정</h2>
-        <img
-          src={isNeedleCheckEnabled ? unlockIcon : lockIcon}
-          alt={isNeedleCheckEnabled ? 'Unlocked' : 'Locked'}
-          style={{ cursor: 'pointer', height: '1.25rem' }} // h-5 equivalent
-          onClick={handleNeedleCheckToggle}
-          title={isNeedleCheckEnabled ? '설정 잠금' : '설정 잠금 해제'}
-        />
-      </div>
-    }>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5dvh' }}>
+    <div style={{ height: '35dvh' }}>
+      <Panel title={
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <h2 className="text-lg font-bold text-responsive">니들 설정</h2>
+          <img
+            src={isNeedleCheckEnabled ? unlockIcon : lockIcon}
+            alt={isNeedleCheckEnabled ? 'Unlocked' : 'Locked'}
+            className="responsive-icon"
+            style={{ cursor: 'pointer' }}
+            onClick={handleNeedleCheckToggle}
+            title={isNeedleCheckEnabled ? '설정 잠금' : '설정 잠금 해제'}
+          />
+        </div>
+      }>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8dvh', height: '100%', overflow: 'hidden' }}>
         {/* 니들 오프셋 (mm) */}
         <div style={{ display: 'flex', gap: '0.5dvw' }}>
           <div style={{ display: 'flex', alignItems: 'center', flex: 1, gap: '0.5dvw' }}>
@@ -157,8 +159,8 @@ export default function NeedleCheckPanelV2({ mode, isMotorConnected, needlePosit
                 color: !isNeedleCheckEnabled ? '#D1D5DB' : 'white', 
                 textAlign: 'center',
                 width: '20%',
-                fontSize: '1.2dvh', 
-                height: '4dvh',
+                fontSize: '1.1dvh', 
+                height: '3dvh',
                 opacity: !isNeedleCheckEnabled ? 0.6 : 1
               }}
             />
@@ -180,14 +182,11 @@ export default function NeedleCheckPanelV2({ mode, isMotorConnected, needlePosit
               disabled={!isNeedleCheckEnabled}
               style={{
                 backgroundColor: '#171C26',
-                color: (!isNeedleCheckEnabled) ? '#D1D5DB' : '#BFB2E4',
-                width: '30%',
-                fontSize: '1.4dvh',
-                height: '4dvh',
-                border: `1px solid ${(!isNeedleCheckEnabled) ? '#6B7280' : '#BFB2E4'}`,
-                borderRadius: '0.375rem',
-                marginLeft: '1dvw',
-                cursor: (!isNeedleCheckEnabled) ? 'not-allowed' : 'pointer',
+                color: (!isNeedleCheckEnabled) ? '#D1D5DB' : 'white',
+                textAlign: 'center',
+                width: '20%',
+                fontSize: '1.1dvh', 
+                height: '3dvh',
                 opacity: (!isNeedleCheckEnabled) ? 0.6 : 1
               }}
             >
@@ -212,8 +211,8 @@ export default function NeedleCheckPanelV2({ mode, isMotorConnected, needlePosit
                 color: !isNeedleCheckEnabled ? '#D1D5DB' : 'white', 
                 textAlign: 'center',
                 width: '20%',
-                fontSize: '1.2dvh', 
-                height: '4dvh',
+                fontSize: '1.1dvh', 
+                height: '3dvh',
                 opacity: !isNeedleCheckEnabled ? 0.6 : 1
               }}
             />
@@ -236,12 +235,11 @@ export default function NeedleCheckPanelV2({ mode, isMotorConnected, needlePosit
               style={{
                 backgroundColor: '#171C26',
                 color: (!isNeedleCheckEnabled) ? '#D1D5DB' : '#BFB2E4',
-                width: '30%',
-                fontSize: '1.4dvh',
-                height: '4dvh',
+                width: '20%',
+                fontSize: '1.1dvh', 
+                height: '3dvh',
                 border: `1px solid ${(!isNeedleCheckEnabled) ? '#6B7280' : '#BFB2E4'}`,
                 borderRadius: '0.375rem',
-                marginLeft: '1dvw',
                 cursor: (!isNeedleCheckEnabled) ? 'not-allowed' : 'pointer',
                 opacity: (!isNeedleCheckEnabled) ? 0.6 : 1
               }}
@@ -252,49 +250,46 @@ export default function NeedleCheckPanelV2({ mode, isMotorConnected, needlePosit
         </div>
 
         {/* 니들 소음 확인 */}
-        <div style={{ display: 'flex' }}>
-          <div style={{ display: 'flex', gap: '0.5dvw' }}>
-            <div style={{ display: 'flex', alignItems: 'center', flex: 1, gap: '0.5dvw' }}>
-              <label style={{ width: '40%', fontSize: '1.3dvh', color: '#D1D5DB' }}>니들 소음 확인</label>
-              <Input 
-                type="number"
-                value={repeatCount}
-                onChange={(e) => setRepeatCount(Number(e.target.value))}
-                min={1}
-                disabled={false}
-                style={{ 
-                  backgroundColor: '#171C26', 
-                  color: 'white', 
-                  textAlign: 'center',
-                  width: '20%',
-                  fontSize: '1.2dvh', 
-                  height: '4dvh',
-                  opacity: 1
-                }}
-              />
-
-              <Button
-                onClick={handleUpDown}
-                disabled={!isMotorConnected || needleStatus === 'MOVING'}
-                style={{
-                  backgroundColor: '#171C26',
-                  color: (!isMotorConnected) ? '#D1D5DB' : '#BFB2E4',
-                  width: '30%',
-                  fontSize: '1.2dvh',
-                  height: '4dvh',
-                  border: `1px solid ${(!isMotorConnected) ? '#6B7280' : '#BFB2E4'}`,
-                  borderRadius: '0.375rem',
-                  marginLeft: '1dvw',
-                  cursor: (!isMotorConnected || needleStatus === 'MOVING') ? 'not-allowed' : 'pointer',
-                  opacity: (!isMotorConnected || needleStatus === 'MOVING') ? 0.6 : 1
-                }}
-              >
-                UP & DOWN
-              </Button>
-            </div>
+        <div style={{ display: 'flex', gap: '0.5dvw' }}>
+          <div style={{ display: 'flex', alignItems: 'center', flex: 1, gap: '0.5dvw' }}>
+            <label style={{ width: '40%', fontSize: '1.3dvh', color: '#D1D5DB' }}>니들 소음 확인</label>
+            <Input 
+              type="number"
+              value={repeatCount}
+              onChange={(e) => setRepeatCount(Number(e.target.value))}
+              min={1}
+              disabled={false}
+              style={{ 
+                backgroundColor: '#171C26', 
+                color: 'white', 
+                textAlign: 'center',
+                width: '20%',
+                fontSize: '1.1dvh', 
+                height: '3dvh',
+                opacity: 1
+              }}
+            />
+            <Button
+              onClick={handleUpDown}
+              disabled={!isMotorConnected || needleStatus === 'MOVING'}
+              style={{
+                backgroundColor: '#171C26',
+                color: (!isMotorConnected) ? '#D1D5DB' : '#BFB2E4',
+                width: '20%',
+                fontSize: '1.1dvh', 
+                height: '3dvh',
+                border: `1px solid ${(!isMotorConnected) ? '#6B7280' : '#BFB2E4'}`,
+                borderRadius: '0.375rem',
+                cursor: (!isMotorConnected || needleStatus === 'MOVING') ? 'not-allowed' : 'pointer',
+                opacity: (!isMotorConnected || needleStatus === 'MOVING') ? 0.6 : 1
+              }}
+            >
+              UP
+            </Button>
           </div>
         </div>
-      </div>
-    </Panel>
+        </div>
+      </Panel>
+    </div>
   )
 }

@@ -251,24 +251,25 @@ export default function NeedleCheckPanelV4({
   const needleLengthOptions = Array.from({ length: 191 }, (_, i) => (1 + i * 0.1).toFixed(1))
 
   return (
-    <Panel title={
-      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-        <h2 className="text-lg font-bold text-responsive">니들 설정</h2>
-        <img
-          src={isNeedleCheckEnabled ? unlockIcon : lockIcon}
-          alt={isNeedleCheckEnabled ? 'Unlocked' : 'Locked'}
-          className="responsive-icon"
-          style={{ cursor: 'pointer' }}
-          onClick={handleNeedleCheckToggle}
-          title={isNeedleCheckEnabled ? '설정 잠금' : '설정 잠금 해제'}
-        />
-      </div>
-    }>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5dvh' }}>
+    <div style={{ height: '35dvh' }}>
+      <Panel title={
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <h2 className="text-lg font-bold text-responsive">니들 설정</h2>
+          <img
+            src={isNeedleCheckEnabled ? unlockIcon : lockIcon}
+            alt={isNeedleCheckEnabled ? 'Unlocked' : 'Locked'}
+            className="responsive-icon"
+            style={{ cursor: 'pointer' }}
+            onClick={handleNeedleCheckToggle}
+            title={isNeedleCheckEnabled ? '설정 잠금' : '설정 잠금 해제'}
+          />
+        </div>
+      }>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5dvh', height: '100%', overflow: 'hidden' }}>
         
         {/* 니들 오프셋 (mm) - 듀얼 모터 */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5dvw' }}>
-          <label style={{ width: '25%', fontSize: '1.3dvh', color: '#D1D5DB' }}>니들 오프셋 (mm)</label>
+          <label style={{ width: '25%', fontSize: '1.4dvh', color: '#D1D5DB' }}>니들 오프셋 (mm)</label>
           
           {/* 모터 1 */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.3dvw', flex: 1 }}>
@@ -285,7 +286,7 @@ export default function NeedleCheckPanelV4({
                 textAlign: 'center',
                 width: '60%',
                 fontSize: '1.1dvh', 
-                height: '3.5dvh',
+                height: '3dvh',
                 opacity: !isNeedleCheckEnabled ? 0.6 : 1
               }}
             />
@@ -307,8 +308,8 @@ export default function NeedleCheckPanelV4({
                 backgroundColor: '#171C26',
                 color: (!isNeedleCheckEnabled) ? '#D1D5DB' : '#BFB2E4',
                 width: '30%',
-                fontSize: '1.2dvh',
-                height: '3.5dvh',
+                fontSize: '1.3dvh',
+                height: '3dvh',
                 border: `1px solid ${(!isNeedleCheckEnabled) ? '#6B7280' : '#BFB2E4'}`,
                 borderRadius: '0.375rem',
                 cursor: (!isNeedleCheckEnabled) ? 'not-allowed' : 'pointer',
@@ -334,7 +335,7 @@ export default function NeedleCheckPanelV4({
                 textAlign: 'center',
                 width: '60%',
                 fontSize: '1.1dvh', 
-                height: '3.5dvh',
+                height: '3dvh',
                 opacity: !isNeedleCheckEnabled ? 0.6 : 1
               }}
             />
@@ -356,8 +357,8 @@ export default function NeedleCheckPanelV4({
                 backgroundColor: '#171C26',
                 color: (!isNeedleCheckEnabled) ? '#DCD7DE' : '#E6C2D9',
                 width: '30%',
-                fontSize: '1.2dvh',
-                height: '3.5dvh',
+                fontSize: '1.3dvh',
+                height: '3dvh',
                 border: `1px solid ${(!isNeedleCheckEnabled) ? '#DCD7DE' : '#E6C2D9'}`,
                 borderRadius: '0.375rem',
                 cursor: (!isNeedleCheckEnabled) ? 'not-allowed' : 'pointer',
@@ -371,7 +372,7 @@ export default function NeedleCheckPanelV4({
 
         {/* 니들 돌출 부분 (mm) - 듀얼 모터 */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5dvw' }}>
-          <label style={{ width: '25%', fontSize: '1.3dvh', color: '#D1D5DB' }}>니들 돌출 부분 (mm)</label>
+          <label style={{ width: '25%', fontSize: '1.4dvh', color: '#D1D5DB' }}>니들 돌출 부분 (mm)</label>
           
           {/* 모터 1 */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.3dvw', flex: 1 }}>
@@ -388,7 +389,7 @@ export default function NeedleCheckPanelV4({
                 textAlign: 'center',
                 width: '60%',
                 fontSize: '1.1dvh', 
-                height: '3.5dvh',
+                height: '3dvh',
                 opacity: !isNeedleCheckEnabled ? 0.6 : 1
               }}
             />
@@ -410,8 +411,8 @@ export default function NeedleCheckPanelV4({
                 backgroundColor: '#171C26',
                 color: (!isNeedleCheckEnabled) ? '#D1D5DB' : '#BFB2E4',
                 width: '30%',
-                fontSize: '1.2dvh',
-                height: '3.5dvh',
+                fontSize: '1.3dvh',
+                height: '3dvh',
                 border: `1px solid ${(!isNeedleCheckEnabled) ? '#6B7280' : '#BFB2E4'}`,
                 borderRadius: '0.375rem',
                 cursor: (!isNeedleCheckEnabled) ? 'not-allowed' : 'pointer',
@@ -437,7 +438,7 @@ export default function NeedleCheckPanelV4({
                 textAlign: 'center',
                 width: '60%',
                 fontSize: '1.1dvh', 
-                height: '3.5dvh',
+                height: '3dvh',
                 opacity: !isNeedleCheckEnabled ? 0.6 : 1
               }}
             />
@@ -459,8 +460,8 @@ export default function NeedleCheckPanelV4({
                 backgroundColor: '#171C26',
                 color: (!isNeedleCheckEnabled) ? '#DCD7DE' : '#E6C2D9',
                 width: '30%',
-                fontSize: '1.2dvh',
-                height: '3.5dvh',
+                fontSize: '1.3dvh',
+                height: '3dvh',
                 border: `1px solid ${(!isNeedleCheckEnabled) ? '#DCD7DE' : '#E6C2D9'}`,
                 borderRadius: '0.375rem',
                 cursor: (!isNeedleCheckEnabled) ? 'not-allowed' : 'pointer',
@@ -474,7 +475,7 @@ export default function NeedleCheckPanelV4({
 
         {/* 니들 소음 확인 - 듀얼 모터 */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5dvw' }}>
-          <label style={{ width: '25%', fontSize: '1.3dvh', color: '#D1D5DB' }}>니들 소음 확인</label>
+          <label style={{ width: '25%', fontSize: '1.4dvh', color: '#D1D5DB' }}>니들 소음 확인</label>
           
           {/* 모터 1 */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.3dvw', flex: 1 }}>
@@ -490,7 +491,7 @@ export default function NeedleCheckPanelV4({
                 textAlign: 'center',
                 width: '60%',
                 fontSize: '1.1dvh', 
-                height: '3.5dvh',
+                height: '3dvh',
                 opacity: 1
               }}
             />
@@ -501,8 +502,8 @@ export default function NeedleCheckPanelV4({
                 backgroundColor: '#171C26',
                 color: (!isMotorConnected) ? '#D1D5DB' : '#BFB2E4',
                 width: '30%',
-                fontSize: '1.1dvh',
-                height: '3.5dvh',
+                fontSize: '1.3dvh',
+                height: '3dvh',
                 border: `1px solid ${(!isMotorConnected) ? '#6B7280' : '#BFB2E4'}`,
                 borderRadius: '0.375rem',
                 cursor: (!isMotorConnected || needleStatus === 'MOVING') ? 'not-allowed' : 'pointer',
@@ -527,7 +528,7 @@ export default function NeedleCheckPanelV4({
                 textAlign: 'center',
                 width: '60%',
                 fontSize: '1.1dvh', 
-                height: '3.5dvh',
+                height: '3dvh',
                 opacity: 1
               }}
             />
@@ -538,8 +539,8 @@ export default function NeedleCheckPanelV4({
                 backgroundColor: '#171C26',
                 color: (!isMotorConnected) ? '#DCD7DE' : '#E6C2D9',
                 width: '30%',
-                fontSize: '1.1dvh',
-                height: '3.5dvh',
+                fontSize: '1.3dvh',
+                height: '3dvh',
                 border: `1px solid ${(!isMotorConnected) ? '#DCD7DE' : '#E6C2D9'}`,
                 borderRadius: '0.375rem',
                 cursor: (!isMotorConnected || needleStatus === 'MOVING') ? 'not-allowed' : 'pointer',
@@ -568,7 +569,7 @@ export default function NeedleCheckPanelV4({
           
           {/* DELAY, 정상 범주 */}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <label style={{ fontSize: '1.2dvh', color: '#D1D5DB', minWidth: '10%' }}>DELAY (ms)</label>
+            <label style={{ fontSize: '1.3dvh', color: '#D1D5DB', minWidth: '10%' }}>DELAY (ms)</label>
             <Input 
               type="number"
               value={resistanceDelay}
@@ -582,11 +583,11 @@ export default function NeedleCheckPanelV4({
                 textAlign: 'center',
                 width: '20%',
                 fontSize: '1.1dvh', 
-                height: '3.5dvh',
+                height: '3dvh',
                 opacity: !isResistanceCheckEnabled ? 0.6 : 1
               }}
             />
-            <label style={{ fontSize: '1.2dvh', color: '#D1D5DB', minWidth: '12%' }}>정상 값</label>
+            <label style={{ fontSize: '1.3dvh', color: '#D1D5DB', minWidth: '12%' }}>정상 값</label>
             <Input 
               type="number"
               value={resistanceThreshold}
@@ -601,18 +602,18 @@ export default function NeedleCheckPanelV4({
                 textAlign: 'center',
                 width: '22%',
                 fontSize: '1.1dvh', 
-                height: '3.5dvh',
+                height: '3dvh',
                 opacity: !isResistanceCheckEnabled ? 0.6 : 1
               }}
             />
-            <span style={{ fontSize: '1.2dvh', color: '#D1D5DB' }}>Ω</span>
+            <span style={{ fontSize: '1.3dvh', color: '#D1D5DB' }}>Ω</span>
           </div>
           
           {/* 저항1, 저항2 한 줄에 표시 */}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             {/* 저항1 */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.3dvw', flex: 1 }}>
-              <label style={{ fontSize: '1.2dvh', color: '#D1D5DB', minWidth: '15%' }}>저항 1</label>
+              <label style={{ fontSize: '1.3dvh', color: '#D1D5DB', minWidth: '15%' }}>저항 1</label>
               <Input 
                 type="text"
                 value={isNaN(resistance1) ? 'NaN' : (0.001 * resistance1).toFixed(3)}
@@ -622,13 +623,13 @@ export default function NeedleCheckPanelV4({
                   color: resistance1Status === 'OK' ? '#10B981' : (resistance1Status === 'ERROR' || resistance1Status === 'read_FAIL') ? '#EF4444' : '#D1D5DB',
                   textAlign: 'center',
                   width: '50%',
-                  fontSize: '1.2dvh', 
-                  height: '3.5dvh',
+                  fontSize: '1.3dvh', 
+                  height: '3dvh',
                   border: `1px solid ${resistance1Status === 'OK' ? '#10B981' : (resistance1Status === 'ERROR' || resistance1Status === 'read_FAIL') ? '#EF4444' : '#6B7280'}`
                 }}
               />
               <span style={{ 
-                fontSize: '1.2dvh', 
+                fontSize: '1.3dvh', 
                 color: resistance1Status === 'OK' ? '#10B981' : (resistance1Status === 'ERROR' || resistance1Status === 'read_FAIL') ? '#EF4444' : '#D1D5DB',
                 minWidth: '3%'
               }}>Ω</span>
@@ -636,7 +637,7 @@ export default function NeedleCheckPanelV4({
             
             {/* 저항2 */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.3dvw', flex: 1 }}>
-              <label style={{ fontSize: '1.2dvh', color: '#D1D5DB', minWidth: '15%' }}>저항 2</label>
+              <label style={{ fontSize: '1.3dvh', color: '#D1D5DB', minWidth: '15%' }}>저항 2</label>
               <Input 
                 type="text"
                 value={isNaN(resistance2) ? 'NaN' : (0.001 * resistance2).toFixed(3)}
@@ -646,13 +647,13 @@ export default function NeedleCheckPanelV4({
                   color: resistance2Status === 'OK' ? '#10B981' : (resistance2Status === 'ERROR' || resistance2Status === 'read_FAIL') ? '#EF4444' : '#D1D5DB',
                   textAlign: 'center',
                   width: '50%',
-                  fontSize: '1.2dvh', 
-                  height: '3.5dvh',
+                  fontSize: '1.3dvh', 
+                  height: '3dvh',
                   border: `1px solid ${resistance2Status === 'OK' ? '#10B981' : (resistance2Status === 'ERROR' || resistance2Status === 'read_FAIL') ? '#EF4444' : '#6B7280'}`
                 }}
               />
               <span style={{ 
-                fontSize: '1.2dvh', 
+                fontSize: '1.3dvh', 
                 color: resistance2Status === 'OK' ? '#10B981' : (resistance2Status === 'ERROR' || resistance2Status === 'read_FAIL') ? '#EF4444' : '#D1D5DB',
                 minWidth: '3%'
               }}>Ω</span>
@@ -665,8 +666,8 @@ export default function NeedleCheckPanelV4({
               style={{
                 backgroundColor: '#171C26',
                 color: '#10B981',
-                fontSize: '1.1dvh',
-                height: '3.5dvh',
+                fontSize: '1.3dvh',
+                height: '3dvh',
                 padding: '0 1dvw',
                 border: '1px solid #10B981',
                 borderRadius: '0.375rem',
@@ -679,7 +680,8 @@ export default function NeedleCheckPanelV4({
           </div>
 
         </div>
-      </div>
-    </Panel>
+        </div>
+      </Panel>
+    </div>
   )
 }

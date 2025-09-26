@@ -15,26 +15,59 @@ function buildCache(rowsByVer) {
   const data = {};
   
   for (const ver of ['2.0', '4.0']) {
-    const rows = rowsByVer[ver] || []; // [{company, 'TIP TYPE', ID}, ...]
+    const rows = rowsByVer[ver] || [];
+    console.log(`buildCache: MTR ${ver} 처리 중, 총 ${rows.length}개 행`);
+    
+    if (rows.length > 0) {
+      console.log(`첫 번째 행 구조:`, Object.keys(rows[0]));
+      console.log(`첫 번째 행 데이터:`, rows[0]);
+    }
     
     // 1) 회사 목록 (중복 제거 및 정렬)
-    const countries = Array.from(new Set(rows.map(r => r.company?.trim()).filter(Boolean)))
-      .sort((a, b) => a.localeCompare(b, 'ko'));
+    // 다양한 컬럼명 패턴 지원
+    const companyKeys = ['company', 'Company', 'COMPANY', '회사', '제조사'];
+    const tipTypeKeys = ['TIP TYPE', 'tip type', 'Tip Type', 'tiptype', 'TipType', '니들타입', '타입'];
+    const idKeys = ['ID', 'id', 'Id', 'ID번호', '번호'];
+    
+    const getFieldValue = (row, possibleKeys) => {
+      for (const key of possibleKeys) {
+        if (row[key] !== undefined && row[key] !== null && row[key] !== '') {
+          return String(row[key]).trim();
+        }
+      }
+      return null;
+    };
+    
+    const countries = Array.from(new Set(
+      rows.map(r => getFieldValue(r, companyKeys)).filter(Boolean)
+    )).sort((a, b) => a.localeCompare(b, 'ko'));
+    
+    console.log(`MTR ${ver} 발견된 국가/회사:`, countries);
     
     // 2) 회사별 TIP 리스트
     const needlesByCompany = new Map();
     for (const r of rows) {
-      if (!r.company || !r['TIP TYPE'] || !r.ID) continue;
+      const company = getFieldValue(r, companyKeys);
+      const tipType = getFieldValue(r, tipTypeKeys);
+      const id = getFieldValue(r, idKeys);
       
-      const k = r.company.trim();
-      const arr = needlesByCompany.get(k) || [];
+      if (!company || !tipType || !id) {
+        console.warn('불완전한 데이터 행:', { company, tipType, id, row: r });
+        continue;
+      }
+      
+      const arr = needlesByCompany.get(company) || [];
       arr.push({ 
-        label: r['TIP TYPE'].trim(), 
-        value: r['TIP TYPE'].trim(), 
-        id: r.ID.trim() 
+        label: tipType, 
+        value: tipType, 
+        id: id 
       });
-      needlesByCompany.set(k, arr);
+      needlesByCompany.set(company, arr);
     }
+    
+    console.log(`MTR ${ver} 회사별 니들 개수:`, 
+      Array.from(needlesByCompany.entries()).map(([k, v]) => `${k}: ${v.length}개`)
+    );
     
     // 각 회사별 TIP 리스트 정렬 및 중복 제거
     for (const [k, arr] of needlesByCompany) {
