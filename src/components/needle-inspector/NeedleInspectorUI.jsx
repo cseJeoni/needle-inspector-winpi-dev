@@ -121,9 +121,15 @@ export default function NeedleInspectorUI() {
     try {
       console.log('🔄 두 카메라 이미지 병합 캡처 시작...');
       
-      // 두 카메라에서 개별 이미지 캡처
-      const camera1Image = await cameraViewRef1.current?.captureImage(judgeResult, eepromData);
-      const camera2Image = await cameraViewRef2.current?.captureImage(judgeResult, eepromData);
+      // 저항 데이터 준비 (MTR4 MULTI일 때만)
+      const resistanceData = {
+        resistance1: resistance1,
+        resistance2: resistance2
+      };
+      
+      // 두 카메라에서 개별 이미지 캡처 (저항 데이터 포함)
+      const camera1Image = await cameraViewRef1.current?.captureImage(judgeResult, eepromData, resistanceData);
+      const camera2Image = await cameraViewRef2.current?.captureImage(judgeResult, eepromData, resistanceData);
       
       if (!camera1Image || !camera2Image) {
         console.error('❌ 카메라 이미지 캡처 실패');

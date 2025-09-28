@@ -39,9 +39,9 @@ const CameraView = forwardRef(({
 }, ref) => {
 
   // 카메라 이미지 + 캔버스 오버레이 + 시간 텍스트를 포함한 이미지 캡처
-  const captureImage = async (judgeResult = null, eepromData = null) => {
-    // eepromData의 실제 구조를 확인하기 위한 로그
-    console.log(`[CameraView] captureImage called with:`, { judgeResult, eepromData });
+  const captureImage = async (judgeResult = null, eepromData = null, resistanceData = null) => {
+    // eepromData와 resistanceData의 실제 구조를 확인하기 위한 로그
+    console.log(`[CameraView] captureImage called with:`, { judgeResult, eepromData, resistanceData });
 
     try {
       console.log(`📸 ${title} 이미지 캡처 시작...`);
@@ -114,9 +114,16 @@ const CameraView = forwardRef(({
           eepromText = `EEPROM 데이터 읽기 실패 ${judgeResult}`;
         }
         
+        // 저항 데이터가 있는 경우 추가
+        if (resistanceData && (resistanceData.resistance1 !== undefined || resistanceData.resistance2 !== undefined)) {
+          const r1 = isNaN(resistanceData.resistance1) ? 'NaN' : (0.001 * resistanceData.resistance1).toFixed(3);
+          const r2 = isNaN(resistanceData.resistance2) ? 'NaN' : (0.001 * resistanceData.resistance2).toFixed(3);
+          eepromText += `      R1:${r1}Ω      R2:${r2}Ω`;
+        }
+        
         console.log(`🎨 EEPROM 텍스트 그리기: ${eepromText}`);
         
-        // 텍스트 크기 측정
+        // 텍스트 크기 측정 (저항 정보가 추가되어 더 길어질 수 있음)
         const textMetrics = ctx.measureText(eepromText);
         const textWidth = textMetrics.width;
         const textHeight = 25;
@@ -139,7 +146,7 @@ const CameraView = forwardRef(({
         ctx.fillText(eepromText, textX, currentY);
         currentY += 35;
         
-        console.log(`✅ EEPROM 텍스트 그리기 완료`);
+        console.log(`✅ EEPROM 및 저항 텍스트 그리기 완료`);
       } else {
         console.log(`❌ 판정 결과 없음: judgeResult=${judgeResult}`);
       }
