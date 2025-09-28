@@ -613,6 +613,15 @@ def cleanup_gpio():
 
 
 # ... (중략)
+async def main():
+    # 모터 상태 푸시 비동기 작업 시작
+    asyncio.create_task(push_motor_status())
+    
+    # 웹소켓 서버 시작
+    async with websockets.serve(handler, "0.0.0.0", 8765):
+        print("[OK] 서버 시작 (ws://0.0.0.0:8765)")
+        await asyncio.Future()  # 서버가 계속 실행되도록 유지
+
 if __name__ == "__main__":
     import signal
     import sys
