@@ -15,7 +15,7 @@ except ImportError:
     print("[ERROR] smbus2 모듈을 찾을 수 없습니다. EEPROM 기능이 비활성화됩니다.")
 
 # EEPROM 설정
-I2C_BUS = 1
+I2C_BUS = 5
 
 # MTR 버전별 EEPROM 설정
 MTR20_EEPROM_ADDRESS = 0x50
@@ -28,7 +28,7 @@ MTR40_OFFSET = 0x70
 # GPIO 초기화 (gpiozero 사용)
 gpio_available = False
 pin18 = None
-pin23 = None  # GPIO23 객체 (니들팁 연결 감지용)
+pin11 = None  # GPIO11 객체 (니들팁 연결 감지용)
 needle_tip_connected = False  # 니들팁 연결 상태 (전역 변수)
 last_eeprom_data = {"success": False, "error": "니들팁이 연결되지 않음"}  # 마지막 EEPROM 상태
 
@@ -38,11 +38,11 @@ try:
     # GPIO18: 기존 DigitalInputDevice 유지
     pin18 = DigitalInputDevice(18)
     
-    # GPIO23: Button 클래스로 니들팁 연결 감지 (내부 풀업, 바운스 타임 지원)
-    pin23 = Button(23, pull_up=True, bounce_time=0.2)
+    # GPIO11: Button 클래스로 니들팁 연결 감지 (내부 풀업, 바운스 타임 지원)
+    pin11 = Button(11, pull_up=True, bounce_time=0.2)
     
     gpio_available = True
-    print("[OK] GPIO 18번, 23번 핀 초기화 완료 (gpiozero 라이브러리)")
+    print("[OK] GPIO 18번, 11번 핀 초기화 완료 (gpiozero 라이브러리)")
 except ImportError as ie:
     print(f"[ERROR] GPIO 모듈을 찾을 수 없습니다: {ie}. GPIO 기능이 비활성화됩니다.")
 except Exception as e:
@@ -51,33 +51,33 @@ except Exception as e:
 motor = DualMotorController()
 connected_clients = set()
 
-# GPIO23 이벤트 핸들러 (gpiozero 방식) - 니들팁 상태만 관리
+# GPIO11 이벤트 핸들러 (gpiozero 방식) - 니들팁 상태만 관리
 def _on_tip_connected():
     """니들팁 연결 시 호출되는 이벤트 핸들러"""
     global needle_tip_connected
     needle_tip_connected = True
-    print("[GPIO23] 니들팁 상태 변경: 연결됨")
+    print("[GPIO11] 니들팁 상태 변경: 연결됨")
 
 def _on_tip_disconnected():
     """니들팁 분리 시 호출되는 이벤트 핸들러"""
     global needle_tip_connected
     needle_tip_connected = False
-    print("[GPIO23] 니들팁 상태 변경: 분리됨")
+    print("[GPIO11] 니들팁 상태 변경: 분리됨")
 
-# GPIO23 이벤트 핸들러 설정 (gpiozero 방식)
-if gpio_available and pin23:
+# GPIO11 이벤트 핸들러 설정 (gpiozero 방식)
+if gpio_available and pin11:
     try:
-        # 초기 니들팁 상태 설정 (is_pressed는 풀업 상태에서 LOW일 때 True)
-        needle_tip_connected = pin23.is_pressed
-        print(f"[GPIO23] 초기 니들팁 상태: {'연결됨' if needle_tip_connected else '분리됨'}")
+        # 초기 니들팁 상태 설정 (is_active는 pull-up 상태에서 HIGH일 때 True)
+        needle_tip_connected = pin11.is_active
+        print(f"[GPIO11] 초기 니들팁 상태: {'연결됨' if needle_tip_connected else '분리됨'}")
         
-        # 이벤트 핸들러 할당
-        pin23.when_pressed = _on_tip_connected
-        pin23.when_released = _on_tip_disconnected
+        # 이벤트 핸들러 할당 (체결: HIGH, 분리: LOW)
+        pin11.when_activated = _on_tip_connected
+        pin11.when_deactivated = _on_tip_disconnected
         
-        print("[OK] GPIO23 이벤트 핸들러 등록 완료 (gpiozero) - 니들팁 상태 감지")
+        print("[OK] GPIO11 이벤트 핸들러 등록 완료 (gpiozero) - 니들팁 상태 감지")
     except Exception as e:
-        print(f"[ERROR] GPIO23 이벤트 설정 오류: {e}")
+        print(f"[ERROR] GPIO11 이벤트 설정 오류: {e}")
 
 
 # EEPROM 관련 함수들 - 간소화된 API
@@ -554,17 +554,17 @@ async def push_motor_status():
         if motor.is_connected():
             # GPIO 상태 읽기
             gpio18_state = "UNKNOWN"
-            gpio23_state = "UNKNOWN"
+            gpio11_state = "UNKNOWN"
             
             if gpio_available and pin18:
                 gpio_value = pin18.value
                 gpio18_state = "HIGH" if gpio_value else "LOW"
             
-            if gpio_available and pin23:
-                # gpiozero Button 객체에서 상태 읽기 (is_pressed가 True이면 LOW 상태)
-                gpio23_state = "LOW" if pin23.is_pressed else "HIGH"
+            if gpio_available and pin11:
+                # gpiozero Button 객체에서 상태 읽기 (is_active가 True이면 HIGH 상태)
+                gpio11_state = "HIGH" if pin11.is_active else "LOW"
 
-            # EEPROM 데이터는 GPIO23 인터럽트에서 관리되므로 전역 변수 사용
+            # EEPROM 데이터는 GPIO11 인터럽트에서 관리되므로 전역 변수 사용
             # 모터 2 상태 가져오기
             motor2_status = motor.get_motor2_status()
             
@@ -583,7 +583,7 @@ async def push_motor_status():
                     "motor2_setPos": motor2_status["setPos"],
                     # GPIO 상태
                     "gpio18": gpio18_state,  # 기존 GPIO18 상태
-                    "gpio23": gpio23_state,  # 새로운 GPIO23 상태 추가
+                    "gpio11": gpio11_state,  # 새로운 GPIO11 상태 추가
                     "needle_tip_connected": needle_tip_connected,  # 니들팁 연결 상태
                 }
             }
@@ -597,23 +597,22 @@ async def push_motor_status():
                     print(f"[WARN] 상태 전송 실패: {e}")
                     connected_clients.discard(ws)
 
-async def main():
-    async with websockets.serve(handler, "0.0.0.0", 8765):
-        print("[INFO] WebSocket 모터 서버 실행 중 (ws://0.0.0.0:8765)")
-        await push_motor_status()  # 상태 주기 전송 루프 시작
-
 def cleanup_gpio():
     """기존 GPIO 리소스 정리"""
     if gpio_available:
         try:
             if pin18:
                 pin18.close()
-            if pin23:
-                pin23.close()
+            if pin11:
+                pin11.close()
             print("[OK] GPIO 리소스 정리 완료 (gpiozero)")
         except Exception as e:
             print(f"[ERROR] GPIO 정리 오류: {e}")
 
+# ... (중략)
+
+
+# ... (중략)
 if __name__ == "__main__":
     import signal
     import sys
