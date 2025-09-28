@@ -8,14 +8,15 @@ import { Input } from "./Input"
 import lockIcon from '../../assets/icon/lock.png';
 import unlockIcon from '../../assets/icon/unlock.png';
 
-export default function NeedleCheckPanel({ mode, isMotorConnected, needlePosition, onNeedleUp, onNeedleDown, websocket, isWsConnected, onMotorPositionChange }) {
+export default function NeedleCheckPanel({ mode, isMotorConnected, needlePosition, onNeedleUp, onNeedleDown, websocket, isWsConnected, onMotorPositionChange, needleOffset, onNeedleOffsetChange, needleProtrusion, onNeedleProtrusionChange }) {
   // 모터 상태에 따라 needleStatus 동기화
   const [needleStatus, setNeedleStatus] = useState(needlePosition === 'UP' ? 'UP' : needlePosition === 'DOWN' ? 'DOWN' : 'MOVING')
   // 버튼에 표시할 텍스트 (다음 동작을 표시, MOVING일 때는 현재 상태 유지)
   const buttonText = needleStatus === 'UP' ? 'DOWN' : needleStatus === 'DOWN' ? 'UP' : (needlePosition === 'UP' ? 'UP' : 'DOWN')
 
-  const [needleOffset, setNeedleOffset] = useState(0.1)
-  const [needleProtrusion, setNeedleProtrusion] = useState(3.0)
+  // needleOffset과 needleProtrusion을 props로 받아서 사용
+  // const [needleOffset, setNeedleOffset] = useState(0.1)
+  // const [needleProtrusion, setNeedleProtrusion] = useState(3.0)
   const [repeatCount, setRepeatCount] = useState(1)
   
   // 니들 설정 활성화 상태 (기본값: 비활성화)
@@ -100,16 +101,18 @@ export default function NeedleCheckPanel({ mode, isMotorConnected, needlePositio
     for (let i = 0; i < repeatCount; i++) {
       console.log(`🔄 ${i + 1}/${repeatCount} 사이클 시작`)
       
-      // UP 명령 (840)
-      console.log("🎯 니들 UP 명령 실행 (840)")
-      onNeedleUp()
+      // UP 명령 (초기 위치 + 돌출 부분)
+      const upPosition = Math.round((needleOffset + needleProtrusion) * 100);
+      console.log(`🎯 니들 UP 명령 실행 (${upPosition})`);
+      sendMotorCommand(upPosition);
       
       // UP 동작 완료 대기 (고정 시간)
       await new Promise(resolve => setTimeout(resolve, 90))
       
-      // DOWN 명령 (0)
-      console.log("🎯 니들 DOWN 명령 실행 (0)")
-      onNeedleDown()
+      // DOWN 명령 (초기 위치)
+      const downPosition = Math.round(needleOffset * 100);
+      console.log(`🎯 니들 DOWN 명령 실행 (${downPosition})`);
+      sendMotorCommand(downPosition);
       
       // DOWN 동작 완료 대기 (고정 시간)
       await new Promise(resolve => setTimeout(resolve, 90))
@@ -150,7 +153,7 @@ export default function NeedleCheckPanel({ mode, isMotorConnected, needlePositio
             <Input 
               type="number"
               value={needleOffset}
-              onChange={(e) => setNeedleOffset(Number(e.target.value))}
+              onChange={(e) => onNeedleOffsetChange && onNeedleOffsetChange(Number(e.target.value))}
               step="0.01"
               min="0"
               disabled={!isNeedleCheckEnabled}
@@ -202,7 +205,7 @@ export default function NeedleCheckPanel({ mode, isMotorConnected, needlePositio
             <Input 
               type="number"
               value={needleProtrusion}
-              onChange={(e) => setNeedleProtrusion(Number(e.target.value))}
+              onChange={(e) => onNeedleProtrusionChange && onNeedleProtrusionChange(Number(e.target.value))}
               step="0.1"
               min="0"
               disabled={!isNeedleCheckEnabled}
@@ -225,9 +228,10 @@ export default function NeedleCheckPanel({ mode, isMotorConnected, needlePositio
                   sendMotorCommand(motorPosition);
                   setNeedleProtrusionState('DOWN');
                 } else {
-                  console.log('니들 돌출 부분 DOWN: 모터 위치 0');
+                  const motorPosition = Math.round(needleOffset * 100);
+                  console.log('니들 돌출 부분 DOWN: 니들 초기 위치로', needleOffset, '모터 위치:', motorPosition);
                   // WebSocket을 통한 모터 위치 명령 전송
-                  sendMotorCommand(0);
+                  sendMotorCommand(motorPosition);
                   setNeedleProtrusionState('UP');
                 }
               }}

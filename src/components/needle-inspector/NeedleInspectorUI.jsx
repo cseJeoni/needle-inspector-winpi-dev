@@ -54,6 +54,10 @@ export default function NeedleInspectorUI() {
   const [needleTipConnected, setNeedleTipConnected] = useState(false) // GPIO23 기반 니들팁 연결 상태
   const [isWaitingEepromRead, setIsWaitingEepromRead] = useState(false) // EEPROM 읽기 응답 대기 상태
 
+  // 모터 1 설정값 (NeedleCheckPanel에서 사용)
+  const [needleOffset1, setNeedleOffset1] = useState(0.1) // 모터 1 니들 오프셋
+  const [needleProtrusion1, setNeedleProtrusion1] = useState(3.0) // 모터 1 니들 돌출부분
+  
   // 모터 2 설정값 (NeedleCheckPanelV4에서 사용)
   const [needleOffset2, setNeedleOffset2] = useState(0.1) // 모터 2 니들 오프셋
   const [needleProtrusion2, setNeedleProtrusion2] = useState(3.0) // 모터 2 니들 돌출부분
@@ -633,7 +637,7 @@ export default function NeedleInspectorUI() {
   // 모터 WebSocket 연결 및 자동 연결
   useEffect(() => {
     console.log('🔧 모터 WebSocket 연결 시도...')
-    const socket = new WebSocket("ws://192.168.0.6:8765")
+    const socket = new WebSocket("ws://192.168.0.139:8765")
 
     socket.onopen = () => {
       console.log("✅ 모터 WebSocket 연결 성공")
@@ -884,7 +888,7 @@ export default function NeedleInspectorUI() {
 
     // 직접 모터 명령 WebSocket 생성
     console.log("🔗 모터 명령용 WebSocket 연결 생성...")
-    const autoSocket = new WebSocket('ws://192.168.0.6:8765')
+    const autoSocket = new WebSocket('ws://192.168.0.139:8765')
     
     autoSocket.onopen = () => {
       console.log("✅ 모터 명령용 WebSocket 연결 성공")
@@ -1056,6 +1060,8 @@ export default function NeedleInspectorUI() {
             onMtrVersionChange={setMtrVersion} // MTR 버전 변경 콜백 함수 전달
             selectedNeedleType={selectedNeedleType} // 선택된 니들 타입 전달
             onSelectedNeedleTypeChange={setSelectedNeedleType} // 선택된 니들 타입 변경 콜백 함수 전달
+            needleOffset1={needleOffset1} // 모터 1 니들 오프셋 전달
+            needleProtrusion1={needleProtrusion1} // 모터 1 니들 돌출부분 전달
             needleOffset2={needleOffset2} // 모터 2 니들 오프셋 전달
             needleProtrusion2={needleProtrusion2} // 모터 2 니들 돌출부분 전달
             resistanceDelay={resistanceDelay} // 저항 측정 지연 시간 전달
@@ -1084,9 +1090,13 @@ export default function NeedleInspectorUI() {
               resistance2Status={resistance2Status}
               isResistanceMeasuring={isResistanceMeasuring}
               onResistanceMeasuringChange={setIsResistanceMeasuring}
+              needleOffset1={needleOffset1}
+              onNeedleOffset1Change={setNeedleOffset1}
+              needleProtrusion1={needleProtrusion1}
+              onNeedleProtrusion1Change={setNeedleProtrusion1}
               needleOffset2={needleOffset2}
-              needleProtrusion2={needleProtrusion2}
               onNeedleOffset2Change={setNeedleOffset2}
+              needleProtrusion2={needleProtrusion2}
               onNeedleProtrusion2Change={setNeedleProtrusion2}
               resistanceDelay={resistanceDelay}
               onResistanceDelayChange={setResistanceDelay}
@@ -1103,6 +1113,10 @@ export default function NeedleInspectorUI() {
               websocket={ws}
               isWsConnected={isWsConnected}
               onMotorPositionChange={setCalculatedMotorPosition}
+              needleOffset={needleOffset1}
+              onNeedleOffsetChange={setNeedleOffset1}
+              needleProtrusion={needleProtrusion1}
+              onNeedleProtrusionChange={setNeedleProtrusion1}
             />
           )}
           </div>
@@ -1122,6 +1136,8 @@ export default function NeedleInspectorUI() {
             isWaitingEepromRead={isWaitingEepromRead} // EEPROM 읽기 대기 상태 전달
             onWaitingEepromReadChange={setIsWaitingEepromRead} // EEPROM 읽기 대기 상태 변경 함수 전달
             isResistanceAbnormal={isResistanceAbnormal} // 저항 이상 상태 전달
+            needleOffset1={needleOffset1} // 모터 1 초기 위치 전달
+            needleOffset2={needleOffset2} // 모터 2 초기 위치 전달
             />
           </div>
         </div>

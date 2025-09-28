@@ -3,7 +3,7 @@ import { Button } from "./Button"
 import { useAuth } from "../../hooks/useAuth.jsx"
 import { useState, useRef } from "react"
 
-export default function JudgePanel({ onJudge, isStarted, onReset, camera1Ref, camera2Ref, hasNeedleTip = true, websocket, isWsConnected, onCaptureMergedImage, eepromData, generateUserBasedPath, isWaitingEepromRead = false, onWaitingEepromReadChange, isResistanceAbnormal = false }) {
+export default function JudgePanel({ onJudge, isStarted, onReset, camera1Ref, camera2Ref, hasNeedleTip = true, websocket, isWsConnected, onCaptureMergedImage, eepromData, generateUserBasedPath, isWaitingEepromRead = false, onWaitingEepromReadChange, isResistanceAbnormal = false, needleOffset1, needleOffset2 }) {
   // 사용자 정보 가져오기
   const { user } = useAuth()
   
@@ -20,13 +20,19 @@ export default function JudgePanel({ onJudge, isStarted, onReset, camera1Ref, ca
   const pressTimerRef = useRef(null)
   const [isPressing, setIsPressing] = useState(false)
   
-  // 니들 DOWN 명령 전송 함수 (메인 WebSocket 사용)
+  // 니듡 DOWN 명령 전송 함수 (메인 WebSocket 사용) - 모터 1, 2 모두 초기 위치로
   const sendNeedleDown = () => {
     if (websocket && isWsConnected) {
-      console.log('판정 후 니들 DOWN 명령 전송')
-      websocket.send(JSON.stringify({ cmd: "move", position: 0, mode: "position" }))
+      const motor1DownPosition = Math.round((needleOffset1 || 0.1) * 100);
+      const motor2DownPosition = Math.round((needleOffset2 || 0.1) * 100);
+      
+      console.log('판정 후 모터 1 DOWN 명령 전송 - 위치:', motor1DownPosition, '(초기 위치:', needleOffset1 || 0.1, ')')
+      websocket.send(JSON.stringify({ cmd: "move", position: motor1DownPosition, mode: "position", motor_id: 1 }))
+      
+      console.log('판정 후 모터 2 DOWN 명령 전송 - 위치:', motor2DownPosition, '(초기 위치:', needleOffset2 || 0.1, ')')
+      websocket.send(JSON.stringify({ cmd: "move", position: motor2DownPosition, mode: "position", motor_id: 2 }))
     } else {
-      console.error('WebSocket 연결되지 않음 - 니들 DOWN 명령 실패')
+      console.error('WebSocket 연결되지 않음 - 니듡 DOWN 명령 실패')
     }
   }
 

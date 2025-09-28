@@ -24,6 +24,11 @@ export default function NeedleCheckPanelV4Multi({
   resistance2Status,
   isResistanceMeasuring,
   onResistanceMeasuringChange,
+  // 모터 1 설정값 props
+  needleOffset1,
+  onNeedleOffset1Change,
+  needleProtrusion1,
+  onNeedleProtrusion1Change,
   // 모터 2 설정값 props
   needleOffset2,
   needleProtrusion2,
@@ -39,9 +44,9 @@ export default function NeedleCheckPanelV4Multi({
   // 버튼에 표시할 텍스트 (다음 동작을 표시, MOVING일 때는 현재 상태 유지)
   const buttonText = needleStatus === 'UP' ? 'DOWN' : needleStatus === 'DOWN' ? 'UP' : (needlePosition === 'UP' ? 'UP' : 'DOWN')
 
-  // 모터 1 (니들 포지셔닝 모터) 설정
-  const [needleOffset1, setNeedleOffset1] = useState(0.1)
-  const [needleProtrusion1, setNeedleProtrusion1] = useState(3.0)
+  // 모터 1 (니들 포지셔닝 모터) 설정 - props로 받아서 사용
+  // const [needleOffset1, setNeedleOffset1] = useState(0.1)
+  // const [needleProtrusion1, setNeedleProtrusion1] = useState(3.0)
   const [repeatCount1, setRepeatCount1] = useState(1)
   
   // 모터 2 (저항 측정 모터) 설정 - props에서 받아옴
@@ -188,16 +193,22 @@ export default function NeedleCheckPanelV4Multi({
     for (let i = 0; i < repeatCount; i++) {
       console.log(`🔄 모터${motorId} ${i + 1}/${repeatCount} 사이클 시작`)
       
-      // UP 명령 (840)
-      console.log(`🎯 모터${motorId} UP 명령 실행 (840)`)
-      sendMotorCommand(840, motorId)
+      // UP 명령 (초기 위치 + 돌출 부분)
+      const upPosition = motorId === 1 ? 
+        Math.round((needleOffset1 + needleProtrusion1) * 100) : 
+        Math.round((needleOffset2 + needleProtrusion2) * 100);
+      console.log(`🎯 모터${motorId} UP 명령 실행 (${upPosition})`)
+      sendMotorCommand(upPosition, motorId)
       
       // UP 동작 완료 대기 (고정 시간)
       await new Promise(resolve => setTimeout(resolve, 90))
       
-      // DOWN 명령 (0)
-      console.log(`🎯 모터${motorId} DOWN 명령 실행 (0)`)
-      sendMotorCommand(0, motorId)
+      // DOWN 명령 (초기 위치)
+      const downPosition = motorId === 1 ? 
+        Math.round(needleOffset1 * 100) : 
+        Math.round(needleOffset2 * 100);
+      console.log(`🎯 모터${motorId} DOWN 명령 실행 (${downPosition})`)
+      sendMotorCommand(downPosition, motorId)
       
       // DOWN 동작 완료 대기 (고정 시간)
       await new Promise(resolve => setTimeout(resolve, 90))
@@ -276,7 +287,7 @@ export default function NeedleCheckPanelV4Multi({
             <Input 
               type="number"
               value={needleOffset1}
-              onChange={(e) => setNeedleOffset1(Number(e.target.value))}
+              onChange={(e) => onNeedleOffset1Change && onNeedleOffset1Change(Number(e.target.value))}
               step="0.01"
               min="0"
               disabled={!isNeedleCheckEnabled}
@@ -379,7 +390,7 @@ export default function NeedleCheckPanelV4Multi({
             <Input 
               type="number"
               value={needleProtrusion1}
-              onChange={(e) => setNeedleProtrusion1(Number(e.target.value))}
+              onChange={(e) => onNeedleProtrusion1Change && onNeedleProtrusion1Change(Number(e.target.value))}
               step="0.1"
               min="0"
               disabled={!isNeedleCheckEnabled}
@@ -401,8 +412,9 @@ export default function NeedleCheckPanelV4Multi({
                   sendMotorCommand(motorPosition, 1);
                   setNeedleProtrusionState1('DOWN');
                 } else {
-                  console.log('모터1 니들 돌출 부분 DOWN: 모터 위치 0');
-                  sendMotorCommand(0, 1);
+                  const motorPosition = Math.round(needleOffset1 * 100);
+                  console.log('모터1 니들 돌출 부분 DOWN: 니듡 초기 위치로', needleOffset1, '모터 위치:', motorPosition);
+                  sendMotorCommand(motorPosition, 1);
                   setNeedleProtrusionState1('UP');
                 }
               }}
@@ -450,8 +462,9 @@ export default function NeedleCheckPanelV4Multi({
                   sendMotorCommand(motorPosition, 2);
                   setNeedleProtrusionState2('DOWN');
                 } else {
-                  console.log('모터2 니들 돌출 부분 DOWN: 모터 위치 0');
-                  sendMotorCommand(0, 2);
+                  const motorPosition = Math.round(needleOffset2 * 100);
+                  console.log('모터2 니듡 돌출 부분 DOWN: 니듡 초기 위치로', needleOffset2, '모터 위치:', motorPosition);
+                  sendMotorCommand(motorPosition, 2);
                   setNeedleProtrusionState2('UP');
                 }
               }}

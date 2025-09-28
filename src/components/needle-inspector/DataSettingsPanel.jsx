@@ -30,6 +30,8 @@ export default function DataSettingsPanel({
   onMtrVersionChange, // MTR 버전 변경 콜백 함수
   selectedNeedleType, // 선택된 니들 타입 (상위에서 전달)
   onSelectedNeedleTypeChange, // 선택된 니들 타입 변경 콜백 함수
+  needleOffset1, // 모터 1 니들 오프셋
+  needleProtrusion1, // 모터 1 니들 돌출부분
   needleOffset2,
   needleProtrusion2,
   resistanceDelay,
@@ -516,11 +518,12 @@ export default function DataSettingsPanel({
         }
         
         // 6단계: 저항값 정상일 때만 다음 단계 진행 (비정상 시 Promise reject로 catch 블록으로 이동)
-        console.log('7️⃣ 모터 2 DOWN 명령 전송 - 위치: 0')
+        const motor2DownPosition = Math.round(needleOffset2 * 100);
+        console.log('7️⃣ 모터 2 DOWN 명령 전송 - 위치:', motor2DownPosition, '(초기 위치:', needleOffset2, ')')
         if (websocket && isWsConnected) {
           websocket.send(JSON.stringify({ 
             cmd: "move", 
-            position: 0, 
+            position: motor2DownPosition, 
             mode: "position", 
             motor_id: 2 
           }));
@@ -534,11 +537,12 @@ export default function DataSettingsPanel({
         await new Promise(resolve => setTimeout(resolve, resistanceDelay))
         
         // 9단계: 모터 1 UP 명령 전송
-        console.log('9️⃣ 모터 1 UP 명령 전송 - 위치:', calculatedMotorPosition)
+        const motor1UpPosition = Math.round((needleOffset1 + needleProtrusion1) * 100);
+        console.log('9️⃣ 모터 1 UP 명령 전송 - 위치:', motor1UpPosition, '(오프셋:', needleOffset1, '+ 돌출:', needleProtrusion1, ')')
         if (websocket && isWsConnected) {
           websocket.send(JSON.stringify({ 
             cmd: "move", 
-            position: calculatedMotorPosition, 
+            position: motor1UpPosition, 
             mode: "position", 
             motor_id: 1 
           }));
@@ -581,12 +585,14 @@ export default function DataSettingsPanel({
       onResistance2StatusChange && onResistance2StatusChange('IDLE')
       console.log('✅ STOP 버튼 - 저항 값 데이터 초기화 완료')
       
-      // 모터1, 모터2 모두 DOWN 명령 전송 (메인 WebSocket 사용)
+      // 모터1, 모터2 모두 DOWN 명령 전송 (초기 위치로) (메인 WebSocket 사용)
       if (websocket && isWsConnected) {
-        console.log('모터1 DOWN 명령 전송')
-        websocket.send(JSON.stringify({ cmd: "move", position: 0, mode: "position", motor_id: 1 }))
-        console.log('모터2 DOWN 명령 전송')
-        websocket.send(JSON.stringify({ cmd: "move", position: 0, mode: "position", motor_id: 2 }))
+        const motor1DownPosition = Math.round(needleOffset1 * 100);
+        const motor2DownPosition = Math.round(needleOffset2 * 100);
+        console.log('모터1 DOWN 명령 전송 - 위치:', motor1DownPosition, '(초기 위치:', needleOffset1, ')')
+        websocket.send(JSON.stringify({ cmd: "move", position: motor1DownPosition, mode: "position", motor_id: 1 }))
+        console.log('모터2 DOWN 명령 전송 - 위치:', motor2DownPosition, '(초기 위치:', needleOffset2, ')')
+        websocket.send(JSON.stringify({ cmd: "move", position: motor2DownPosition, mode: "position", motor_id: 2 }))
       } else {
         console.error('WebSocket 연결되지 않음 - 모터 DOWN 명령 실패')
       }
