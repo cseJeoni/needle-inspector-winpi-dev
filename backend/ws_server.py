@@ -15,7 +15,7 @@ except ImportError:
     print("[ERROR] smbus2 모듈을 찾을 수 없습니다. EEPROM 기능이 비활성화됩니다.")
 
 # EEPROM 설정
-I2C_BUS = 5
+I2C_BUS = 1
 
 # MTR 버전별 EEPROM 설정
 MTR20_EEPROM_ADDRESS = 0x50
@@ -609,10 +609,7 @@ def cleanup_gpio():
         except Exception as e:
             print(f"[ERROR] GPIO 정리 오류: {e}")
 
-# ... (중략)
 
-
-# ... (중략)
 async def main():
     # 모터 상태 푸시 비동기 작업 시작
     asyncio.create_task(push_motor_status())
