@@ -121,13 +121,16 @@ export default function NeedleInspectorUI() {
     try {
       console.log('🔄 두 카메라 이미지 병합 캡처 시작...');
       
-      // 저항 데이터 준비 (MTR4 MULTI일 때만)
-      const resistanceData = {
+      // 니들 타입에 따른 저항 데이터 준비
+      const isMultiNeedle = mtrVersion === '4.0' && selectedNeedleType && selectedNeedleType.startsWith('MULTI');
+      const resistanceData = isMultiNeedle ? {
         resistance1: resistance1,
         resistance2: resistance2
-      };
+      } : null; // 일반 니들은 저항 데이터 제외
       
-      // 두 카메라에서 개별 이미지 캡처 (저항 데이터 포함)
+      console.log(`🔍 니들 타입: ${selectedNeedleType}, MTR: ${mtrVersion}, 저항 데이터 포함: ${isMultiNeedle}`);
+      
+      // 두 카메라에서 개별 이미지 캡처
       const camera1Image = await cameraViewRef1.current?.captureImage(judgeResult, eepromData, resistanceData);
       const camera2Image = await cameraViewRef2.current?.captureImage(judgeResult, eepromData, resistanceData);
       
@@ -643,7 +646,7 @@ export default function NeedleInspectorUI() {
   // 모터 WebSocket 연결 및 자동 연결
   useEffect(() => {
     console.log('🔧 모터 WebSocket 연결 시도...')
-    const socket = new WebSocket("ws://192.168.0.6:8765")
+    const socket = new WebSocket("ws://192.168.0.96:8765")
 
     socket.onopen = () => {
       console.log("✅ 모터 WebSocket 연결 성공")
@@ -894,7 +897,7 @@ export default function NeedleInspectorUI() {
 
     // 직접 모터 명령 WebSocket 생성
     console.log("🔗 모터 명령용 WebSocket 연결 생성...")
-    const autoSocket = new WebSocket('ws://192.168.0.6:8765')
+    const autoSocket = new WebSocket('ws://192.168.0.96:8765')
     
     autoSocket.onopen = () => {
       console.log("✅ 모터 명령용 WebSocket 연결 성공")

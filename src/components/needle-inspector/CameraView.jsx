@@ -54,11 +54,11 @@ const CameraView = forwardRef(({
         return null;
       }
 
-      // 캡처용 캔버스 생성
+      // 캡처용 캔버스 생성 (고정 크기로 설정)
       const captureCanvas = document.createElement("canvas");
-      const containerRect = videoContainerRef.current.getBoundingClientRect();
-      captureCanvas.width = containerRect.width || 640;
-      captureCanvas.height = containerRect.height || 480;
+      // 고정 크기로 설정하여 일반 로직과 MTR4 MULTI에서 동일한 이미지 크기 보장
+      captureCanvas.width = 1093; // 일반 로직 기준 너비 (2186/2)
+      captureCanvas.height = 728; // 일반 로직 기준 높이
       const ctx = captureCanvas.getContext("2d");
 
       // 1. 카메라 이미지 그리기
@@ -151,19 +151,27 @@ const CameraView = forwardRef(({
         console.log(`❌ 판정 결과 없음: judgeResult=${judgeResult}`);
       }
       
-      // 카메라 제목 (EEPROM 정보 아래)
+      // 카메라 제목과 시간 텍스트를 오른쪽 하단에 표시
       ctx.font = "bold 16px Arial";
       ctx.fillStyle = "yellow";
       ctx.strokeStyle = "black";
       ctx.lineWidth = 1;
       
-      ctx.strokeText(title, textX, currentY);
-      ctx.fillText(title, textX, currentY);
-      currentY += 20;
+      // 카메라 제목 오른쪽 하단 위치 계산
+      const titleMetrics = ctx.measureText(title);
+      const titleX = captureCanvas.width - titleMetrics.width - 10; // 오른쪽 여백 10px
+      const titleY = captureCanvas.height - 40; // 하단에서 40px 위
       
-      // 시간 텍스트 (카메라 제목 아래)
-      ctx.strokeText(timeText, textX, currentY);
-      ctx.fillText(timeText, textX, currentY);
+      ctx.strokeText(title, titleX, titleY);
+      ctx.fillText(title, titleX, titleY);
+      
+      // 시간 텍스트 오른쪽 하단 위치 계산
+      const timeMetrics = ctx.measureText(timeText);
+      const timeX = captureCanvas.width - timeMetrics.width - 10; // 오른쪽 여백 10px
+      const timeY = captureCanvas.height - 20; // 하단에서 20px 위
+      
+      ctx.strokeText(timeText, timeX, timeY);
+      ctx.fillText(timeText, timeX, timeY);
 
       // 4. 이미지 데이터 반환 (저장은 호출하는 쪽에서 처리)
       const dataURL = captureCanvas.toDataURL("image/png");

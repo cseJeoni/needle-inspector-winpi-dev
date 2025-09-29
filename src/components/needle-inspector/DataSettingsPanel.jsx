@@ -406,108 +406,267 @@ export default function DataSettingsPanel({
         return // 조기 종료
       }
       
-      // 니들 타입에 따른 워크플로우 분기
-      const isMultiNeedle = selectedNeedleType && selectedNeedleType.startsWith('MULTI');
+      // 니들 타입에 따른 로직 분기
+      const isMultiNeedle = mtrVersion === '4.0' && selectedNeedleType && selectedNeedleType.startsWith('MULTI');
       
-      try {
-        console.log('🚀 동기 EEPROM 처리 시작')
-        console.log('니들 타입:', selectedNeedleType, '/ MULTI 여부:', isMultiNeedle)
+      if (isMultiNeedle) {
+        console.log('🔍 MTR4 MULTI 니들 - 저항 측정 로직 실행')
+        await handleMultiNeedleLogic()
+      } else {
+        console.log('🔍 일반 니들 (MTR2 또는 MTR4 non-MULTI) - 일반 로직 실행')
+        await handleGeneralNeedleLogic()
+      }
+    } else {
+      // STOP 버튼 로직
+      await handleStopLogic()
+    }
+  }
+  
+  // MTR4 MULTI 니들 로직 (10단계)
+  const handleMultiNeedleLogic = async () => {
+      
+    try {
+      console.log('🚀 MTR4 MULTI 로직 시작')
         
-        // 1단계: EEPROM 쓰기 완료까지 대기 (공통)
+        // 1단계: EEPROM 쓰기 완료까지 대기
         console.log('1️⃣ EEPROM 쓰기 시작 - 응답 대기 중...')
         await writeToEEPROM()
         console.log('✅ EEPROM 쓰기 완료')
         
-        // 2단계: EEPROM 읽기 완료까지 대기 (공통)
+        // 2단계: EEPROM 읽기 완료까지 대기
         console.log('2️⃣ EEPROM 읽기 시작 - 응답 대기 중...')
         await readFromEEPROM()
         console.log('✅ EEPROM 읽기 완료')
         
-        if (isMultiNeedle) {
-          // MTR4 MULTI 워크플로우 (복잡한 저항 측정 로직)
-          console.log('🔬 MTR4 MULTI 워크플로우 실행')
-          // 기존 복잡한 로직은 그대로 유지하되 여기서는 간소화
-          const motor1UpPosition = Math.round((needleOffset1 + needleProtrusion1) * 100);
-          console.log('3️⃣ 모터 1 UP 명령 전송 - 위치:', motor1UpPosition)
-          if (websocket && isWsConnected) {
-            websocket.send(JSON.stringify({ 
-              cmd: "move", 
-              position: motor1UpPosition, 
-              mode: "position", 
-              motor_id: 1 
-            }));
-          }
-          onStartedChange && onStartedChange(true)
+        // 3단계: 모터 2 UP 명령 전송 (NeedleCheckPanelV4의 오프셋 + 돌출부분 값 사용)
+        if (websocket && isWsConnected) {
+          // NeedleCheckPanelV4에서 전달받은 모터2 값들 사용
+          const motor2Position = Math.round((needleOffset2 + needleProtrusion2) * 100);
+          
+          console.log('3️⃣ 모터 2 UP 명령 전송 - 위치:', motor2Position, '(오프셋:', needleOffset2, '+ 돌출:', needleProtrusion2, ')')
+          websocket.send(JSON.stringify({ 
+            cmd: "move", 
+            position: motor2Position, 
+            mode: "position",
+            motor_id: 2
+          }))
         } else {
-          // MTR2 및 MTR4 non-MULTI 워크플로우 (간단한 로직)
-          console.log('🔧 표준 니들 워크플로우 실행 (MTR2/MTR4 non-MULTI)')
-          
-          // 3단계: 모터 1 UP 명령 전송 (단일 모터만 사용)
-          const motor1UpPosition = Math.round((needleOffset1 + needleProtrusion1) * 100);
-          console.log('3️⃣ 모터 1 UP 명령 전송 - 위치:', motor1UpPosition, '(오프셋:', needleOffset1, '+ 돌출:', needleProtrusion1, ')')
-          
-          if (websocket && isWsConnected) {
-            websocket.send(JSON.stringify({ 
-              cmd: "move", 
-              position: motor1UpPosition, 
-              mode: "position", 
-              motor_id: 1 
-            }));
-          } else {
-            console.error('WebSocket 연결되지 않음 - 모터 1 UP 명령 실패')
-            throw new Error('WebSocket 연결 실패')
-          }
-          
-          console.log('4️⃣ 표준 니들 워크플로우 완료 - 판정 버튼 활성화')
-          
-          // 저항 측정 없이 바로 판정 버튼 활성화
-          onResistanceAbnormalChange && onResistanceAbnormalChange(false); // 저항 이상 없음
-          onStartedChange && onStartedChange(true)
-          
-          console.log('🎉 표준 니들 워크플로우 완료 - 판정 버튼 활성화됨')
+          console.error('WebSocket 연결되지 않음 - 모터 2 UP 명령 실패')
+          return
         }
         
-      } catch (error) {
-        console.error('❌ 워크플로우 처리 실패:', error.message)
+        // 4단계: DELAY 대기 후 저항 측정
+        console.log('4️⃣ 저항 측정 대기 중... DELAY:', resistanceDelay, 'ms')
+        await new Promise(resolve => setTimeout(resolve, resistanceDelay))
         
-        // 에러 메시지에 따라 상태 구분
-        if (error.message.includes('저항값 비정상')) {
-          // 저항값 비정상으로 인한 실패는 이미 위에서 처리됨 (resistance_abnormal 상태)
-          console.log('저항값 비정상으로 인한 사이클 종료 - 상태 유지')
+        // 5단계: 저항 측정 실행 및 결과 대기
+        console.log('5️⃣ 저항 측정 시작')
+        if (websocket && isWsConnected) {
+          const measureMsg = {
+            cmd: "measure_resistance"
+          };
+          console.log('저항 측정 명령 전송:', measureMsg);
+          websocket.send(JSON.stringify(measureMsg));
+          
+          // 저항 측정 결과 대기 (Promise 기반)
+          await new Promise((resolve, reject) => {
+            const handleResistanceResponse = (event) => {
+              try {
+                const response = JSON.parse(event.data);
+                console.log('DataSettingsPanel 응답 수신:', response);
+                
+                // 저항 측정 응답 확인 (type이 resistance이고 data에 저항값이 있는 경우)
+                if (response.type === 'resistance' && response.data && response.data.resistance1 !== undefined && response.data.resistance2 !== undefined) {
+                  console.log('✅ 저항 측정 응답 매칭됨:', response);
+                  websocket.removeEventListener('message', handleResistanceResponse);
+                  
+                  const resistance1Value = response.data.resistance1 || 0;
+                  const resistance2Value = response.data.resistance2 || 0;
+                  
+                  console.log('저항 측정 결과:', { resistance1: resistance1Value, resistance2: resistance2Value });
+                  console.log('저항 임계값:', resistanceThreshold);
+                  
+                  // 저항값을 mΩ 단위로 변환 (0.001 곱하기)
+                  const resistance1_mOhm = resistance1Value * 0.001;
+                  const resistance2_mOhm = resistance2Value * 0.001;
+                  
+                  // 임계값과 비교 (둘 중 하나라도 임계값보다 크면 비정상)
+                  const isAbnormal = resistance1_mOhm > resistanceThreshold || resistance2_mOhm > resistanceThreshold;
+                  
+                  if (isAbnormal) {
+                    console.log('❌ 저항값 비정상 - NG 버튼만 활성화하고 사이클 종료');
+                    console.log(`저항1: ${resistance1_mOhm}Ω (임계값: ${resistanceThreshold}Ω)`);
+                    console.log(`저항2: ${resistance2_mOhm}Ω (임계값: ${resistanceThreshold}Ω)`);
+                    
+                    // 저항 이상 상태를 상위 컴포넌트로 전달하여 PASS 버튼 비활성화
+                    onResistanceAbnormalChange && onResistanceAbnormalChange(true);
+                    onWorkStatusChange && onWorkStatusChange('resistance_abnormal'); // 저항 비정상 상태로 변경
+                    onStartedChange && onStartedChange(true); // 판정 버튼 활성화 (NG만 활성화됨)
+                    reject(new Error('저항값 비정상 - 사이클 종료'));
+                  } else {
+                    console.log('✅ 저항값 정상 - 다음 단계 진행');
+                    console.log(`저항1: ${resistance1_mOhm}Ω (임계값: ${resistanceThreshold}Ω)`);
+                    console.log(`저항2: ${resistance2_mOhm}Ω (임계값: ${resistanceThreshold}Ω)`);
+                    
+                    // 저항 정상 상태를 상위 컴포넌트로 전달하여 모든 버튼 활성화
+                    onResistanceAbnormalChange && onResistanceAbnormalChange(false);
+                    
+                    // 저항값 정상 시 다음 단계 진행
+                    console.log('6️⃣ 저항값 정상 - 다음 단계 시작');
+                    resolve('normal');
+                  }
+                }
+              } catch (err) {
+                console.error('저항 측정 응답 파싱 오류:', err);
+              }
+            };
+            
+            websocket.addEventListener('message', handleResistanceResponse);
+            
+            // 타임아웃 설정 (10초)
+            setTimeout(() => {
+              websocket.removeEventListener('message', handleResistanceResponse);
+              reject(new Error('저항 측정 타임아웃'));
+            }, 10000);
+          });
+          
         } else {
-          // 실제 EEPROM 저장 실패나 기타 오류
-          onWorkStatusChange && onWorkStatusChange('write_failed')
+          console.error('WebSocket 연결되지 않음 - 저항 측정 실패')
+          return
         }
         
-        // 실패 시 START 상태를 유지하지 않음
+        // 6단계: 저항값 정상일 때만 다음 단계 진행 (비정상 시 Promise reject로 catch 블록으로 이동)
+        const motor2DownPosition = Math.round(needleOffset2 * 100);
+        console.log('7️⃣ 모터 2 DOWN 명령 전송 - 위치:', motor2DownPosition, '(초기 위치:', needleOffset2, ')')
+        if (websocket && isWsConnected) {
+          websocket.send(JSON.stringify({ 
+            cmd: "move", 
+            position: motor2DownPosition, 
+            mode: "position", 
+            motor_id: 2 
+          }));
+        } else {
+          console.error('WebSocket 연결되지 않음 - 모터 2 DOWN 명령 실패')
+          return
+        }
+        
+        // 8단계: NeedleCheckPanelV4의 딜레이 값만큼 대기
+        console.log('8️⃣ 딜레이 대기 중... DELAY:', resistanceDelay, 'ms')
+        await new Promise(resolve => setTimeout(resolve, resistanceDelay))
+        
+        // 9단계: 모터 1 UP 명령 전송
+        const motor1UpPosition = Math.round((needleOffset1 + needleProtrusion1) * 100);
+        console.log('9️⃣ 모터 1 UP 명령 전송 - 위치:', motor1UpPosition, '(오프셋:', needleOffset1, '+ 돌출:', needleProtrusion1, ')')
+        if (websocket && isWsConnected) {
+          websocket.send(JSON.stringify({ 
+            cmd: "move", 
+            position: motor1UpPosition, 
+            mode: "position", 
+            motor_id: 1 
+          }));
+        } else {
+          console.error('WebSocket 연결되지 않음 - 모터 1 UP 명령 실패')
+          return
+        }
+        
+        console.log('🔟 모터 시퀀스 완료 - 판정 버튼 활성화')
+        
+        // 판정 버튼 활성화 (write_success 상태 유지)
+        onStartedChange && onStartedChange(true)
+        
+      console.log('🎉 MTR4 MULTI 로직 완료 - 판정 버튼 활성화됨')
+      
+    } catch (error) {
+      console.error('❌ MTR4 MULTI 로직 실패:', error.message)
+      
+      // 에러 메시지에 따라 상태 구분
+      if (error.message.includes('저항값 비정상')) {
+        // 저항값 비정상으로 인한 실패는 이미 위에서 처리됨 (resistance_abnormal 상태)
+        console.log('저항값 비정상으로 인한 사이클 종료 - 상태 유지')
+      } else {
+        // 실제 EEPROM 저장 실패나 기타 오류
+        onWorkStatusChange && onWorkStatusChange('write_failed')
+      }
+      
+      // 실패 시 START 상태를 유지하지 않음
+      return
+    }
+  }
+  
+  // 일반 니듡 로직 (6단계 - 저항 측정 제외)
+  const handleGeneralNeedleLogic = async () => {
+    try {
+      console.log('🚀 일반 로직 시작')
+      
+      // 저항 이상 상태 초기화 (일반 로직에서는 저항 측정을 하지 않으므로)
+      onResistanceAbnormalChange && onResistanceAbnormalChange(false)
+      console.log('✅ 저항 이상 상태 초기화 완료')
+      
+      // 1단계: EEPROM 쓰기 완료까지 대기
+      console.log('1️⃣ EEPROM 쓰기 시작 - 응답 대기 중...')
+      await writeToEEPROM()
+      console.log('✅ EEPROM 쓰기 완료')
+      
+      // 2단계: EEPROM 읽기 완료까지 대기
+      console.log('2️⃣ EEPROM 읽기 시작 - 응답 대기 중...')
+      await readFromEEPROM()
+      console.log('✅ EEPROM 읽기 완료')
+      
+      // 3단계: 모터 1 UP 명령 전송 (저항 측정 단계 제외)
+      const motor1UpPosition = Math.round((needleOffset1 + needleProtrusion1) * 100);
+      console.log('3️⃣ 모터 1 UP 명령 전송 - 위치:', motor1UpPosition, '(오프셋:', needleOffset1, '+ 돌출:', needleProtrusion1, ')')
+      if (websocket && isWsConnected) {
+        websocket.send(JSON.stringify({ 
+          cmd: "move", 
+          position: motor1UpPosition, 
+          mode: "position", 
+          motor_id: 1 
+        }));
+      } else {
+        console.error('WebSocket 연결되지 않음 - 모터 1 UP 명령 실패')
         return
       }
-    } else {
-      // STOP 버튼을 눌렀을 때 모터1, 모터2 모두 DOWN 명령 전송 후 대기 상태로 복귀
-      onWorkStatusChange && onWorkStatusChange('waiting')
-      onWaitingEepromReadChange && onWaitingEepromReadChange(false) // EEPROM 읽기 대기 상태 초기화
       
-      // 저항 값 데이터 초기화 (STOP 버튼 클릭 시)
-      onResistance1Change && onResistance1Change(NaN)
-      onResistance2Change && onResistance2Change(NaN)
-      onResistance1StatusChange && onResistance1StatusChange('IDLE')
-      onResistance2StatusChange && onResistance2StatusChange('IDLE')
-      console.log('✅ STOP 버튼 - 저항 값 데이터 초기화 완료')
+      console.log('4️⃣ 모터 시퀀스 완료 - 판정 버튼 활성화')
       
-      // 모터1, 모터2 모두 DOWN 명령 전송 (초기 위치로) (메인 WebSocket 사용)
-      if (websocket && isWsConnected) {
-        const motor1DownPosition = Math.round(needleOffset1 * 100);
-        const motor2DownPosition = Math.round(needleOffset2 * 100);
-        console.log('모터1 DOWN 명령 전송 - 위치:', motor1DownPosition, '(초기 위치:', needleOffset1, ')')
-        websocket.send(JSON.stringify({ cmd: "move", position: motor1DownPosition, mode: "position", motor_id: 1 }))
-        console.log('모터2 DOWN 명령 전송 - 위치:', motor2DownPosition, '(초기 위치:', needleOffset2, ')')
-        websocket.send(JSON.stringify({ cmd: "move", position: motor2DownPosition, mode: "position", motor_id: 2 }))
-      } else {
-        console.error('WebSocket 연결되지 않음 - 모터 DOWN 명령 실패')
-      }
+      // 판정 버튼 활성화 (write_success 상태 유지, 저항 이상 상태 초기화로 PASS/NG 모두 활성화)
+      onStartedChange && onStartedChange(true)
       
-      onStartedChange && onStartedChange(false)
+      console.log('🎉 일반 로직 완료 - 판정 버튼 활성화됨')
+      
+    } catch (error) {
+      console.error('❌ 일반 로직 실패:', error.message)
+      onWorkStatusChange && onWorkStatusChange('write_failed')
+      return
     }
+  }
+  
+  // STOP 버튼 로직
+  const handleStopLogic = async () => {
+    // STOP 버튼을 눌렀을 때 모터1, 모터2 모두 DOWN 명령 전송 후 대기 상태로 복귀
+    onWorkStatusChange && onWorkStatusChange('waiting')
+    onWaitingEepromReadChange && onWaitingEepromReadChange(false) // EEPROM 읽기 대기 상태 초기화
+    
+    // 저항 값 데이터 초기화 (STOP 버튼 클릭 시)
+    onResistance1Change && onResistance1Change(NaN)
+    onResistance2Change && onResistance2Change(NaN)
+    onResistance1StatusChange && onResistance1StatusChange('IDLE')
+    onResistance2StatusChange && onResistance2StatusChange('IDLE')
+    console.log('✅ STOP 버튼 - 저항 값 데이터 초기화 완료')
+    
+    // 모터1, 모터2 모두 DOWN 명령 전송 (초기 위치로) (메인 WebSocket 사용)
+    if (websocket && isWsConnected) {
+      const motor1DownPosition = Math.round(needleOffset1 * 100);
+      const motor2DownPosition = Math.round(needleOffset2 * 100);
+      console.log('모터1 DOWN 명령 전송 - 위치:', motor1DownPosition, '(초기 위치:', needleOffset1, ')')
+      websocket.send(JSON.stringify({ cmd: "move", position: motor1DownPosition, mode: "position", motor_id: 1 }))
+      console.log('모터2 DOWN 명령 전송 - 위치:', motor2DownPosition, '(초기 위치:', needleOffset2, ')')
+      websocket.send(JSON.stringify({ cmd: "move", position: motor2DownPosition, mode: "position", motor_id: 2 }))
+    } else {
+      console.error('WebSocket 연결되지 않음 - 모터 DOWN 명령 실패')
+    }
+    
+    onStartedChange && onStartedChange(false)
   }
 
   const handleCountryChange = (value) => {
