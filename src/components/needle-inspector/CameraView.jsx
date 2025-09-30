@@ -27,6 +27,7 @@ const CameraView = forwardRef(({
   drawMode, 
   onDrawModeToggle, 
   onDeleteLine, 
+  onDeleteAllLines,
   selectedIndex, 
   lineInfo, 
   handlers, 
@@ -225,6 +226,13 @@ const CameraView = forwardRef(({
             style={{ color: selectedIndex === -1 ? '#D1D5DB' : '#000000' }}
           >
             선 삭제
+          </button>
+          <button 
+            onClick={onDeleteAllLines}
+            className={`control-button delete-button`}
+            style={{ color: '#000000' }}
+          >
+            전체 삭제
           </button>
           <div className="calibration-container">
             <label className="calibration-label">스케일 (px/mm):</label>

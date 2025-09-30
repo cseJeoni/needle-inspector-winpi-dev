@@ -385,8 +385,8 @@ export default function NeedleInspectorUI() {
     return { x: endX, y: endY }
   }
 
-  // 선 클릭 감지 함수
-  const isPointOnLine = (point, line, tolerance = 10) => {
+  // 선 클릭 감지 함수 (클릭 범위 확대)
+  const isPointOnLine = (point, line, tolerance = 20) => {
     const { x1, y1, x2, y2 } = line
     const { x, y } = point
 
@@ -467,6 +467,21 @@ export default function NeedleInspectorUI() {
       const lineSnappedPos = snapToExistingLines(currentPos, lines1)
       const snappedPos = snapAngle(startPoint1, lineSnappedPos)
       
+      // 선의 길이 계산 (최소 길이 체크)
+      const lineLength = Math.sqrt(
+        Math.pow(snappedPos.x - startPoint1.x, 2) + 
+        Math.pow(snappedPos.y - startPoint1.y, 2)
+      )
+      
+      // 최소 길이 5픽셀 미만이면 선 생성하지 않음
+      if (lineLength < 1) {
+        console.log(`⚠️ 선이 너무 짧습니다 (${lineLength.toFixed(1)}px). 최소 1px 이상이어야 합니다.`)
+        setIsDrawing1(false)
+        setStartPoint1(null)
+        setDrawMode1(false)
+        return
+      }
+      
       const newLine = { x1: startPoint1.x, y1: startPoint1.y, x2: snappedPos.x, y2: snappedPos.y, color: selectedLineColor1 }
       const newLines = [...lines1, newLine]
       setLines1(newLines)
@@ -497,6 +512,23 @@ export default function NeedleInspectorUI() {
           saveCameraLinesData(1, newLines, calibrationValue1, selectedLineColor1);
         }, 100);
       }
+    },
+    handleDeleteAllLines: () => {
+      setLines1([])
+      setSelectedIndex1(-1)
+      setLineInfo1('선 정보: 없음')
+      
+      // 캔버스 클리어
+      const canvas = canvasRef1.current
+      if (canvas) {
+        const ctx = canvas.getContext('2d')
+        ctx.clearRect(0, 0, canvas.width, canvas.height)
+      }
+      
+      // 전체 삭제 후 자동 저장
+      setTimeout(() => {
+        saveCameraLinesData(1, [], calibrationValue1, selectedLineColor1);
+      }, 100);
     }
   }
 
@@ -563,6 +595,21 @@ export default function NeedleInspectorUI() {
       const lineSnappedPos = snapToExistingLines(currentPos, lines2)
       const snappedPos = snapAngle(startPoint2, lineSnappedPos)
       
+      // 선의 길이 계산 (최소 길이 체크)
+      const lineLength = Math.sqrt(
+        Math.pow(snappedPos.x - startPoint2.x, 2) + 
+        Math.pow(snappedPos.y - startPoint2.y, 2)
+      )
+      
+      // 최소 길이 5픽셀 미만이면 선 생성하지 않음
+      if (lineLength < 1) {
+        console.log(`⚠️ 선이 너무 짧습니다 (${lineLength.toFixed(1)}px). 최소 1px 이상이어야 합니다.`)
+        setIsDrawing2(false)
+        setStartPoint2(null)
+        setDrawMode2(false)
+        return
+      }
+      
       const newLine = { x1: startPoint2.x, y1: startPoint2.y, x2: snappedPos.x, y2: snappedPos.y, color: selectedLineColor2 }
       const newLines = [...lines2, newLine]
       setLines2(newLines)
@@ -593,6 +640,23 @@ export default function NeedleInspectorUI() {
           saveCameraLinesData(2, newLines, calibrationValue2, selectedLineColor2);
         }, 100);
       }
+    },
+    handleDeleteAllLines: () => {
+      setLines2([])
+      setSelectedIndex2(-1)
+      setLineInfo2('선 정보: 없음')
+      
+      // 캔버스 클리어
+      const canvas = canvasRef2.current
+      if (canvas) {
+        const ctx = canvas.getContext('2d')
+        ctx.clearRect(0, 0, canvas.width, canvas.height)
+      }
+      
+      // 전체 삭제 후 자동 저장
+      setTimeout(() => {
+        saveCameraLinesData(2, [], calibrationValue2, selectedLineColor2);
+      }, 100);
     }
   }
 
@@ -675,9 +739,7 @@ export default function NeedleInspectorUI() {
         };
         
         const result = await window.electronAPI.saveCameraLines(cameraId, linesData);
-        if (result.success) {
-          console.log(`✅ 카메라 ${cameraId} 선 정보 저장 완료`);
-        } else {
+        if (!result.success) {
           console.error(`❌ 카메라 ${cameraId} 선 정보 저장 실패:`, result.error);
         }
         return result;
@@ -719,7 +781,6 @@ export default function NeedleInspectorUI() {
         saveCameraLinesData(1, lines1, calibrationValue1, selectedLineColor1),
         saveCameraLinesData(2, lines2, calibrationValue2, selectedLineColor2)
       ]);
-      console.log('✅ 모든 카메라 선 정보 저장 완료');
     } catch (error) {
       console.error('❌ 카메라 선 정보 저장 중 오류:', error);
     }
@@ -759,14 +820,11 @@ export default function NeedleInspectorUI() {
   useEffect(() => {
     const loadAllSavedLines = async () => {
       try {
-        console.log('🔄 저장된 카메라 선 정보 로드 시작...');
         
         // 카메라 1 선 정보 로드
         const camera1Data = await loadCameraLinesData(1);
         if (camera1Data.lines && camera1Data.lines.length > 0) {
-          console.log(`📐 카메라 1: ${camera1Data.lines.length}개 선 로드됨 - 상태 업데이트 시작`);
           setLines1([...camera1Data.lines]); // 새 배열로 복사하여 상태 업데이트 강제
-          console.log(`📐 카메라 1 상태 업데이트 완료:`, camera1Data.lines);
         }
         if (camera1Data.calibrationValue) {
           setCalibrationValue1(camera1Data.calibrationValue);
@@ -778,9 +836,7 @@ export default function NeedleInspectorUI() {
         // 카메라 2 선 정보 로드
         const camera2Data = await loadCameraLinesData(2);
         if (camera2Data.lines && camera2Data.lines.length > 0) {
-          console.log(`📐 카메라 2: ${camera2Data.lines.length}개 선 로드됨 - 상태 업데이트 시작`);
           setLines2([...camera2Data.lines]); // 새 배열로 복사하여 상태 업데이트 강제
-          console.log(`📐 카메라 2 상태 업데이트 완료:`, camera2Data.lines);
         }
         if (camera2Data.calibrationValue) {
           setCalibrationValue2(camera2Data.calibrationValue);
@@ -789,56 +845,25 @@ export default function NeedleInspectorUI() {
           setSelectedLineColor2(camera2Data.selectedLineColor);
         }
 
-        console.log('✅ 저장된 카메라 선 정보 로드 완료');
 
         // 상태 업데이트 완료 후 한 번만 그리기 (중복 방지)
-        console.log('🎯 로드 완료 - 상태 업데이트 후 최종 그리기 예약');
         
         // 강력한 디버깅과 함께 캔버스 그리기
         const forceCanvasDraw = (attempt = 1) => {
-          console.log(`🔍 [시도 ${attempt}] DOM 상태 강력 디버깅 시작`);
-          
           const canvas1 = canvasRef1.current;
           const canvas2 = canvasRef2.current;
           const container1 = videoContainerRef1.current;
           const container2 = videoContainerRef2.current;
           
-          console.log(`🔍 Canvas1 존재: ${!!canvas1}, Canvas2 존재: ${!!canvas2}`);
-          console.log(`🔍 Container1 존재: ${!!container1}, Container2 존재: ${!!container2}`);
-          
-          if (canvas1) {
-            console.log(`🔍 Canvas1 크기: ${canvas1.width}x${canvas1.height}, 스타일: ${canvas1.style.width}x${canvas1.style.height}`);
-            console.log(`🔍 Canvas1 부모: ${canvas1.parentElement ? 'OK' : 'NULL'}`);
-          }
-          
-          if (canvas2) {
-            console.log(`🔍 Canvas2 크기: ${canvas2.width}x${canvas2.height}, 스타일: ${canvas2.style.width}x${canvas2.style.height}`);
-            console.log(`🔍 Canvas2 부모: ${canvas2.parentElement ? 'OK' : 'NULL'}`);
-          }
-          
-          // 현재 상태 확인
-          console.log(`🔍 현재 lines1 길이: ${lines1?.length || 0}`);
-          console.log(`🔍 현재 lines2 길이: ${lines2?.length || 0}`);
-          console.log(`🔍 lines1 데이터:`, lines1);
-          console.log(`🔍 lines2 데이터:`, lines2);
-          
           if (canvas1 && canvas2 && container1 && container2) {
-            console.log('🎨 강제 캔버스 그리기 시작');
-            
             // 캔버스 크기 강제 설정
             const rect1 = container1.getBoundingClientRect();
             const rect2 = container2.getBoundingClientRect();
-            
-            console.log(`🔍 Container1 실제 크기: ${rect1.width}x${rect1.height}`);
-            console.log(`🔍 Container2 실제 크기: ${rect2.width}x${rect2.height}`);
             
             canvas1.width = rect1.width || 400;
             canvas1.height = rect1.height || 300;
             canvas2.width = rect2.width || 400;
             canvas2.height = rect2.height || 300;
-            
-            console.log(`🔍 Canvas1 새 크기: ${canvas1.width}x${canvas1.height}`);
-            console.log(`🔍 Canvas2 새 크기: ${canvas2.width}x${canvas2.height}`);
             
             // 이전 방식으로 직접 선 그리기 (테스트 사각형만 제거)
             if (camera1Data.lines && camera1Data.lines.length > 0) {
@@ -850,14 +875,12 @@ export default function NeedleInspectorUI() {
                 camera1Data.lines.forEach((line, index) => {
                   const lineColor = line.color || 'red';
                   drawLineWithInfo(ctx1, line, lineColor, true, camera1Data.calibrationValue || 19.8);
-                  console.log(`🎨 Canvas1 선 ${index + 1} 그리기 (정보 포함): (${line.x1},${line.y1}) -> (${line.x2},${line.y2})`);
                 });
                 
                 // 외부 선 정보도 업데이트
                 const firstLine = camera1Data.lines[0];
                 const lineData = drawLineWithInfo(null, firstLine, firstLine.color || 'red', false, camera1Data.calibrationValue || 19.8);
                 setLineInfo1(`선 1: ${lineData.mm}mm (${lineData.angle}°)`);
-                console.log(`📐 카메라 1 선 정보 업데이트: 선 1: ${lineData.mm}mm (${lineData.angle}°)`);
               }
             }
             
@@ -870,33 +893,26 @@ export default function NeedleInspectorUI() {
                 camera2Data.lines.forEach((line, index) => {
                   const lineColor = line.color || 'blue';
                   drawLineWithInfo(ctx2, line, lineColor, true, camera2Data.calibrationValue || 19.8);
-                  console.log(`🎨 Canvas2 선 ${index + 1} 그리기 (정보 포함): (${line.x1},${line.y1}) -> (${line.x2},${line.y2})`);
                 });
                 
                 // 외부 선 정보도 업데이트
                 const firstLine = camera2Data.lines[0];
                 const lineData = drawLineWithInfo(null, firstLine, firstLine.color || 'blue', false, camera2Data.calibrationValue || 19.8);
                 setLineInfo2(`선 1: ${lineData.mm}mm (${lineData.angle}°)`);
-                console.log(`📐 카메라 2 선 정보 업데이트: 선 1: ${lineData.mm}mm (${lineData.angle}°)`);
               }
             }
             
-            console.log('🎨 강제 캔버스 그리기 완료');
           } else {
             if (attempt < 10) {
-              console.warn(`⚠️ DOM 요소 준비 안됨 - ${attempt}/10 재시도`);
               setTimeout(() => forceCanvasDraw(attempt + 1), 500);
-            } else {
-              console.error('❌ 최대 시도 횟수 초과');
             }
           }
         };
         
-        // 상태 업데이트를 기다린 후 그리기 (더 긴 지연)
+        // 상태 업데이트를 기다린 후 그리기
         setTimeout(() => {
-          console.log('🔄 상태 업데이트 대기 후 그리기 시작');
           forceCanvasDraw();
-        }, 2000); // 2초로 늘려서 상태 업데이트 완료 보장
+        }, 2000);
       } catch (error) {
         console.error('❌ 저장된 카메라 선 정보 로드 실패:', error);
       }
@@ -909,7 +925,6 @@ export default function NeedleInspectorUI() {
   useLayoutEffect(() => {
     // 로드 중이면 실행하지 않음 (중복 방지)
     if (lines1.length === 0 && lines2.length === 0) {
-      console.log('🚫 선 데이터가 없어서 캔버스 초기화 건너뜀');
       return;
     }
 
@@ -920,8 +935,6 @@ export default function NeedleInspectorUI() {
       const container2 = videoContainerRef2.current;
       
       if (canvas1 && canvas2 && container1 && container2) {
-        console.log('🎨 useLayoutEffect - 캔버스 초기화 시작 (중복 방지)');
-        
         // 캔버스 크기 설정
         resizeCanvas(canvas1, container1);
         resizeCanvas(canvas2, container2);
@@ -929,8 +942,6 @@ export default function NeedleInspectorUI() {
         // 즉시 그리기 시도
         redrawCanvas1();
         redrawCanvas2();
-        
-        console.log('🎨 useLayoutEffect - 캔버스 그리기 완료');
       }
     };
 
@@ -968,12 +979,10 @@ export default function NeedleInspectorUI() {
 
   // 모터 WebSocket 연결 및 자동 연결
   useEffect(() => {
-    console.log('🔧 모터 WebSocket 연결 시도...')
     // mDNS 호스트명 사용 (IP 대신 호스트명.local 사용)
     const socket = new WebSocket("ws://192.168.5.11:8765")
 
     socket.onopen = () => {
-      console.log("✅ 모터 WebSocket 연결 성공")
       setIsWsConnected(true)
       setMotorError(null)
       
@@ -1121,7 +1130,6 @@ export default function NeedleInspectorUI() {
       stopbits: MOTOR_CONFIG.stopBits,
     }
 
-    console.log("🔧 모터 자동 연결 시도:", msg)
     socket.send(JSON.stringify(msg))
   }
 
@@ -1340,6 +1348,7 @@ export default function NeedleInspectorUI() {
             drawMode={drawMode1}
             onDrawModeToggle={() => setDrawMode1(!drawMode1)}
             onDeleteLine={handlers1.handleDeleteLine}
+            onDeleteAllLines={handlers1.handleDeleteAllLines}
             selectedIndex={selectedIndex1}
             lineInfo={lineInfo1}
             handlers={handlers1}
@@ -1359,6 +1368,7 @@ export default function NeedleInspectorUI() {
             drawMode={drawMode2}
             onDrawModeToggle={() => setDrawMode2(!drawMode2)}
             onDeleteLine={handlers2.handleDeleteLine}
+            onDeleteAllLines={handlers2.handleDeleteAllLines}
             selectedIndex={selectedIndex2}
             lineInfo={lineInfo2}
             handlers={handlers2}
