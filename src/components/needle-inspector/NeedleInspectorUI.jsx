@@ -33,11 +33,24 @@ export default function NeedleInspectorUI() {
   // 모터 관련 상태
   const [ws, setWs] = useState(null)
   const [isWsConnected, setIsWsConnected] = useState(false)
+  
+  // 모터 1 상태
   const [isMotorConnected, setIsMotorConnected] = useState(false)
   const [motorError, setMotorError] = useState(null)
   const [currentPosition, setCurrentPosition] = useState(0)
   const [needlePosition, setNeedlePosition] = useState('UNKNOWN') // UP, DOWN, UNKNOWN
   const [calculatedMotorPosition, setCalculatedMotorPosition] = useState(310) // (니들 오프셋 + 돌출 부분) * 100 기본값: (0.1 + 3.0) * 100 = 310
+  
+  // 모터 2 상태 추가
+  const [isMotor2Connected, setIsMotor2Connected] = useState(false)
+  const [motor2Error, setMotor2Error] = useState(null)
+  const [currentPosition2, setCurrentPosition2] = useState(0)
+  const [needlePosition2, setNeedlePosition2] = useState('UNKNOWN') // UP, DOWN, UNKNOWN
+
+  // 디버깅 패널 드래그 상태 (left, top 기준으로 변경)
+  const [debugPanelPosition, setDebugPanelPosition] = useState({ x: 0, y: 520 })
+  const [isDragging, setIsDragging] = useState(false)
+  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 })
   
   // GPIO 18번 관련 상태
   const [gpioState, setGpioState] = useState('LOW') // HIGH, LOW (초기값 LOW로 설정)
@@ -731,6 +744,59 @@ export default function NeedleInspectorUI() {
     }
   };
 
+  // 디버깅 패널 드래그 핸들러들
+  const handleMouseDown = (e) => {
+    setIsDragging(true);
+    const rect = e.currentTarget.getBoundingClientRect();
+    setDragOffset({
+      x: e.clientX - rect.left,
+      y: e.clientY - rect.top
+    });
+  };
+
+  const handleMouseMove = (e) => {
+    if (!isDragging) return;
+    
+    setDebugPanelPosition({
+      x: e.clientX - dragOffset.x,
+      y: e.clientY - dragOffset.y
+    });
+  };
+
+  const handleMouseUp = () => {
+    setIsDragging(false);
+  };
+
+  // 전역 마우스 이벤트 리스너 추가
+  useEffect(() => {
+    if (isDragging) {
+      document.addEventListener('mousemove', handleMouseMove);
+      document.addEventListener('mouseup', handleMouseUp);
+    }
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isDragging, dragOffset]);
+
+  // 초기 위치를 화면 우측으로 설정
+  useEffect(() => {
+    const updateInitialPosition = () => {
+      setDebugPanelPosition({ 
+        x: window.innerWidth - 320, // 패널 너비(280px) + 여백(40px)
+        y: 520 
+      });
+    };
+
+    updateInitialPosition();
+    window.addEventListener('resize', updateInitialPosition);
+
+    return () => {
+      window.removeEventListener('resize', updateInitialPosition);
+    };
+  }, []);
+
   // 카메라 선 정보 저장 함수
   const saveCameraLinesData = async (cameraId, lines, calibrationValue, selectedLineColor) => {
     try {
@@ -1012,30 +1078,61 @@ export default function NeedleInspectorUI() {
         const res = JSON.parse(e.data)
 
         if (res.type === "serial") {
+          // 모터 ID 구분 (응답에 motor_id가 포함되어 있는지 확인)
+          const motorId = res.motor_id || 1; // 기본값은 모터 1
+          
           if (res.result.includes("성공") || 
               res.result.includes("완료") || 
               res.result.includes("전송 완료")) {
-            setIsMotorConnected(true)
-            setMotorError(null)
+            if (motorId === 1) {
+              setIsMotorConnected(true)
+              setMotorError(null)
+            } else if (motorId === 2) {
+              setIsMotor2Connected(true)
+              setMotor2Error(null)
+            }
           } else if (res.result.includes("실패") || 
                      res.result.includes("오류")) {
-            console.error("❌ 모터 연결 실패:", res.result)
-            setIsMotorConnected(false)
-            setMotorError(res.result)
+            console.error(`❌ 모터 ${motorId} 연결 실패:`, res.result)
+            if (motorId === 1) {
+              setIsMotorConnected(false)
+              setMotorError(res.result)
+            } else if (motorId === 2) {
+              setIsMotor2Connected(false)
+              setMotor2Error(res.result)
+            }
           } else {
             // 만약 모터가 이미 연결되어 있고 명령이 정상 처리되면 연결 상태 유지
-            if (isMotorConnected && res.result && !res.result.includes("실패") && !res.result.includes("오류")) {
-              // 연결 상태 유지
+            if (motorId === 1 && isMotorConnected && res.result && !res.result.includes("실패") && !res.result.includes("오류")) {
+              // 모터 1 연결 상태 유지
+            } else if (motorId === 2 && isMotor2Connected && res.result && !res.result.includes("실패") && !res.result.includes("오류")) {
+              // 모터 2 연결 상태 유지
             }
           }
         } else if (res.type === "status") {
           // 상태 업데이트 (모터 + GPIO + EEPROM)
-          const { position, gpio18, gpio23, needle_tip_connected, eeprom } = res.data
-          setCurrentPosition(position)
+          const { 
+            position, 
+            gpio18, 
+            gpio23, 
+            needle_tip_connected, 
+            eeprom,
+            motor2_position,
+            motor2_force,
+            motor2_sensor,
+            motor2_setPos
+          } = res.data
           
-          // 니들 위치를 기본 'UP'으로 설정 (하드코딩 제거)
-          // 실제 위치와 관계없이 항상 UP 상태로 처리
-          setNeedlePosition('UP')
+          // 모터 1 상태 업데이트
+          setCurrentPosition(position)
+          setNeedlePosition('UP') // 기본 'UP'으로 설정
+          
+          // 모터 2 상태 업데이트
+          if (motor2_position !== undefined) {
+            setCurrentPosition2(motor2_position)
+            setNeedlePosition2('UP') // 기본 'UP'으로 설정
+            setIsMotor2Connected(true) // 모터 2 데이터가 있으면 연결된 것으로 간주
+          }
           
           // GPIO23 기반 니들팁 연결 상태 업데이트
           if (typeof needle_tip_connected === 'boolean') {
@@ -1299,57 +1396,126 @@ export default function NeedleInspectorUI() {
 
   return (
     <div className="bg-[#000000] min-h-screen text-white font-sans p-4 flex flex-col gap-4">
-      {/* 모터 연결 상태 표시 */}
-      <div style={{
-        position: 'fixed',
-        top: '520px',
-        right: '20px',
-        zIndex: 1000
-      }}>
+      {/* 모터 연결 상태 표시 - 드래그 가능 */}
+      <div 
+        style={{
+          position: 'fixed',
+          top: `${debugPanelPosition.y}px`,
+          left: `${debugPanelPosition.x}px`,
+          zIndex: 1000,
+          cursor: isDragging ? 'grabbing' : 'grab'
+        }}
+        onMouseDown={handleMouseDown}
+      >
         <div style={{
           padding: '8px 12px',
           borderRadius: '4px',
           fontSize: '12px',
           fontWeight: 'bold',
-          backgroundColor: isMotorConnected ? '#d4edda' : '#f8d7da',
-          color: isMotorConnected ? '#155724' : '#721c24',
-          border: `1px solid ${isMotorConnected ? '#c3e6cb' : '#f5c6cb'}`,
-          textAlign: 'center'
+          backgroundColor: '#1F2937',
+          color: '#F3F4F6',
+          border: isDragging ? '2px solid #3B82F6' : '1px solid #374151',
+          textAlign: 'left',
+          minWidth: '280px',
+          userSelect: 'none', // 드래그 중 텍스트 선택 방지
+          boxShadow: isDragging ? '0 8px 25px rgba(0,0,0,0.3)' : '0 4px 6px rgba(0,0,0,0.1)'
         }}>
-          모터: {isMotorConnected ? '연결됨' : '연결 안됨'}
-          <div style={{ fontSize: '10px', marginTop: '2px' }}>
-            위치: {currentPosition} | 니들: {needlePosition}
-          </div>
-          <div style={{ fontSize: '10px', marginTop: '2px' }}>
-            GPIO 18: {gpioState}
-          </div>
-          {/* GPIO23 기반 니들팁 연결 상태 표시 */}
-          <div style={{ 
-            fontSize: '10px', 
-            marginTop: '2px', 
-            borderTop: '1px solid rgba(0,0,0,0.1)', 
-            paddingTop: '2px',
-            color: needleTipConnected ? '#155724' : '#721c24',
-            fontWeight: 'bold'
+          {/* 드래그 핸들 표시 */}
+          <div style={{
+            textAlign: 'center',
+            fontSize: '10px',
+            color: '#9CA3AF',
+            marginBottom: '6px',
+            borderBottom: '1px solid #374151',
+            paddingBottom: '4px'
           }}>
-            {needleTipConnected ? '✅ 니들팁 연결됨 (GPIO23 LOW)' : '🚫 니들팁 없음 (GPIO23 HIGH)'}
+            ⋮⋮⋮ 드래그하여 이동 ⋮⋮⋮
           </div>
+          {/* 모터 1 섹션 */}
+          <div style={{ 
+            marginBottom: '8px',
+            padding: '6px',
+            borderRadius: '4px',
+            backgroundColor: isMotorConnected ? '#065F46' : '#7F1D1D',
+            border: `1px solid ${isMotorConnected ? '#10B981' : '#EF4444'}`
+          }}>
+            <div style={{ fontSize: '11px', fontWeight: 'bold', marginBottom: '4px' }}>
+              🔧 모터 1: {isMotorConnected ? '연결됨' : '연결 안됨'}
+            </div>
+            <div style={{ fontSize: '10px', marginBottom: '2px' }}>
+              위치: {currentPosition} 
+            </div>
+            {motorError && (
+              <div style={{ fontSize: '9px', color: '#FCA5A5', marginTop: '2px' }}>
+                오류: {motorError}
+              </div>
+            )}
+          </div>
+
+          {/* 모터 2 섹션 */}
+          <div style={{ 
+            marginBottom: '8px',
+            padding: '6px',
+            borderRadius: '4px',
+            backgroundColor: isMotor2Connected ? '#065F46' : '#7F1D1D',
+            border: `1px solid ${isMotor2Connected ? '#10B981' : '#EF4444'}`
+          }}>
+            <div style={{ fontSize: '11px', fontWeight: 'bold', marginBottom: '4px' }}>
+              🔧 모터 2: {isMotor2Connected ? '연결됨' : '연결 안됨'}
+            </div>
+            <div style={{ fontSize: '10px', marginBottom: '2px' }}>
+              위치: {currentPosition2}
+            </div>
+            {motor2Error && (
+              <div style={{ fontSize: '9px', color: '#FCA5A5', marginTop: '2px' }}>
+                오류: {motor2Error}
+              </div>
+            )}
+          </div>
+
+          {/* GPIO 섹션 */}
+          <div style={{ 
+            marginBottom: '8px',
+            padding: '6px',
+            borderRadius: '4px',
+            backgroundColor: '#374151',
+            border: '1px solid #6B7280'
+          }}>
+            <div style={{ fontSize: '11px', fontWeight: 'bold', marginBottom: '4px' }}>
+              📡 GPIO 상태
+            </div>
+            <div style={{ fontSize: '10px', marginBottom: '2px' }}>
+              GPIO 18: {gpioState}
+            </div>
+            <div style={{ 
+              fontSize: '10px', 
+              color: needleTipConnected ? '#34D399' : '#F87171',
+              fontWeight: 'bold'
+            }}>
+              {needleTipConnected ? '✅ 니들팁 연결됨 (GPIO23 LOW)' : '🚫 니들팁 없음 (GPIO23 HIGH)'}
+            </div>
+          </div>
+
+          {/* EEPROM 데이터 섹션 */}
           {readEepromData && (
-            <>
-              <div style={{ fontSize: '9px', marginTop: '1px' }}>
+            <div style={{ 
+              padding: '6px',
+              borderRadius: '4px',
+              backgroundColor: '#1E40AF',
+              border: '1px solid #3B82F6'
+            }}>
+              <div style={{ fontSize: '11px', fontWeight: 'bold', marginBottom: '4px' }}>
+                💾 EEPROM 데이터
+              </div>
+              <div style={{ fontSize: '9px', marginBottom: '1px' }}>
                 TIP: {readEepromData.tipType} | SHOT: {readEepromData.shotCount}
               </div>
-              <div style={{ fontSize: '9px', marginTop: '1px' }}>
+              <div style={{ fontSize: '9px', marginBottom: '1px' }}>
                 DATE: {readEepromData.year}-{String(readEepromData.month).padStart(2, '0')}-{String(readEepromData.day).padStart(2, '0')}
               </div>
-              <div style={{ fontSize: '9px', marginTop: '1px' }}>
+              <div style={{ fontSize: '9px' }}>
                 MAKER: {readEepromData.makerCode}
               </div>
-            </>
-          )}
-          {motorError && (
-            <div style={{ fontSize: '10px', marginTop: '2px', opacity: 0.8 }}>
-              {motorError}
             </div>
           )}
         </div>
