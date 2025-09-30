@@ -15,7 +15,7 @@ except ImportError:
     print("[ERROR] smbus2 모듈을 찾을 수 없습니다. EEPROM 기능이 비활성화됩니다.")
 
 # EEPROM 설정
-I2C_BUS = 1
+I2C_BUS = 3
 
 # MTR 버전별 EEPROM 설정
 MTR20_EEPROM_ADDRESS = 0x50
@@ -29,6 +29,7 @@ MTR40_OFFSET = 0x70
 gpio_available = False
 pin18 = None
 pin11 = None  # GPIO11 객체 (니들팁 연결 감지용)
+pin6 = None   # GPIO6 객체 (START 버튼 스위치용)
 needle_tip_connected = False  # 니들팁 연결 상태 (전역 변수)
 last_eeprom_data = {"success": False, "error": "니들팁이 연결되지 않음"}  # 마지막 EEPROM 상태
 
@@ -41,8 +42,11 @@ try:
     # GPIO11: Button 클래스로 니들팁 연결 감지 (내부 풀업, 바운스 타임 지원)
     pin11 = Button(11, pull_up=True, bounce_time=0.2)
     
+    # GPIO6: Button 클래스로 START 버튼 스위치 (내부 풀업, 바운스 타임 지원)
+    pin6 = Button(6, pull_up=True, bounce_time=0.2)
+    
     gpio_available = True
-    print("[OK] GPIO 18번, 11번 핀 초기화 완료 (gpiozero 라이브러리)")
+    print("[OK] GPIO 18번, 11번, 6번 핀 초기화 완료 (gpiozero 라이브러리)")
 except ImportError as ie:
     print(f"[ERROR] GPIO 모듈을 찾을 수 없습니다: {ie}. GPIO 기능이 비활성화됩니다.")
 except Exception as e:
@@ -64,6 +68,39 @@ def _on_tip_disconnected():
     needle_tip_connected = False
     print("[GPIO11] 니들팁 상태 변경: 분리됨")
 
+# GPIO6 이벤트 핸들러 (START 버튼 스위치)
+async def _on_start_button_pressed():
+    """GPIO6 START 버튼 스위치가 눌렸을 때 호출되는 이벤트 핸들러"""
+    print("[GPIO6] START 버튼 스위치 눌림 - 프론트엔드로 START 신호 전송")
+    
+    # 모든 연결된 클라이언트에게 START 신호 전송
+    start_message = {
+        "type": "gpio_start_button",
+        "data": {
+            "triggered": True,
+            "timestamp": time.time()
+        }
+    }
+    
+    for ws in connected_clients.copy():
+        try:
+            await ws.send(json.dumps(start_message))
+        except Exception as e:
+            print(f"[WARN] GPIO6 START 신호 전송 실패: {e}")
+            connected_clients.discard(ws)
+
+def _on_start_button_pressed_sync():
+    """GPIO6 START 버튼 스위치 동기 래퍼 함수"""
+    # 비동기 함수를 동기적으로 실행하기 위한 래퍼
+    try:
+        # 현재 실행 중인 이벤트 루프가 있는지 확인
+        loop = asyncio.get_running_loop()
+        # 이미 실행 중인 루프에서 태스크 생성
+        asyncio.create_task(_on_start_button_pressed())
+    except RuntimeError:
+        # 실행 중인 루프가 없으면 새로 생성
+        asyncio.run(_on_start_button_pressed())
+
 # GPIO11 이벤트 핸들러 설정 (gpiozero 방식)
 if gpio_available and pin11:
     try:
@@ -78,6 +115,19 @@ if gpio_available and pin11:
         print("[OK] GPIO11 이벤트 핸들러 등록 완료 (gpiozero) - 니들팁 상태 감지")
     except Exception as e:
         print(f"[ERROR] GPIO11 이벤트 설정 오류: {e}")
+
+# GPIO6 이벤트 핸들러 설정 (START 버튼 스위치)
+if gpio_available and pin6:
+    try:
+        # GPIO6 초기 상태 확인
+        print(f"[GPIO6] 초기 START 버튼 상태: {'눌림' if pin6.is_active else '안눌림'}")
+        
+        # 이벤트 핸들러 할당 (버튼 눌림: HIGH -> LOW 전환 시 트리거)
+        pin6.when_activated = _on_start_button_pressed_sync
+        
+        print("[OK] GPIO6 이벤트 핸들러 등록 완료 (gpiozero) - START 버튼 스위치")
+    except Exception as e:
+        print(f"[ERROR] GPIO6 이벤트 설정 오류: {e}")
 
 
 # EEPROM 관련 함수들 - 간소화된 API
@@ -555,6 +605,7 @@ async def push_motor_status():
             # GPIO 상태 읽기
             gpio18_state = "UNKNOWN"
             gpio11_state = "UNKNOWN"
+            gpio6_state = "UNKNOWN"
             
             if gpio_available and pin18:
                 gpio_value = pin18.value
@@ -563,6 +614,10 @@ async def push_motor_status():
             if gpio_available and pin11:
                 # gpiozero Button 객체에서 상태 읽기 (is_active가 True이면 HIGH 상태)
                 gpio11_state = "HIGH" if pin11.is_active else "LOW"
+            
+            if gpio_available and pin6:
+                # GPIO6 START 버튼 스위치 상태 읽기
+                gpio6_state = "HIGH" if pin6.is_active else "LOW"
 
             # EEPROM 데이터는 GPIO11 인터럽트에서 관리되므로 전역 변수 사용
             # 모터 2 상태 가져오기
@@ -584,6 +639,7 @@ async def push_motor_status():
                     # GPIO 상태
                     "gpio18": gpio18_state,  # 기존 GPIO18 상태
                     "gpio11": gpio11_state,  # 새로운 GPIO11 상태 추가
+                    "gpio6": gpio6_state,    # GPIO6 START 버튼 스위치 상태
                     "needle_tip_connected": needle_tip_connected,  # 니들팁 연결 상태
                 }
             }
@@ -605,6 +661,8 @@ def cleanup_gpio():
                 pin18.close()
             if pin11:
                 pin11.close()
+            if pin6:
+                pin6.close()
             print("[OK] GPIO 리소스 정리 완료 (gpiozero)")
         except Exception as e:
             print(f"[ERROR] GPIO 정리 오류: {e}")

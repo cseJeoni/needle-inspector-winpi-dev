@@ -1071,6 +1071,15 @@ export default function NeedleInspectorUI() {
           
           // 측정 완료 상태로 변경
           setIsResistanceMeasuring(false)
+        } else if (res.type === "gpio_start_button") {
+          // GPIO 6번 START 버튼 스위치 신호 처리
+          console.log('🔘 GPIO6 START 버튼 스위치 신호 수신:', res.data)
+          
+          if (res.data && res.data.triggered) {
+            // START 버튼과 동일한 동작 수행
+            console.log('🚀 GPIO6 START 버튼 스위치로 START 실행')
+            handleStartStopClick()
+          }
         // EEPROM 관련 메시지는 DataSettingsPanel에서 Promise 기반으로 직접 처리
         // 중복 처리 방지를 위해 메인 UI에서는 제거
         } else if (res.type === "error") {
