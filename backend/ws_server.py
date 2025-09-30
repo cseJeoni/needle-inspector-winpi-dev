@@ -27,7 +27,7 @@ MTR40_OFFSET = 0x70
 
 # GPIO 초기화 (gpiozero 사용)
 gpio_available = False
-pin18 = None
+pin5 = None   # GPIO5 객체 (Short 체크용)
 pin11 = None  # GPIO11 객체 (니들팁 연결 감지용)
 pin6 = None   # GPIO6 객체 (START 버튼 스위치용)
 needle_tip_connected = False  # 니들팁 연결 상태 (전역 변수)
@@ -36,8 +36,8 @@ last_eeprom_data = {"success": False, "error": "니들팁이 연결되지 않음
 try:
     from gpiozero import DigitalInputDevice, Button
     
-    # GPIO18: 기존 DigitalInputDevice 유지
-    pin18 = DigitalInputDevice(18)
+    # GPIO5: Short 체크용 (Button 클래스, 인터럽트 지원)
+    pin5 = Button(5, pull_up=True, bounce_time=0.2)
     
     # GPIO11: Button 클래스로 니들팁 연결 감지 (내부 풀업, 바운스 타임 지원)
     pin11 = Button(11, pull_up=True, bounce_time=0.2)
@@ -46,7 +46,7 @@ try:
     pin6 = Button(6, pull_up=True, bounce_time=0.2)
     
     gpio_available = True
-    print("[OK] GPIO 18번, 11번, 6번 핀 초기화 완료 (gpiozero 라이브러리)")
+    print("[OK] GPIO 5번, 11번, 6번 핀 초기화 완료 (gpiozero 라이브러리)")
 except ImportError as ie:
     print(f"[ERROR] GPIO 모듈을 찾을 수 없습니다: {ie}. GPIO 기능이 비활성화됩니다.")
 except Exception as e:
@@ -67,6 +67,15 @@ def _on_tip_disconnected():
     global needle_tip_connected
     needle_tip_connected = False
     print("[GPIO11] 니들팁 상태 변경: 분리됨")
+
+# GPIO5 이벤트 핸들러 (Short 체크)
+def _on_short_detected():
+    """GPIO5 Short 감지 시 호출되는 이벤트 핸들러"""
+    print("[GPIO5] Short 감지됨 (HIGH 상태)")
+
+def _on_short_cleared():
+    """GPIO5 Short 해제 시 호출되는 이벤트 핸들러"""
+    print("[GPIO5] Short 해제됨 (LOW 상태)")
 
 # GPIO6 이벤트 핸들러 (START 버튼 스위치)
 async def _on_start_button_pressed():
@@ -100,6 +109,21 @@ def _on_start_button_pressed_sync():
     except RuntimeError:
         # 실행 중인 루프가 없으면 새로 생성
         asyncio.run(_on_start_button_pressed())
+
+# GPIO5 이벤트 핸들러 설정 (Short 체크)
+if gpio_available and pin5:
+    try:
+        # GPIO5 초기 상태 확인
+        initial_short_state = pin5.is_active
+        print(f"[GPIO5] 초기 Short 체크 상태: {'SHORT (HIGH)' if initial_short_state else 'NORMAL (LOW)'}")
+        
+        # 이벤트 핸들러 할당
+        pin5.when_activated = _on_short_detected    # HIGH 상태 (Short 감지)
+        pin5.when_deactivated = _on_short_cleared   # LOW 상태 (Short 해제)
+        
+        print("[OK] GPIO5 이벤트 핸들러 등록 완료 (gpiozero) - Short 체크")
+    except Exception as e:
+        print(f"[ERROR] GPIO5 이벤트 설정 오류: {e}")
 
 # GPIO11 이벤트 핸들러 설정 (gpiozero 방식)
 if gpio_available and pin11:
@@ -489,13 +513,12 @@ async def handler(websocket):
                     }))
 
                 elif data["cmd"] == "gpio_read":
-                    if gpio_available and pin18:
-                        gpio_value = pin18.value
-                        state_text = "HIGH" if gpio_value else "LOW"
-                        print(f"[INFO] GPIO 18번 상태: {state_text} (value: {gpio_value})")
+                    if gpio_available and pin5:
+                        state_text = "HIGH" if pin5.is_active else "LOW"
+                        print(f"[INFO] GPIO 5번 상태 (Short 체크): {state_text}")
                         await websocket.send(json.dumps({
                             "type": "gpio",
-                            "pin": 18,
+                            "pin": 5,
                             "state": state_text
                         }))
                     else:
@@ -603,13 +626,13 @@ async def push_motor_status():
         await asyncio.sleep(0.05)
         if motor.is_connected():
             # GPIO 상태 읽기
-            gpio18_state = "UNKNOWN"
+            gpio5_state = "UNKNOWN"
             gpio11_state = "UNKNOWN"
             gpio6_state = "UNKNOWN"
             
-            if gpio_available and pin18:
-                gpio_value = pin18.value
-                gpio18_state = "HIGH" if gpio_value else "LOW"
+            if gpio_available and pin5:
+                # gpiozero Button 객체에서 상태 읽기 (is_active가 True이면 HIGH 상태)
+                gpio5_state = "HIGH" if pin5.is_active else "LOW"
             
             if gpio_available and pin11:
                 # gpiozero Button 객체에서 상태 읽기 (is_active가 True이면 HIGH 상태)
@@ -637,8 +660,8 @@ async def push_motor_status():
                     "motor2_sensor": motor2_status["sensor"],
                     "motor2_setPos": motor2_status["setPos"],
                     # GPIO 상태
-                    "gpio18": gpio18_state,  # 기존 GPIO18 상태
-                    "gpio11": gpio11_state,  # 새로운 GPIO11 상태 추가
+                    "gpio5": gpio5_state,    # GPIO5 Short 체크 상태
+                    "gpio11": gpio11_state,  # GPIO11 니들팁 연결 상태
                     "gpio6": gpio6_state,    # GPIO6 START 버튼 스위치 상태
                     "needle_tip_connected": needle_tip_connected,  # 니들팁 연결 상태
                 }
@@ -657,8 +680,8 @@ def cleanup_gpio():
     """기존 GPIO 리소스 정리"""
     if gpio_available:
         try:
-            if pin18:
-                pin18.close()
+            if pin5:
+                pin5.close()
             if pin11:
                 pin11.close()
             if pin6:

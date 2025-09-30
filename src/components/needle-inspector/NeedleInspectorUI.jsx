@@ -52,9 +52,9 @@ export default function NeedleInspectorUI() {
   const [isDragging, setIsDragging] = useState(false)
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 })
   
-  // GPIO 18번 관련 상태
-  const [gpioState, setGpioState] = useState('LOW') // HIGH, LOW (초기값 LOW로 설정)
-  const prevGpioRef = useRef('LOW') // 이전 GPIO 상태 추적용 (useRef로 즉시 업데이트)
+  // GPIO 5번 관련 상태 (Short 체크용)
+  const [gpio5State, setGpio5State] = useState('LOW') // HIGH, LOW (초기값 LOW로 설정)
+  const prevGpio5Ref = useRef('LOW') // 이전 GPIO 상태 추적용 (useRef로 즉시 업데이트)
   
   // StatusPanel 상태 관리
   const [workStatus, setWorkStatus] = useState('waiting') // waiting, connected, disconnected, write_success, write_failed
@@ -1113,7 +1113,7 @@ export default function NeedleInspectorUI() {
           // 상태 업데이트 (모터 + GPIO + EEPROM)
           const { 
             position, 
-            gpio18, 
+            gpio5, 
             gpio23, 
             needle_tip_connected, 
             eeprom,
@@ -1145,18 +1145,18 @@ export default function NeedleInspectorUI() {
             // EEPROM 데이터 수신 감지 (자동 처리 비활성화)
           }
           
-          // GPIO 18번 상태 업데이트 및 토글 감지
-          if (gpio18 && gpio18 !== "UNKNOWN") {
-            const prevGpioState = prevGpioRef.current // useRef로 이전 상태 가져오기
+          // GPIO 5번 상태 업데이트 (Short 체크용)
+          if (gpio5 && gpio5 !== "UNKNOWN") {
+            const prevGpio5State = prevGpio5Ref.current // useRef로 이전 상태 가져오기
             
-            // GPIO 상태가 변경되었을 때 토글 실행 (HIGH↔LOW 변화)
-            if (prevGpioState !== gpio18) {
+            // GPIO 5번 상태가 변경되었을 때 토글 실행 (HIGH↔LOW 변화)
+            if (prevGpio5State !== gpio5) {
               handleAutoToggle()
             }
             
             // 상태 업데이트 (즉시 반영)
-            prevGpioRef.current = gpio18
-            setGpioState(gpio18)
+            prevGpio5Ref.current = gpio5
+            setGpio5State(gpio5)
           }
         } else if (res.type === "resistance") {
           // 저항 측정 결과 처리
@@ -1312,9 +1312,9 @@ export default function NeedleInspectorUI() {
 
   // 기존 handleStartStopClick 함수 제거 - 새로운 함수로 대체됨
 
-  // GPIO 18번 자동 토글 함수 (모터 상태 기반 반대 명령)
+  // GPIO 5번 자동 토글 함수 (Short 체크 기반 모터 상태 반대 명령)
   const handleAutoToggle = () => {
-    console.log("🔄 GPIO 토글 감지 - 모터 상태 기반 명령 전송!")
+    console.log("🔄 GPIO5 Short 체크 토글 감지 - 모터 상태 기반 명령 전송!")
     console.log("🔍 디버그 정보 - currentPosition:", currentPosition, "needlePosition:", needlePosition)
     
     // MOVING 상태 확인
@@ -1484,8 +1484,13 @@ export default function NeedleInspectorUI() {
             <div style={{ fontSize: '11px', fontWeight: 'bold', marginBottom: '4px' }}>
               📡 GPIO 상태
             </div>
-            <div style={{ fontSize: '10px', marginBottom: '2px' }}>
-              GPIO 18: {gpioState}
+            <div style={{ 
+              fontSize: '10px', 
+              marginBottom: '2px',
+              color: gpio5State === 'LOW' ? '#34D399' : '#F87171',
+              fontWeight: 'bold'
+            }}>
+              {gpio5State === 'LOW' ? '✅ 쇼트 체크 (GPIO5 LOW)' : '🚫 쇼트 체크 (GPIO5 HIGH)'}
             </div>
             <div style={{ 
               fontSize: '10px', 
