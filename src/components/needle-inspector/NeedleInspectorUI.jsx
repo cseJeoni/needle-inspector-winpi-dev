@@ -98,6 +98,9 @@ export default function NeedleInspectorUI() {
   const videoContainerRef1 = useRef(null)
   const cameraViewRef1 = useRef(null) // CameraView ref 추가
 
+  // DataSettingsPanel ref 추가 (GPIO 6번 START 버튼용)
+  const dataSettingsPanelRef = useRef(null)
+
   // Camera 2 상태
   const [drawMode2, setDrawMode2] = useState(false)
   const [selectedIndex2, setSelectedIndex2] = useState(-1)
@@ -1076,9 +1079,15 @@ export default function NeedleInspectorUI() {
           console.log('🔘 GPIO6 START 버튼 스위치 신호 수신:', res.data)
           
           if (res.data && res.data.triggered) {
-            // START 버튼과 동일한 동작 수행
-            console.log('🚀 GPIO6 START 버튼 스위치로 START 실행')
-            handleStartStopClick()
+            // DataSettingsPanel의 실제 START 버튼과 동일한 동작 수행
+            console.log('🚀 GPIO6 START 버튼 스위치로 실제 START 워크플로우 실행')
+            // DataSettingsPanel의 handleToggle 함수를 직접 호출하기 위해 ref를 통해 접근
+            if (dataSettingsPanelRef.current && dataSettingsPanelRef.current.handleToggle) {
+              dataSettingsPanelRef.current.handleToggle()
+            } else {
+              console.warn('DataSettingsPanel handleToggle 함수에 접근할 수 없음 - 기본 상태 변경만 실행')
+              handleStartStopClick()
+            }
           }
         // EEPROM 관련 메시지는 DataSettingsPanel에서 Promise 기반으로 직접 처리
         // 중복 처리 방지를 위해 메인 UI에서는 제거
@@ -1398,6 +1407,7 @@ export default function NeedleInspectorUI() {
           </div>
           <div className="w-[31%]">
             <DataSettingsPanel 
+            ref={dataSettingsPanelRef} // GPIO 6번 START 버튼용 ref 추가
             makerCode={makerCode} 
             onWorkStatusChange={setWorkStatus}
             isStarted={isStarted}

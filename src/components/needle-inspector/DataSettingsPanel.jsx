@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, forwardRef, useImperativeHandle } from "react"
 import Panel from "./Panel"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./Select"
 import { Button } from "./Button"
@@ -15,7 +15,7 @@ import {
   initializeCache
 } from '../../utils/csvCache';
 
-export default function DataSettingsPanel({
+const DataSettingsPanel = forwardRef(({
   makerCode,
   onWorkStatusChange,
   isStarted,
@@ -41,7 +41,7 @@ export default function DataSettingsPanel({
   onResistance2Change,
   onResistance1StatusChange,
   onResistance2StatusChange
-}) {
+}, ref) => {
   // isStarted와 readEepromData는 이제 props로 받아서 사용
   const [selectedYear, setSelectedYear] = useState("")
   const [selectedMonth, setSelectedMonth] = useState("")
@@ -53,6 +53,11 @@ export default function DataSettingsPanel({
   
   // 저장 데이터 설정 활성화 상태 (기본값: 비활성화)
   const [isDataSettingsEnabled, setIsDataSettingsEnabled] = useState(false)
+
+  // GPIO 6번 START 버튼에서 접근할 수 있도록 handleToggle 함수를 ref로 노출
+  useImperativeHandle(ref, () => ({
+    handleToggle
+  }))
   
   // CSV 캐시 준비 상태
   const [cacheReady, setCacheReady] = useState(false)
@@ -894,4 +899,6 @@ export default function DataSettingsPanel({
       </Panel>
     </div>
   )
-}
+})
+
+export default DataSettingsPanel
