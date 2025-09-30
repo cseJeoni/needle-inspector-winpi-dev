@@ -471,6 +471,11 @@ export default function NeedleInspectorUI() {
       const newLines = [...lines1, newLine]
       setLines1(newLines)
       
+      // 선 추가 후 자동 저장
+      setTimeout(() => {
+        saveCameraLinesData(1, newLines, calibrationValue1, selectedLineColor1);
+      }, 100);
+      
       setIsDrawing1(false)
       setStartPoint1(null)
       setDrawMode1(false)
@@ -486,6 +491,11 @@ export default function NeedleInspectorUI() {
         setSelectedIndex1(-1)
         setLineInfo1('선 정보: 없음')
         redrawCanvas1()
+        
+        // 선 삭제 후 자동 저장
+        setTimeout(() => {
+          saveCameraLinesData(1, newLines, calibrationValue1, selectedLineColor1);
+        }, 100);
       }
     }
   }
@@ -557,6 +567,11 @@ export default function NeedleInspectorUI() {
       const newLines = [...lines2, newLine]
       setLines2(newLines)
       
+      // 선 추가 후 자동 저장
+      setTimeout(() => {
+        saveCameraLinesData(2, newLines, calibrationValue2, selectedLineColor2);
+      }, 100);
+      
       setIsDrawing2(false)
       setStartPoint2(null)
       setDrawMode2(false)
@@ -572,6 +587,11 @@ export default function NeedleInspectorUI() {
         setSelectedIndex2(-1)
         setLineInfo2('선 정보: 없음')
         redrawCanvas2()
+        
+        // 선 삭제 후 자동 저장
+        setTimeout(() => {
+          saveCameraLinesData(2, newLines, calibrationValue2, selectedLineColor2);
+        }, 100);
       }
     }
   }
@@ -634,6 +654,158 @@ export default function NeedleInspectorUI() {
       setWorkStatus('waiting');
     }
   };
+
+  // 카메라 선 정보 저장 함수
+  const saveCameraLinesData = async (cameraId, lines, calibrationValue, selectedLineColor) => {
+    try {
+      if (window.electronAPI && window.electronAPI.saveCameraLines) {
+        const linesData = {
+          lines: lines,
+          calibrationValue: calibrationValue,
+          selectedLineColor: selectedLineColor
+        };
+        
+        const result = await window.electronAPI.saveCameraLines(cameraId, linesData);
+        if (result.success) {
+          console.log(`✅ 카메라 ${cameraId} 선 정보 저장 완료`);
+        } else {
+          console.error(`❌ 카메라 ${cameraId} 선 정보 저장 실패:`, result.error);
+        }
+        return result;
+      }
+    } catch (error) {
+      console.error(`❌ 카메라 ${cameraId} 선 정보 저장 중 오류:`, error);
+      return { success: false, error: error.message };
+    }
+  };
+
+  // 카메라 선 정보 로드 함수
+  const loadCameraLinesData = async (cameraId) => {
+    try {
+      if (window.electronAPI && window.electronAPI.loadCameraLines) {
+        const result = await window.electronAPI.loadCameraLines(cameraId);
+        if (result.success) {
+          console.log(`✅ 카메라 ${cameraId} 선 정보 로드 완료:`, result.data);
+          return result.data;
+        } else {
+          console.error(`❌ 카메라 ${cameraId} 선 정보 로드 실패:`, result.error);
+        }
+      }
+    } catch (error) {
+      console.error(`❌ 카메라 ${cameraId} 선 정보 로드 중 오류:`, error);
+    }
+    
+    // 기본값 반환
+    return {
+      lines: [],
+      calibrationValue: 19.8,
+      selectedLineColor: 'red'
+    };
+  };
+
+  // 모든 카메라 선 정보 저장 함수
+  const saveAllCameraLines = async () => {
+    try {
+      await Promise.all([
+        saveCameraLinesData(1, lines1, calibrationValue1, selectedLineColor1),
+        saveCameraLinesData(2, lines2, calibrationValue2, selectedLineColor2)
+      ]);
+      console.log('✅ 모든 카메라 선 정보 저장 완료');
+    } catch (error) {
+      console.error('❌ 카메라 선 정보 저장 중 오류:', error);
+    }
+  };
+
+  // 캘리브레이션 값 변경 및 저장 함수들
+  const handleCalibrationChange1 = (newValue) => {
+    setCalibrationValue1(newValue);
+    setTimeout(() => {
+      saveCameraLinesData(1, lines1, newValue, selectedLineColor1);
+    }, 500); // 입력이 완료된 후 저장
+  };
+
+  const handleCalibrationChange2 = (newValue) => {
+    setCalibrationValue2(newValue);
+    setTimeout(() => {
+      saveCameraLinesData(2, lines2, newValue, selectedLineColor2);
+    }, 500); // 입력이 완료된 후 저장
+  };
+
+  // 선 색상 변경 및 저장 함수들
+  const handleLineColorChange1 = (newColor) => {
+    setSelectedLineColor1(newColor);
+    setTimeout(() => {
+      saveCameraLinesData(1, lines1, calibrationValue1, newColor);
+    }, 100);
+  };
+
+  const handleLineColorChange2 = (newColor) => {
+    setSelectedLineColor2(newColor);
+    setTimeout(() => {
+      saveCameraLinesData(2, lines2, calibrationValue2, newColor);
+    }, 100);
+  };
+
+  // 프로그램 시작시 저장된 선 정보 로드
+  useEffect(() => {
+    const loadAllSavedLines = async () => {
+      try {
+        console.log('🔄 저장된 카메라 선 정보 로드 시작...');
+        
+        // 카메라 1 선 정보 로드
+        const camera1Data = await loadCameraLinesData(1);
+        if (camera1Data.lines && camera1Data.lines.length > 0) {
+          setLines1(camera1Data.lines);
+          console.log(`📐 카메라 1: ${camera1Data.lines.length}개 선 로드됨`);
+        }
+        if (camera1Data.calibrationValue) {
+          setCalibrationValue1(camera1Data.calibrationValue);
+        }
+        if (camera1Data.selectedLineColor) {
+          setSelectedLineColor1(camera1Data.selectedLineColor);
+        }
+
+        // 카메라 2 선 정보 로드
+        const camera2Data = await loadCameraLinesData(2);
+        if (camera2Data.lines && camera2Data.lines.length > 0) {
+          setLines2(camera2Data.lines);
+          console.log(`📐 카메라 2: ${camera2Data.lines.length}개 선 로드됨`);
+        }
+        if (camera2Data.calibrationValue) {
+          setCalibrationValue2(camera2Data.calibrationValue);
+        }
+        if (camera2Data.selectedLineColor) {
+          setSelectedLineColor2(camera2Data.selectedLineColor);
+        }
+
+        console.log('✅ 저장된 카메라 선 정보 로드 완료');
+      } catch (error) {
+        console.error('❌ 저장된 카메라 선 정보 로드 실패:', error);
+      }
+    };
+
+    loadAllSavedLines();
+  }, []); // 컴포넌트 마운트시 한 번만 실행
+
+  // 프로그램 종료시 선 정보 자동 저장을 위한 beforeunload 이벤트
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      // 동기적으로 저장 (비동기는 브라우저가 차단할 수 있음)
+      if (lines1.length > 0 || lines2.length > 0) {
+        saveAllCameraLines();
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      // 컴포넌트 언마운트시에도 저장
+      if (lines1.length > 0 || lines2.length > 0) {
+        saveAllCameraLines();
+      }
+    };
+  }, [lines1, lines2, calibrationValue1, calibrationValue2, selectedLineColor1, selectedLineColor2]);
 
   useEffect(() => {
     redrawCanvas1()
@@ -1023,9 +1195,9 @@ export default function NeedleInspectorUI() {
             canvasRef={canvasRef1}
             videoContainerRef={videoContainerRef1}
             calibrationValue={calibrationValue1}
-            onCalibrationChange={setCalibrationValue1}
+            onCalibrationChange={handleCalibrationChange1}
             selectedLineColor={selectedLineColor1}
-            onLineColorChange={setSelectedLineColor1}
+            onLineColorChange={handleLineColorChange1}
             ref={cameraViewRef1} // CameraView ref 추가
           />
           <CameraView 
@@ -1042,9 +1214,9 @@ export default function NeedleInspectorUI() {
             canvasRef={canvasRef2}
             videoContainerRef={videoContainerRef2}
             calibrationValue={calibrationValue2}
-            onCalibrationChange={setCalibrationValue2}
+            onCalibrationChange={handleCalibrationChange2}
             selectedLineColor={selectedLineColor2}
-            onLineColorChange={setSelectedLineColor2}
+            onLineColorChange={handleLineColorChange2}
             ref={cameraViewRef2} // CameraView ref 추가
           />
         </div>

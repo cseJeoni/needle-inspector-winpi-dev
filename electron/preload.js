@@ -61,6 +61,21 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // 사용자 CSV 파일 로드 API
   loadUsersCSV: () => {
     return ipcRenderer.invoke('load-users-csv');
+  },
+  
+  // 카메라 선 정보 저장 API
+  saveCameraLines: (cameraId, linesData) => {
+    return ipcRenderer.invoke('save-camera-lines', cameraId, linesData);
+  },
+  
+  // 카메라 선 정보 로드 API
+  loadCameraLines: (cameraId) => {
+    return ipcRenderer.invoke('load-camera-lines', cameraId);
+  },
+  
+  // 모든 카메라 선 정보 로드 API
+  loadAllCameraLines: () => {
+    return ipcRenderer.invoke('load-all-camera-lines');
   }
 });
 

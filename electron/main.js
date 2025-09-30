@@ -4,11 +4,31 @@ const { app, BrowserWindow, dialog, ipcMain } = require("electron");
 const path = require("path");
 const { spawn } = require("child_process");
 const fs = require("fs");
+const Store = require("electron-store");
 
 let win = null;
 let serverProcess = null;
 let serverStarted = false;
 let serverUrl = "ws://localhost:8765";
+
+// electron-store 초기화
+const store = new Store({
+  name: 'needle-inspector-config',
+  defaults: {
+    cameraLines: {
+      camera1: {
+        lines: [],
+        calibrationValue: 19.8,
+        selectedLineColor: 'red'
+      },
+      camera2: {
+        lines: [],
+        calibrationValue: 19.8,
+        selectedLineColor: 'red'
+      }
+    }
+  }
+});
 
 // 개발 모드에서만 electron-reload 사용
 if (process.env.NODE_ENV !== 'production') {
@@ -288,6 +308,75 @@ ipcMain.handle('select-folder', async (event, options = {}) => {
   } catch (error) {
     console.error('[ERROR] 폴더 선택 실패:', error);
     return { canceled: true, filePaths: [] };
+  }
+});
+
+// 카메라 선 정보 저장 IPC 핸들러
+ipcMain.handle('save-camera-lines', async (event, cameraId, linesData) => {
+  try {
+    console.log(`[INFO] 카메라 ${cameraId} 선 정보 저장:`, linesData);
+    
+    const cameraKey = `camera${cameraId}`;
+    const currentData = store.get('cameraLines', {});
+    
+    currentData[cameraKey] = {
+      ...currentData[cameraKey],
+      ...linesData
+    };
+    
+    store.set('cameraLines', currentData);
+    console.log(`[SUCCESS] 카메라 ${cameraId} 선 정보 저장 완료`);
+    
+    return { success: true };
+  } catch (error) {
+    console.error(`[ERROR] 카메라 ${cameraId} 선 정보 저장 실패:`, error);
+    return { success: false, error: error.message };
+  }
+});
+
+// 카메라 선 정보 로드 IPC 핸들러
+ipcMain.handle('load-camera-lines', async (event, cameraId) => {
+  try {
+    const cameraKey = `camera${cameraId}`;
+    const cameraLines = store.get('cameraLines', {});
+    const cameraData = cameraLines[cameraKey] || {
+      lines: [],
+      calibrationValue: 19.8,
+      selectedLineColor: 'red'
+    };
+    
+    console.log(`[INFO] 카메라 ${cameraId} 선 정보 로드:`, cameraData);
+    return { success: true, data: cameraData };
+  } catch (error) {
+    console.error(`[ERROR] 카메라 ${cameraId} 선 정보 로드 실패:`, error);
+    return { 
+      success: false, 
+      error: error.message,
+      data: {
+        lines: [],
+        calibrationValue: 19.8,
+        selectedLineColor: 'red'
+      }
+    };
+  }
+});
+
+// 모든 카메라 선 정보 로드 IPC 핸들러
+ipcMain.handle('load-all-camera-lines', async (event) => {
+  try {
+    const allCameraLines = store.get('cameraLines', {});
+    console.log('[INFO] 모든 카메라 선 정보 로드:', allCameraLines);
+    return { success: true, data: allCameraLines };
+  } catch (error) {
+    console.error('[ERROR] 모든 카메라 선 정보 로드 실패:', error);
+    return { 
+      success: false, 
+      error: error.message,
+      data: {
+        camera1: { lines: [], calibrationValue: 19.8, selectedLineColor: 'red' },
+        camera2: { lines: [], calibrationValue: 19.8, selectedLineColor: 'red' }
+      }
+    };
   }
 });
 
