@@ -15,7 +15,7 @@ except ImportError:
     print("[ERROR] smbus2 모듈을 찾을 수 없습니다. EEPROM 기능이 비활성화됩니다.")
 
 # EEPROM 설정
-I2C_BUS = 3
+I2C_BUS = 1
 
 # MTR 버전별 EEPROM 설정
 MTR20_EEPROM_ADDRESS = 0x50
