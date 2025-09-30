@@ -647,7 +647,7 @@ export default function NeedleInspectorUI() {
   useEffect(() => {
     console.log('🔧 모터 WebSocket 연결 시도...')
     // mDNS 호스트명 사용 (IP 대신 호스트명.local 사용)
-    const socket = new WebSocket("ws://needle-pi.local:8765")
+    const socket = new WebSocket("ws://192.168.5.11:8765")
 
     socket.onopen = () => {
       console.log("✅ 모터 WebSocket 연결 성공")
