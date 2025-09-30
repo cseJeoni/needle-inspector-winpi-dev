@@ -135,6 +135,8 @@ export default function StatusPanel({ mode, workStatus = 'waiting', needleTipCon
         return { bg: 'bg-[#C22727]', text: '저장 실패', textColor: 'text-white' }
       case 'resistance_abnormal':
         return { bg: 'bg-[#C22727]', text: '저항 비정상', textColor: 'text-white' }
+      case 'needle_short':
+        return { bg: 'bg-[#C22727]', text: '니들 쇼트', textColor: 'text-white' }
       default:
         return { bg: 'bg-[#646683]', text: '작업 대기', textColor: 'text-white' }
     }

@@ -36,7 +36,8 @@ const CameraView = forwardRef(({
   calibrationValue,
   onCalibrationChange,
   selectedLineColor,
-  onLineColorChange
+  onLineColorChange,
+  workStatus = 'waiting' // 작업 상태 (니들 쇼트, 저장 실패 등)
 }, ref) => {
 
   // 카메라 이미지 + 캔버스 오버레이 + 시간 텍스트를 포함한 이미지 캡처
@@ -109,10 +110,20 @@ const CameraView = forwardRef(({
         
         if (eepromData) {
           // EEPROM 데이터가 있는 경우
-          eepromText = `EEPROM      TIP:${eepromData.tipType}      SHOT:${eepromData.shotCount}      DATE:${eepromData.year}-${String(eepromData.month).padStart(2, '0')}-${String(eepromData.day).padStart(2, '0')}      MAKER:${eepromData.makerCode}      ${judgeResult}`;
+          if (workStatus === 'needle_short') {
+            // 니들 쇼트 시: EEPROM 정보 + 니들 쇼트 표시
+            eepromText = `EEPROM      TIP:${eepromData.tipType}      SHOT:${eepromData.shotCount}      DATE:${eepromData.year}-${String(eepromData.month).padStart(2, '0')}-${String(eepromData.day).padStart(2, '0')}      MAKER:${eepromData.makerCode}      니들 쇼트      ${judgeResult}`;
+          } else {
+            // 정상 시: 기존 방식
+            eepromText = `EEPROM      TIP:${eepromData.tipType}      SHOT:${eepromData.shotCount}      DATE:${eepromData.year}-${String(eepromData.month).padStart(2, '0')}-${String(eepromData.day).padStart(2, '0')}      MAKER:${eepromData.makerCode}      ${judgeResult}`;
+          }
         } else {
-          // EEPROM 데이터가 없는 경우
-          eepromText = `EEPROM 데이터 읽기 실패 ${judgeResult}`;
+          // EEPROM 데이터가 없는 경우 - workStatus에 따라 메시지 구분
+          if (workStatus === 'needle_short') {
+            eepromText = `니들 쇼트 ${judgeResult}`;
+          } else {
+            eepromText = `EEPROM 데이터 읽기 실패 ${judgeResult}`;
+          }
         }
         
         // 저항 데이터가 있는 경우 추가

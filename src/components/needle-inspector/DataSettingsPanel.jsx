@@ -40,7 +40,8 @@ const DataSettingsPanel = forwardRef(({
   onResistance1Change,
   onResistance2Change,
   onResistance1StatusChange,
-  onResistance2StatusChange
+  onResistance2StatusChange,
+  gpio5State // GPIO 5번 쇼트 체크 상태
 }, ref) => {
   // isStarted와 readEepromData는 이제 props로 받아서 사용
   const [selectedYear, setSelectedYear] = useState("")
@@ -405,6 +406,8 @@ const DataSettingsPanel = forwardRef(({
         return // 조기 종료
       }
       
+      // GPIO 5번 쇼트 검사는 EEPROM 처리 후에만 실행
+      
       // 니들 타입에 따른 로직 분기
       const isMultiNeedle = mtrVersion === '4.0' && selectedNeedleType && selectedNeedleType.startsWith('MULTI');
       
@@ -436,6 +439,15 @@ const DataSettingsPanel = forwardRef(({
         console.log('2️⃣ EEPROM 읽기 시작 - 응답 대기 중...')
         await readFromEEPROM()
         console.log('✅ EEPROM 읽기 완료')
+        
+        // 2.5단계: GPIO 5번 쇼트 검사 (EEPROM 처리 후)
+        if (gpio5State === 'HIGH') {
+          console.log('🚨 GPIO5 니들 쇼트 감지 - 로직 중단 (EEPROM 데이터는 정상 저장됨)')
+          console.log('🔍 현재 EEPROM 데이터 상태:', readEepromData)
+          onWorkStatusChange && onWorkStatusChange('needle_short')
+          onStartedChange && onStartedChange(true) // START 상태 유지 (저장 실패와 동일)
+          return
+        }
         
         // 3단계: 모터 2 UP 명령 전송 (NeedleCheckPanelV4의 오프셋 + 돌출부분 값 사용)
         if (websocket && isWsConnected) {
@@ -585,9 +597,9 @@ const DataSettingsPanel = forwardRef(({
       } else {
         // 실제 EEPROM 저장 실패나 기타 오류
         onWorkStatusChange && onWorkStatusChange('write_failed')
+        onStartedChange && onStartedChange(true) // START 상태 유지 (판정 버튼 활성화)
       }
       
-      // 실패 시 START 상태를 유지하지 않음
       return
     }
   }
@@ -610,6 +622,15 @@ const DataSettingsPanel = forwardRef(({
       console.log('2️⃣ EEPROM 읽기 시작 - 응답 대기 중...')
       await readFromEEPROM()
       console.log('✅ EEPROM 읽기 완료')
+      
+      // 2.5단계: GPIO 5번 쇼트 검사 (EEPROM 처리 후)
+      if (gpio5State === 'HIGH') {
+        console.log('🚨 GPIO5 니들 쇼트 감지 - 로직 중단 (EEPROM 데이터는 정상 저장됨)')
+        console.log('🔍 현재 EEPROM 데이터 상태:', readEepromData)
+        onWorkStatusChange && onWorkStatusChange('needle_short')
+        onStartedChange && onStartedChange(true) // START 상태 유지 (저장 실패와 동일)
+        return
+      }
       
       // 3단계: 모터 1 UP 명령 전송 (저항 측정 단계 제외)
       const motor1UpPosition = Math.round((needleOffset1 + needleProtrusion1) * 100);
@@ -636,6 +657,7 @@ const DataSettingsPanel = forwardRef(({
     } catch (error) {
       console.error('❌ 일반 로직 실패:', error.message)
       onWorkStatusChange && onWorkStatusChange('write_failed')
+      onStartedChange && onStartedChange(true) // START 상태 유지 (판정 버튼 활성화)
       return
     }
   }

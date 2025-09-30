@@ -57,7 +57,7 @@ export default function NeedleInspectorUI() {
   const prevGpio5Ref = useRef('LOW') // 이전 GPIO 상태 추적용 (useRef로 즉시 업데이트)
   
   // StatusPanel 상태 관리
-  const [workStatus, setWorkStatus] = useState('waiting') // waiting, connected, disconnected, write_success, write_failed
+  const [workStatus, setWorkStatus] = useState('waiting') // waiting, connected, disconnected, write_success, write_failed, needle_short
   
   // DataSettingsPanel 상태 관리
   const [isStarted, setIsStarted] = useState(false) // START/STOP 상태
@@ -1540,6 +1540,7 @@ export default function NeedleInspectorUI() {
             onCalibrationChange={handleCalibrationChange1}
             selectedLineColor={selectedLineColor1}
             onLineColorChange={handleLineColorChange1}
+            workStatus={workStatus} // 작업 상태 전달
             ref={cameraViewRef1} // CameraView ref 추가
           />
           <CameraView 
@@ -1560,6 +1561,7 @@ export default function NeedleInspectorUI() {
             onCalibrationChange={handleCalibrationChange2}
             selectedLineColor={selectedLineColor2}
             onLineColorChange={handleLineColorChange2}
+            workStatus={workStatus} // 작업 상태 전달
             ref={cameraViewRef2} // CameraView ref 추가
           />
         </div>
@@ -1597,6 +1599,7 @@ export default function NeedleInspectorUI() {
             onResistance2Change={setResistance2} // 저항2 값 변경 함수 전달
             onResistance1StatusChange={setResistance1Status} // 저항1 상태 변경 함수 전달
             onResistance2StatusChange={setResistance2Status} // 저항2 상태 변경 함수 전달
+            gpio5State={gpio5State} // GPIO 5번 쇼트 체크 상태 전달
           />
           </div>
           <div className="w-[26.5%]">
@@ -1664,6 +1667,7 @@ export default function NeedleInspectorUI() {
             isResistanceAbnormal={isResistanceAbnormal} // 저항 이상 상태 전달
             needleOffset1={needleOffset1} // 모터 1 초기 위치 전달
             needleOffset2={needleOffset2} // 모터 2 초기 위치 전달
+            workStatus={workStatus} // 작업 상태 전달 (니들 쇼트 포함)
             />
           </div>
         </div>

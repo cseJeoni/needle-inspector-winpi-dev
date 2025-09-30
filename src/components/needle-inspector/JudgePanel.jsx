@@ -3,7 +3,7 @@ import { Button } from "./Button"
 import { useAuth } from "../../hooks/useAuth.jsx"
 import { useState, useRef } from "react"
 
-export default function JudgePanel({ onJudge, isStarted, onReset, camera1Ref, camera2Ref, hasNeedleTip = true, websocket, isWsConnected, onCaptureMergedImage, eepromData, generateUserBasedPath, isWaitingEepromRead = false, onWaitingEepromReadChange, isResistanceAbnormal = false, needleOffset1, needleOffset2 }) {
+export default function JudgePanel({ onJudge, isStarted, onReset, camera1Ref, camera2Ref, hasNeedleTip = true, websocket, isWsConnected, onCaptureMergedImage, eepromData, generateUserBasedPath, isWaitingEepromRead = false, onWaitingEepromReadChange, isResistanceAbnormal = false, needleOffset1, needleOffset2, workStatus = 'waiting' }) {
   // 사용자 정보 가져오기
   const { user } = useAuth()
   
@@ -134,6 +134,7 @@ export default function JudgePanel({ onJudge, isStarted, onReset, camera1Ref, ca
     try {
       // 1. EEPROM 데이터 사용 (props로 받은 데이터)
       console.log('📡 EEPROM 데이터 사용:', eepromData);
+      console.log('📡 현재 작업 상태:', workStatus);
 
       // 2. 캡처 먼저 수행하여 '화면 그대로' 확보
       const mergedImageData = await onCaptureMergedImage(result, eepromData);
@@ -359,21 +360,21 @@ export default function JudgePanel({ onJudge, isStarted, onReset, camera1Ref, ca
         {/* PASS 버튼 */}
         <Button
           onClick={handlePassClick}
-          disabled={!isStarted || !hasNeedleTip || isWaitingEepromRead || isResistanceAbnormal}
+          disabled={!isStarted || !hasNeedleTip || isWaitingEepromRead || isResistanceAbnormal || workStatus === 'needle_short'}
           style={{
             flex: 1,
-            backgroundColor: (isStarted && hasNeedleTip && !isWaitingEepromRead && !isResistanceAbnormal) ? '#0CB56C' : '#6B7280',
+            backgroundColor: (isStarted && hasNeedleTip && !isWaitingEepromRead && !isResistanceAbnormal && workStatus !== 'needle_short') ? '#0CB56C' : '#6B7280',
             color: 'white',
             fontSize: '1.8dvh',
             fontWeight: 'bold',
             border: 'none',
             borderRadius: '0.375rem',
-            cursor: (isStarted && hasNeedleTip && !isWaitingEepromRead && !isResistanceAbnormal) ? 'pointer' : 'not-allowed',
+            cursor: (isStarted && hasNeedleTip && !isWaitingEepromRead && !isResistanceAbnormal && workStatus !== 'needle_short') ? 'pointer' : 'not-allowed',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             height: '29.5dvh',
-            opacity: (isStarted && hasNeedleTip && !isWaitingEepromRead && !isResistanceAbnormal) ? 1 : 0.6
+            opacity: (isStarted && hasNeedleTip && !isWaitingEepromRead && !isResistanceAbnormal && workStatus !== 'needle_short') ? 1 : 0.6
           }}
         >
           PASS
