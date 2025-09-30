@@ -1145,16 +1145,9 @@ export default function NeedleInspectorUI() {
             // EEPROM 데이터 수신 감지 (자동 처리 비활성화)
           }
           
-          // GPIO 5번 상태 업데이트 (Short 체크용)
+          // GPIO 5번 상태 업데이트 (Short 체크용 - 상태 표시만)
           if (gpio5 && gpio5 !== "UNKNOWN") {
-            const prevGpio5State = prevGpio5Ref.current // useRef로 이전 상태 가져오기
-            
-            // GPIO 5번 상태가 변경되었을 때 토글 실행 (HIGH↔LOW 변화)
-            if (prevGpio5State !== gpio5) {
-              handleAutoToggle()
-            }
-            
-            // 상태 업데이트 (즉시 반영)
+            // 상태 업데이트 (디버깅 패널 표시용)
             prevGpio5Ref.current = gpio5
             setGpio5State(gpio5)
           }
@@ -1312,9 +1305,9 @@ export default function NeedleInspectorUI() {
 
   // 기존 handleStartStopClick 함수 제거 - 새로운 함수로 대체됨
 
-  // GPIO 5번 자동 토글 함수 (Short 체크 기반 모터 상태 반대 명령)
+  // GPIO 자동 토글 함수 (GPIO 6번 START 버튼 등에서 사용)
   const handleAutoToggle = () => {
-    console.log("🔄 GPIO5 Short 체크 토글 감지 - 모터 상태 기반 명령 전송!")
+    console.log("🔄 GPIO 토글 감지 - 모터 상태 기반 명령 전송!")
     console.log("🔍 디버그 정보 - currentPosition:", currentPosition, "needlePosition:", needlePosition)
     
     // MOVING 상태 확인
