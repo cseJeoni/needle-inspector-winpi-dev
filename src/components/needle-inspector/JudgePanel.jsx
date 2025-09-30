@@ -9,6 +9,7 @@ export default function JudgePanel({ onJudge, isStarted, onReset, camera1Ref, ca
   
   // 관리자 패널 상태
   const [isAdminMode, setIsAdminMode] = useState(false)
+  const [isDebugMode, setIsDebugMode] = useState(false) // 디버깅 모드 상태 추가
   const [adminPaths, setAdminPaths] = useState({
     users: '',
     mtr2: '',
@@ -234,58 +235,85 @@ export default function JudgePanel({ onJudge, isStarted, onReset, camera1Ref, ca
         <div style={{ height: '100%', display: 'flex', flexDirection: 'column', gap: '1dvh' }}>
 
           {/* 각 파일/경로 설정 행 */}
-          {adminItems.map(item => (
-            <div key={item.key} style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '1dvw',
-              padding: '1dvh',
-              borderRadius: '0.375rem'
-            }}>
-              {/* 라벨 */}
-              <div style={{
-                minWidth: '8dvw',
-                fontSize: '1.3dvh',
-                fontWeight: '500',
-                color: '#D1D5DB'
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '1dvh' }}>
+            {adminItems.map(item => (
+              <div key={item.key} style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '1dvw',
+                padding: '0.8dvh',
+                borderRadius: '0.375rem'
               }}>
-                {item.label}
-              </div>
-              
-              {/* 경로 표시 */}
-              <div style={{
-                flex: 1,
-                padding: '0.5dvh 1dvw',
-                border: '1px solid #4A5568',
-                borderRadius: '0.25rem',
-                fontSize: '1.3dvh',
-                color: '#A0AEC0',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                whiteSpace: 'nowrap'
+                {/* 라벨 */}
+                <div style={{
+                  minWidth: '6dvw',
+                  fontSize: '1.2dvh',
+                  fontWeight: '500',
+                  color: '#D1D5DB'
+                }}>
+                  {item.label}
+                </div>
                 
-              }}>
-                {adminPaths[item.key] || '파일을 선택하세요'}
-              </div>
-              
-              {/* 찾기 버튼 */}
-              <Button
-                onClick={() => handleFileSelect(item.key)}
-                style={{
-                  minWidth: '3dvw',
-                  height: '3dvh',
-                  fontSize: '1.3dvh',
-                  backgroundColor: '#3B82F6',
-                  color: 'white',
-                  border: 'none',
+                {/* 경로 표시 */}
+                <div style={{
+                  flex: 1,
+                  padding: '0.4dvh 0.8dvw',
+                  border: '1px solid #4A5568',
                   borderRadius: '0.25rem',
-                  cursor: 'pointer'
-                }}
-              >
-                찾기
-              </Button>
-            </div>
-          ))}
+                  fontSize: '1.1dvh',
+                  color: '#A0AEC0',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                  backgroundColor: '#1F2937'
+                }}>
+                  {adminPaths[item.key] || '파일을 선택하세요'}
+                </div>
+                
+                {/* 찾기 버튼 */}
+                <Button
+                  onClick={() => handleFileSelect(item.key)}
+                  style={{
+                    minWidth: '2.5dvw',
+                    height: '2.5dvh',
+                    fontSize: '1.1dvh',
+                    backgroundColor: '#3B82F6',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '0.25rem',
+                    cursor: 'pointer'
+                  }}
+                >
+                  찾기
+                </Button>
+              </div>
+            ))}
+          </div>
+
+          {/* 디버깅 모드 버튼 */}
+          <div style={{ 
+            marginTop: 'auto',
+            paddingTop: '1dvh',
+            borderTop: '1px solid #374151'
+          }}>
+            <Button
+              onClick={() => setIsDebugMode(!isDebugMode)}
+              style={{
+                width: '100%',
+                height: '4dvh',
+                fontSize: '1.3dvh',
+                fontWeight: 'bold',
+                backgroundColor: isDebugMode ? '#DC2626' : '#374151',
+                color: 'white',
+                border: isDebugMode ? '1px solid #DC2626' : '1px solid #6B7280',
+                borderRadius: '0.375rem',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease'
+              }}
+            >
+              {isDebugMode ? '디버깅 모드 ON' : '디버깅 모드 OFF'}
+            </Button>
+          </div>
         </div>
       </Panel>
     )
