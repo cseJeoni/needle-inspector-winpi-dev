@@ -160,21 +160,23 @@ export default function DataSettingsPanel({
   // CSV 캐시 초기화 (앱 시작 시 1회)
   useEffect(() => {
     const loadCsvDataAsync = async () => {
-      console.log('DataSettingsPanel: 마운트됨, CSV 데이터 로딩 시도...');
+      // 이미 캐시가 준비되어 있으면 건너뛰기
+      if (isCacheReady()) {
+        setCacheReady(true);
+        const countryOptions = getCountryOptions(mtrVersion);
+        if (countryOptions.length > 0) {
+          setSelectedCountry(countryOptions[0].value);
+          const needleOptions = getNeedleOptions(mtrVersion, countryOptions[0].value);
+          if (needleOptions.length > 0 && onSelectedNeedleTypeChange) {
+            onSelectedNeedleTypeChange(needleOptions[0].value);
+          }
+        }
+        return;
+      }
+
       if (window.api && typeof window.api.loadCsvData === 'function') {
         try {
-          const csvData = await window.api.loadCsvData(); // 비동기로 CSV 데이터 로드
-          console.log('CSV 데이터 로드 완료:', csvData);
-          console.log('MTR 2.0 데이터 개수:', csvData.mtr2?.length || 0);
-          console.log('MTR 4.0 데이터 개수:', csvData.mtr4?.length || 0);
-          
-          // 실제 데이터 샘플 확인
-          if (csvData.mtr2 && csvData.mtr2.length > 0) {
-            console.log('MTR 2.0 첫 번째 데이터 샘플:', csvData.mtr2[0]);
-          }
-          if (csvData.mtr4 && csvData.mtr4.length > 0) {
-            console.log('MTR 4.0 첫 번째 데이터 샘플:', csvData.mtr4[0]);
-          }
+          const csvData = await window.api.loadCsvData();
           
           // 데이터 형식을 csvCache가 기대하는 형식으로 변환
           const formattedData = {
@@ -182,27 +184,19 @@ export default function DataSettingsPanel({
             '4.0': csvData.mtr4 || []
           };
           
-          console.log('캐시 초기화 전 데이터 확인:', formattedData);
-          initializeCache(formattedData); // 로드된 데이터로 캐시 초기화
+          initializeCache(formattedData);
           
           // 캐시 초기화 후, 상태 업데이트하여 UI 리렌더링
           if (isCacheReady()) {
-            console.log('캐시 준비 완료, UI 상태 업데이트');
             setCacheReady(true);
             const countryOptions = getCountryOptions(mtrVersion);
-            console.log(`MTR ${mtrVersion} 국가 옵션:`, countryOptions);
             if (countryOptions.length > 0) {
               setSelectedCountry(countryOptions[0].value);
               const needleOptions = getNeedleOptions(mtrVersion, countryOptions[0].value);
-              console.log(`${countryOptions[0].value} 니들 옵션:`, needleOptions);
               if (needleOptions.length > 0 && onSelectedNeedleTypeChange) {
                 onSelectedNeedleTypeChange(needleOptions[0].value);
               }
-            } else {
-              console.warn('국가 옵션이 없습니다. CSV 데이터를 확인하세요.');
             }
-          } else {
-            console.warn('캐시 준비 실패');
           }
         } catch (error) {
           console.error('CSV 데이터 로드 중 오류 발생:', error);

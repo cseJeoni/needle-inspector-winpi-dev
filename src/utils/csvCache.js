@@ -16,12 +16,6 @@ function buildCache(rowsByVer) {
   
   for (const ver of ['2.0', '4.0']) {
     const rows = rowsByVer[ver] || [];
-    console.log(`buildCache: MTR ${ver} 처리 중, 총 ${rows.length}개 행`);
-    
-    if (rows.length > 0) {
-      console.log(`첫 번째 행 구조:`, Object.keys(rows[0]));
-      console.log(`첫 번째 행 데이터:`, rows[0]);
-    }
     
     // 1) 회사 목록 (중복 제거 및 정렬)
     // 다양한 컬럼명 패턴 지원
@@ -41,8 +35,6 @@ function buildCache(rowsByVer) {
     const countries = Array.from(new Set(
       rows.map(r => getFieldValue(r, companyKeys)).filter(Boolean)
     )).sort((a, b) => a.localeCompare(b, 'ko'));
-    
-    console.log(`MTR ${ver} 발견된 국가/회사:`, countries);
     
     // 2) 회사별 TIP 리스트
     const needlesByCompany = new Map();
@@ -65,9 +57,6 @@ function buildCache(rowsByVer) {
       needlesByCompany.set(company, arr);
     }
     
-    console.log(`MTR ${ver} 회사별 니들 개수:`, 
-      Array.from(needlesByCompany.entries()).map(([k, v]) => `${k}: ${v.length}개`)
-    );
     
     // 각 회사별 TIP 리스트 정렬 및 중복 제거
     for (const [k, arr] of needlesByCompany) {
@@ -100,22 +89,13 @@ function buildCache(rowsByVer) {
  */
 export function initializeCache(rowsByVer) {
   try {
-    console.log('CSV 캐시 초기화 시작...');
-    
     if (!rowsByVer || (!rowsByVer['2.0'] && !rowsByVer['4.0'])) {
-      console.warn('캐시할 데이터가 없습니다.');
       cache = { ready: false, data: {} };
       return;
     }
 
     // 캐시 빌드
     cache = buildCache(rowsByVer);
-    
-    console.log('CSV 캐시 초기화 완료');
-    console.log('캐시된 국가 수:', {
-      'MTR 2.0': cache.data['2.0']?.countries?.length || 0,
-      'MTR 4.0': cache.data['4.0']?.countries?.length || 0
-    });
     
   } catch (error) {
     console.error('CSV 캐시 초기화 실패:', error);
