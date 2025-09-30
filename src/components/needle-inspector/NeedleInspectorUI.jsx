@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react"
+import { useState, useRef, useEffect, useLayoutEffect } from "react"
 import CameraView from "./CameraView"
 import StatusPanel from "./StatusPanel"
 import DataSettingsPanel from "./DataSettingsPanel"
@@ -608,16 +608,22 @@ export default function NeedleInspectorUI() {
   // 캔버스 다시 그리기 함수들
   const redrawCanvas1 = () => {
     const canvas = canvasRef1.current
-    if (!canvas) return
+    if (!canvas || canvas.width === 0 || canvas.height === 0) return
+    
     const ctx = canvas.getContext('2d')
+    if (!ctx) return
+    
     ctx.clearRect(0, 0, canvas.width, canvas.height)
     drawLines(ctx, lines1, selectedIndex1, calibrationValue1)
   }
 
   const redrawCanvas2 = () => {
     const canvas = canvasRef2.current
-    if (!canvas) return
+    if (!canvas || canvas.width === 0 || canvas.height === 0) return
+    
     const ctx = canvas.getContext('2d')
+    if (!ctx) return
+    
     ctx.clearRect(0, 0, canvas.width, canvas.height)
     drawLines(ctx, lines2, selectedIndex2, calibrationValue2)
   }
@@ -634,8 +640,11 @@ export default function NeedleInspectorUI() {
     resizeCanvas(canvasRef1.current, videoContainerRef1.current)
     resizeCanvas(canvasRef2.current, videoContainerRef2.current)
     
-    redrawCanvas1()
-    redrawCanvas2()
+    // 캔버스 크기 조정 후 약간의 지연을 두고 다시 그리기
+    setTimeout(() => {
+      redrawCanvas1()
+      redrawCanvas2()
+    }, 100);
   }
 
   // START/STOP 버튼 클릭 핸들러 - DataSettingsPanel에서 EEPROM 로직 처리
@@ -755,8 +764,9 @@ export default function NeedleInspectorUI() {
         // 카메라 1 선 정보 로드
         const camera1Data = await loadCameraLinesData(1);
         if (camera1Data.lines && camera1Data.lines.length > 0) {
-          setLines1(camera1Data.lines);
-          console.log(`📐 카메라 1: ${camera1Data.lines.length}개 선 로드됨`);
+          console.log(`📐 카메라 1: ${camera1Data.lines.length}개 선 로드됨 - 상태 업데이트 시작`);
+          setLines1([...camera1Data.lines]); // 새 배열로 복사하여 상태 업데이트 강제
+          console.log(`📐 카메라 1 상태 업데이트 완료:`, camera1Data.lines);
         }
         if (camera1Data.calibrationValue) {
           setCalibrationValue1(camera1Data.calibrationValue);
@@ -768,8 +778,9 @@ export default function NeedleInspectorUI() {
         // 카메라 2 선 정보 로드
         const camera2Data = await loadCameraLinesData(2);
         if (camera2Data.lines && camera2Data.lines.length > 0) {
-          setLines2(camera2Data.lines);
-          console.log(`📐 카메라 2: ${camera2Data.lines.length}개 선 로드됨`);
+          console.log(`📐 카메라 2: ${camera2Data.lines.length}개 선 로드됨 - 상태 업데이트 시작`);
+          setLines2([...camera2Data.lines]); // 새 배열로 복사하여 상태 업데이트 강제
+          console.log(`📐 카메라 2 상태 업데이트 완료:`, camera2Data.lines);
         }
         if (camera2Data.calibrationValue) {
           setCalibrationValue2(camera2Data.calibrationValue);
@@ -779,6 +790,113 @@ export default function NeedleInspectorUI() {
         }
 
         console.log('✅ 저장된 카메라 선 정보 로드 완료');
+
+        // 상태 업데이트 완료 후 한 번만 그리기 (중복 방지)
+        console.log('🎯 로드 완료 - 상태 업데이트 후 최종 그리기 예약');
+        
+        // 강력한 디버깅과 함께 캔버스 그리기
+        const forceCanvasDraw = (attempt = 1) => {
+          console.log(`🔍 [시도 ${attempt}] DOM 상태 강력 디버깅 시작`);
+          
+          const canvas1 = canvasRef1.current;
+          const canvas2 = canvasRef2.current;
+          const container1 = videoContainerRef1.current;
+          const container2 = videoContainerRef2.current;
+          
+          console.log(`🔍 Canvas1 존재: ${!!canvas1}, Canvas2 존재: ${!!canvas2}`);
+          console.log(`🔍 Container1 존재: ${!!container1}, Container2 존재: ${!!container2}`);
+          
+          if (canvas1) {
+            console.log(`🔍 Canvas1 크기: ${canvas1.width}x${canvas1.height}, 스타일: ${canvas1.style.width}x${canvas1.style.height}`);
+            console.log(`🔍 Canvas1 부모: ${canvas1.parentElement ? 'OK' : 'NULL'}`);
+          }
+          
+          if (canvas2) {
+            console.log(`🔍 Canvas2 크기: ${canvas2.width}x${canvas2.height}, 스타일: ${canvas2.style.width}x${canvas2.style.height}`);
+            console.log(`🔍 Canvas2 부모: ${canvas2.parentElement ? 'OK' : 'NULL'}`);
+          }
+          
+          // 현재 상태 확인
+          console.log(`🔍 현재 lines1 길이: ${lines1?.length || 0}`);
+          console.log(`🔍 현재 lines2 길이: ${lines2?.length || 0}`);
+          console.log(`🔍 lines1 데이터:`, lines1);
+          console.log(`🔍 lines2 데이터:`, lines2);
+          
+          if (canvas1 && canvas2 && container1 && container2) {
+            console.log('🎨 강제 캔버스 그리기 시작');
+            
+            // 캔버스 크기 강제 설정
+            const rect1 = container1.getBoundingClientRect();
+            const rect2 = container2.getBoundingClientRect();
+            
+            console.log(`🔍 Container1 실제 크기: ${rect1.width}x${rect1.height}`);
+            console.log(`🔍 Container2 실제 크기: ${rect2.width}x${rect2.height}`);
+            
+            canvas1.width = rect1.width || 400;
+            canvas1.height = rect1.height || 300;
+            canvas2.width = rect2.width || 400;
+            canvas2.height = rect2.height || 300;
+            
+            console.log(`🔍 Canvas1 새 크기: ${canvas1.width}x${canvas1.height}`);
+            console.log(`🔍 Canvas2 새 크기: ${canvas2.width}x${canvas2.height}`);
+            
+            // 이전 방식으로 직접 선 그리기 (테스트 사각형만 제거)
+            if (camera1Data.lines && camera1Data.lines.length > 0) {
+              const ctx1 = canvas1.getContext('2d');
+              if (ctx1) {
+                ctx1.clearRect(0, 0, canvas1.width, canvas1.height);
+                
+                // 선과 선 정보를 함께 그리기 (drawLineWithInfo 사용)
+                camera1Data.lines.forEach((line, index) => {
+                  const lineColor = line.color || 'red';
+                  drawLineWithInfo(ctx1, line, lineColor, true, camera1Data.calibrationValue || 19.8);
+                  console.log(`🎨 Canvas1 선 ${index + 1} 그리기 (정보 포함): (${line.x1},${line.y1}) -> (${line.x2},${line.y2})`);
+                });
+                
+                // 외부 선 정보도 업데이트
+                const firstLine = camera1Data.lines[0];
+                const lineData = drawLineWithInfo(null, firstLine, firstLine.color || 'red', false, camera1Data.calibrationValue || 19.8);
+                setLineInfo1(`선 1: ${lineData.mm}mm (${lineData.angle}°)`);
+                console.log(`📐 카메라 1 선 정보 업데이트: 선 1: ${lineData.mm}mm (${lineData.angle}°)`);
+              }
+            }
+            
+            if (camera2Data.lines && camera2Data.lines.length > 0) {
+              const ctx2 = canvas2.getContext('2d');
+              if (ctx2) {
+                ctx2.clearRect(0, 0, canvas2.width, canvas2.height);
+                
+                // 선과 선 정보를 함께 그리기 (drawLineWithInfo 사용)
+                camera2Data.lines.forEach((line, index) => {
+                  const lineColor = line.color || 'blue';
+                  drawLineWithInfo(ctx2, line, lineColor, true, camera2Data.calibrationValue || 19.8);
+                  console.log(`🎨 Canvas2 선 ${index + 1} 그리기 (정보 포함): (${line.x1},${line.y1}) -> (${line.x2},${line.y2})`);
+                });
+                
+                // 외부 선 정보도 업데이트
+                const firstLine = camera2Data.lines[0];
+                const lineData = drawLineWithInfo(null, firstLine, firstLine.color || 'blue', false, camera2Data.calibrationValue || 19.8);
+                setLineInfo2(`선 1: ${lineData.mm}mm (${lineData.angle}°)`);
+                console.log(`📐 카메라 2 선 정보 업데이트: 선 1: ${lineData.mm}mm (${lineData.angle}°)`);
+              }
+            }
+            
+            console.log('🎨 강제 캔버스 그리기 완료');
+          } else {
+            if (attempt < 10) {
+              console.warn(`⚠️ DOM 요소 준비 안됨 - ${attempt}/10 재시도`);
+              setTimeout(() => forceCanvasDraw(attempt + 1), 500);
+            } else {
+              console.error('❌ 최대 시도 횟수 초과');
+            }
+          }
+        };
+        
+        // 상태 업데이트를 기다린 후 그리기 (더 긴 지연)
+        setTimeout(() => {
+          console.log('🔄 상태 업데이트 대기 후 그리기 시작');
+          forceCanvasDraw();
+        }, 2000); // 2초로 늘려서 상태 업데이트 완료 보장
       } catch (error) {
         console.error('❌ 저장된 카메라 선 정보 로드 실패:', error);
       }
@@ -786,6 +904,39 @@ export default function NeedleInspectorUI() {
 
     loadAllSavedLines();
   }, []); // 컴포넌트 마운트시 한 번만 실행
+
+  // DOM 렌더링 완료 후 캔버스 초기화 (중복 실행 방지)
+  useLayoutEffect(() => {
+    // 로드 중이면 실행하지 않음 (중복 방지)
+    if (lines1.length === 0 && lines2.length === 0) {
+      console.log('🚫 선 데이터가 없어서 캔버스 초기화 건너뜀');
+      return;
+    }
+
+    const initializeCanvas = () => {
+      const canvas1 = canvasRef1.current;
+      const canvas2 = canvasRef2.current;
+      const container1 = videoContainerRef1.current;
+      const container2 = videoContainerRef2.current;
+      
+      if (canvas1 && canvas2 && container1 && container2) {
+        console.log('🎨 useLayoutEffect - 캔버스 초기화 시작 (중복 방지)');
+        
+        // 캔버스 크기 설정
+        resizeCanvas(canvas1, container1);
+        resizeCanvas(canvas2, container2);
+        
+        // 즉시 그리기 시도
+        redrawCanvas1();
+        redrawCanvas2();
+        
+        console.log('🎨 useLayoutEffect - 캔버스 그리기 완료');
+      }
+    };
+
+    // DOM이 완전히 렌더링된 후 실행
+    initializeCanvas();
+  }, [lines1.length, lines2.length]); // 선 개수가 변경될 때만 실행
 
   // 프로그램 종료시 선 정보 자동 저장을 위한 beforeunload 이벤트
   useEffect(() => {

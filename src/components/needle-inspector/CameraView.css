@@ -172,6 +172,7 @@
   position: absolute;
   top: 0;
   left: 0;
+  z-index: 1; /* 캔버스(z-index: 10)보다 낮게 설정 */
 }
 
 .camera-canvas {
