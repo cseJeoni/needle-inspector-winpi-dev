@@ -37,7 +37,12 @@ export default function NeedleCheckPanelV4Multi({
   resistanceDelay,
   onResistanceDelayChange,
   resistanceThreshold,
-  onResistanceThresholdChange
+  onResistanceThresholdChange,
+  // 니들 속도 및 힘 설정 props
+  needleSpeed2,
+  onNeedleSpeed2Change,
+  needleForce2,
+  onNeedleForce2Change
 }) {
   // 모터 상태에 따라 needleStatus 동기화
   const [needleStatus, setNeedleStatus] = useState(needlePosition === 'UP' ? 'UP' : needlePosition === 'DOWN' ? 'DOWN' : 'MOVING')
@@ -58,6 +63,8 @@ export default function NeedleCheckPanelV4Multi({
   const [isResistanceCheckEnabled, setIsResistanceCheckEnabled] = useState(false)
   // 니들 소음 확인 상태
   const [isNeedleNoiseChecking, setIsNeedleNoiseChecking] = useState(false)
+  // 현재 선택된 탭 (기본값: 저항 검사)
+  const [activeTab, setActiveTab] = useState('resistance')
   
   // 저항 측정 상태는 props로 받음 (로컬 상태 제거)
   
@@ -265,19 +272,80 @@ export default function NeedleCheckPanelV4Multi({
     <div style={{ height: '35dvh' }}>
       <Panel title={
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '1dvh' }}>
-          <h2 className="text-lg font-bold text-responsive">니들 설정</h2>
+          {/* 브라우저 탭 스타일 버튼들 */}
+          <div style={{ display: 'flex', alignItems: 'flex-end', gap: '1px' }}>
+            <button
+              onClick={() => setActiveTab('needle')}
+              className="text-lg font-bold text-responsive"
+              style={{
+                backgroundColor: activeTab === 'needle' ? '#2D3748' : '#4A5568',
+                color: activeTab === 'needle' ? 'white' : '#A0AEC0',
+                padding: '0.8dvh 1.5dvw',
+                border: '1px solid #4A5568',
+                borderBottom: activeTab === 'needle' ? '1px solid #2D3748' : '1px solid #4A5568',
+                borderTopLeftRadius: '8px',
+                borderTopRightRadius: '8px',
+                cursor: 'pointer',
+                outline: 'none',
+                position: 'relative',
+                zIndex: activeTab === 'needle' ? 2 : 1
+              }}
+            >
+              니들 설정
+            </button>
+            <button
+              onClick={() => setActiveTab('resistance')}
+              className="text-lg font-bold text-responsive"
+              style={{
+                backgroundColor: activeTab === 'resistance' ? '#2D3748' : '#4A5568',
+                color: activeTab === 'resistance' ? 'white' : '#A0AEC0',
+                padding: '0.8dvh 1.5dvw',
+                border: '1px solid #4A5568',
+                borderBottom: activeTab === 'resistance' ? '1px solid #2D3748' : '1px solid #4A5568',
+                borderTopLeftRadius: '8px',
+                borderTopRightRadius: '8px',
+                cursor: 'pointer',
+                outline: 'none',
+                position: 'relative',
+                zIndex: activeTab === 'resistance' ? 2 : 1
+              }}
+            >
+              저항 검사
+            </button>
+          </div>
+          
+          {/* 잠금 버튼 */}
           <img
-            src={isNeedleCheckEnabled ? unlockIcon : lockIcon}
-            alt={isNeedleCheckEnabled ? 'Unlocked' : 'Locked'}
+            src={
+              activeTab === 'needle' 
+                ? (isNeedleCheckEnabled ? unlockIcon : lockIcon)
+                : (isResistanceCheckEnabled ? unlockIcon : lockIcon)
+            }
+            alt={
+              activeTab === 'needle' 
+                ? (isNeedleCheckEnabled ? 'Unlocked' : 'Locked')
+                : (isResistanceCheckEnabled ? 'Unlocked' : 'Locked')
+            }
             className="responsive-icon"
             style={{ cursor: 'pointer' }}
-            onClick={handleNeedleCheckToggle}
-            title={isNeedleCheckEnabled ? '설정 잠금' : '설정 잠금 해제'}
+            onClick={
+              activeTab === 'needle' 
+                ? handleNeedleCheckToggle
+                : handleResistanceCheckToggle
+            }
+            title={
+              activeTab === 'needle' 
+                ? (isNeedleCheckEnabled ? '설정 잠금' : '설정 잠금 해제')
+                : (isResistanceCheckEnabled ? '설정 잠금' : '설정 잠금 해제')
+            }
           />
         </div>
       }>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5dvh', height: '100%', overflow: 'hidden' }}>
         
+        {/* 니들 설정 탭 내용 */}
+        {activeTab === 'needle' && (
+          <>
         {/* 니들 오프셋 (mm) - 듀얼 모터 */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5dvw' }}>
           <label style={{ width: '35%', fontSize: '1.3dvh', color: '#D1D5DB' }}>니들 초기 위치 (mm)</label>
@@ -565,20 +633,75 @@ export default function NeedleCheckPanelV4Multi({
           </div>
         </div>
 
+        {/* 니들 속도 */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5dvw' }}>
+          <label style={{ width: '35%', fontSize: '1.3dvh', color: '#D1D5DB' }}>니들 속도</label>
+          
+          {/* 모터 1 - 빈 공간 */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.3dvw', flex: 1 }}>
+            <div style={{ width: '90%' }}></div>
+          </div>
+          
+          {/* 모터 2 */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.3dvw', flex: 1 }}>
+            <Input 
+              type="number"
+              value={needleSpeed2 || 0}
+              onChange={(e) => onNeedleSpeed2Change && onNeedleSpeed2Change(Number(e.target.value))}
+              min="0"
+              disabled={!isNeedleCheckEnabled}
+              style={{ 
+                backgroundColor: '#171C26', 
+                color: !isNeedleCheckEnabled ? '#D1D5DB' : 'white', 
+                textAlign: 'center',
+                width: '60%',
+                fontSize: '1.1dvh', 
+                height: '3dvh',
+                opacity: !isNeedleCheckEnabled ? 0.6 : 1
+              }}
+            />
+            <div style={{ width: '30%' }}></div>
+          </div>
+        </div>
+
+        {/* 니들 힘 */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5dvw' }}>
+          <label style={{ width: '35%', fontSize: '1.3dvh', color: '#D1D5DB' }}>니들 힘</label>
+          
+          {/* 모터 1 - 빈 공간 */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.3dvw', flex: 1 }}>
+            <div style={{ width: '90%' }}></div>
+          </div>
+          
+          {/* 모터 2 */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.3dvw', flex: 1 }}>
+            <Input 
+              type="number"
+              value={needleForce2 || 0}
+              onChange={(e) => onNeedleForce2Change && onNeedleForce2Change(Number(e.target.value))}
+              min="0"
+              disabled={!isNeedleCheckEnabled}
+              style={{ 
+                backgroundColor: '#171C26', 
+                color: !isNeedleCheckEnabled ? '#D1D5DB' : 'white', 
+                textAlign: 'center',
+                width: '60%',
+                fontSize: '1.1dvh', 
+                height: '3dvh',
+                opacity: !isNeedleCheckEnabled ? 0.6 : 1
+              }}
+            />
+            <div style={{ width: '30%' }}></div>
+          </div>
+        </div>
+          </>
+        )}
+
+        {/* 저항 검사 탭 내용 */}
+        {activeTab === 'resistance' && (
+          <>
         {/* 저항 검사 */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5dvh', color: '#D1D5DB' }}>
-          {/* 저항검사 제목과 자물쇠 */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '1.5dvh', marginBottom: '0.5dvh' }}>
-            <h2 className="text-lg font-bold text-responsive">저항 검사</h2>
-            <img
-              src={isResistanceCheckEnabled ? unlockIcon : lockIcon}
-              alt={isResistanceCheckEnabled ? 'Unlocked' : 'Locked'}
-              className="responsive-icon"
-              style={{ cursor: 'pointer' }}
-              onClick={handleResistanceCheckToggle}
-              title={isResistanceCheckEnabled ? '설정 잠금' : '설정 잠금 해제'}
-            />
-          </div>
           
           {/* DELAY, 정상 범주 */}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -693,6 +816,8 @@ export default function NeedleCheckPanelV4Multi({
           </div>
 
         </div>
+          </>
+        )}
         </div>
       </Panel>
     </div>
