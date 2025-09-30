@@ -3,7 +3,7 @@ import { Button } from "./Button"
 import { useAuth } from "../../hooks/useAuth.jsx"
 import { useState, useRef } from "react"
 
-export default function JudgePanel({ onJudge, isStarted, onReset, camera1Ref, camera2Ref, hasNeedleTip = true, websocket, isWsConnected, onCaptureMergedImage, eepromData, generateUserBasedPath, isWaitingEepromRead = false, onWaitingEepromReadChange, isResistanceAbnormal = false, needleOffset1, needleOffset2, workStatus = 'waiting' }) {
+export default function JudgePanel({ onJudge, isStarted, onReset, camera1Ref, camera2Ref, hasNeedleTip = true, websocket, isWsConnected, onCaptureMergedImage, eepromData, generateUserBasedPath, isWaitingEepromRead = false, onWaitingEepromReadChange, isResistanceAbnormal = false, needleOffset1, needleOffset2, workStatus = 'waiting', onDebugModeChange }) {
   // 사용자 정보 가져오기
   const { user } = useAuth()
   
@@ -298,7 +298,14 @@ export default function JudgePanel({ onJudge, isStarted, onReset, camera1Ref, ca
             borderTop: '1px solid #374151'
           }}>
             <Button
-              onClick={() => setIsDebugMode(!isDebugMode)}
+              onClick={() => {
+                const newDebugMode = !isDebugMode;
+                setIsDebugMode(newDebugMode);
+                // 부모 컴포넌트에 디버깅 모드 변경 알림
+                if (onDebugModeChange) {
+                  onDebugModeChange(newDebugMode);
+                }
+              }}
               style={{
                 width: '100%',
                 height: '4dvh',

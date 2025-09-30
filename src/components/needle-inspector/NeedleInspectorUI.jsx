@@ -47,7 +47,8 @@ export default function NeedleInspectorUI() {
   const [currentPosition2, setCurrentPosition2] = useState(0)
   const [needlePosition2, setNeedlePosition2] = useState('UNKNOWN') // UP, DOWN, UNKNOWN
 
-  // 디버깅 패널 드래그 상태 (left, top 기준으로 변경)
+  // 디버깅 패널 관련 상태
+  const [isDebugMode, setIsDebugMode] = useState(false) // 디버깅 모드 ON/OFF 상태
   const [debugPanelPosition, setDebugPanelPosition] = useState({ x: 0, y: 520 })
   const [isDragging, setIsDragging] = useState(false)
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 })
@@ -1395,17 +1396,18 @@ export default function NeedleInspectorUI() {
 
   return (
     <div className="bg-[#000000] min-h-screen text-white font-sans p-4 flex flex-col gap-4">
-      {/* 모터 연결 상태 표시 - 드래그 가능 */}
-      <div 
-        style={{
-          position: 'fixed',
-          top: `${debugPanelPosition.y}px`,
-          left: `${debugPanelPosition.x}px`,
-          zIndex: 1000,
-          cursor: isDragging ? 'grabbing' : 'grab'
-        }}
-        onMouseDown={handleMouseDown}
-      >
+      {/* 디버깅 패널 - 디버깅 모드가 ON일 때만 표시 */}
+      {isDebugMode && (
+        <div 
+          style={{
+            position: 'fixed',
+            top: `${debugPanelPosition.y}px`,
+            left: `${debugPanelPosition.x}px`,
+            zIndex: 1000,
+            cursor: isDragging ? 'grabbing' : 'grab'
+          }}
+          onMouseDown={handleMouseDown}
+        >
         <div style={{
           padding: '8px 12px',
           borderRadius: '4px',
@@ -1523,7 +1525,8 @@ export default function NeedleInspectorUI() {
             </div>
           )}
         </div>
-      </div>
+        </div>
+      )}
       
       <main className="flex flex-col flex-1 gap-4 overflow-hidden">
         {/* Top Camera Views */}
@@ -1674,6 +1677,7 @@ export default function NeedleInspectorUI() {
             needleOffset1={needleOffset1} // 모터 1 초기 위치 전달
             needleOffset2={needleOffset2} // 모터 2 초기 위치 전달
             workStatus={workStatus} // 작업 상태 전달 (니들 쇼트 포함)
+            onDebugModeChange={setIsDebugMode} // 디버깅 모드 변경 콜백 전달
             />
           </div>
         </div>
