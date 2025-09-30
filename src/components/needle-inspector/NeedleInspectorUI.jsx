@@ -106,7 +106,7 @@ export default function NeedleInspectorUI() {
   const [selectedIndex1, setSelectedIndex1] = useState(-1)
   const [lineInfo1, setLineInfo1] = useState('선 정보: 없음')
   const [calibrationValue1, setCalibrationValue1] = useState(19.8) // 실측 캘리브레이션 값 (99px = 5mm)
-  const [selectedLineColor1, setSelectedLineColor1] = useState('red') // 선택된 선 색상 (red, blue)
+  const [selectedLineColor1, setSelectedLineColor1] = useState('red') // 선택된 선 색상 (red, cyan)
   const canvasRef1 = useRef(null)
   const videoContainerRef1 = useRef(null)
   const cameraViewRef1 = useRef(null) // CameraView ref 추가
@@ -119,7 +119,7 @@ export default function NeedleInspectorUI() {
   const [selectedIndex2, setSelectedIndex2] = useState(-1)
   const [lineInfo2, setLineInfo2] = useState('선 정보: 없음')
   const [calibrationValue2, setCalibrationValue2] = useState(19.8) // 실측 캘리브레이션 값 (99px = 5mm)
-  const [selectedLineColor2, setSelectedLineColor2] = useState('red') // 선택된 선 색상 (red, blue)
+  const [selectedLineColor2, setSelectedLineColor2] = useState('red') // 선택된 선 색상 (red, cyan)
   const canvasRef2 = useRef(null)
   const videoContainerRef2 = useRef(null)
   const cameraViewRef2 = useRef(null) // CameraView ref 추가
@@ -299,7 +299,7 @@ export default function NeedleInspectorUI() {
     // ctx가 null이 아닐 때만 그리기 실행
     if (ctx) {
       ctx.strokeStyle = color
-      ctx.lineWidth = 2
+      // lineWidth는 호출하는 쪽에서 설정하므로 여기서는 설정하지 않음
       
       // 메인 선 그리기
       ctx.beginPath()
@@ -462,6 +462,7 @@ export default function NeedleInspectorUI() {
       
       // 임시 선 그리기 (H 형태)
       const tempLine = { x1: startPoint1.x, y1: startPoint1.y, x2: snappedPos.x, y2: snappedPos.y }
+      ctx.lineWidth = 2
       drawLineWithInfo(ctx, tempLine, selectedLineColor1, true, calibrationValue1)
       
       // 스냅 포인트 표시 (작은 원으로 표시)
@@ -590,6 +591,7 @@ export default function NeedleInspectorUI() {
       
       // 임시 선 그리기 (H 형태)
       const tempLine = { x1: startPoint2.x, y1: startPoint2.y, x2: snappedPos.x, y2: snappedPos.y }
+      ctx.lineWidth = 2
       drawLineWithInfo(ctx, tempLine, selectedLineColor2, true, calibrationValue2)
       
       // 스냅 포인트 표시 (작은 원으로 표시)
@@ -680,7 +682,9 @@ export default function NeedleInspectorUI() {
   const drawLines = (ctx, lines, selectedIndex, calibrationValue) => {
     lines.forEach((line, index) => {
       const isSelected = index === selectedIndex
-      const lineColor = isSelected ? 'cyan' : (line.color || 'red') // 저장된 색상 사용, 기본값은 빨간색
+      const lineColor = line.color || 'red' // 저장된 색상 사용, 기본값은 빨간색
+      // 선택된 선은 약간 더 굵게 표시
+      ctx.lineWidth = isSelected ? 3 : 2
       drawLineWithInfo(ctx, line, lineColor, true, calibrationValue)
     })
   }
@@ -943,6 +947,7 @@ export default function NeedleInspectorUI() {
                 // 선과 선 정보를 함께 그리기 (drawLineWithInfo 사용)
                 camera1Data.lines.forEach((line, index) => {
                   const lineColor = line.color || 'red';
+                  ctx1.lineWidth = 2;
                   drawLineWithInfo(ctx1, line, lineColor, true, camera1Data.calibrationValue || 19.8);
                 });
                 
@@ -960,13 +965,14 @@ export default function NeedleInspectorUI() {
                 
                 // 선과 선 정보를 함께 그리기 (drawLineWithInfo 사용)
                 camera2Data.lines.forEach((line, index) => {
-                  const lineColor = line.color || 'blue';
+                  const lineColor = line.color || 'cyan';
+                  ctx2.lineWidth = 2;
                   drawLineWithInfo(ctx2, line, lineColor, true, camera2Data.calibrationValue || 19.8);
                 });
                 
                 // 외부 선 정보도 업데이트
                 const firstLine = camera2Data.lines[0];
-                const lineData = drawLineWithInfo(null, firstLine, firstLine.color || 'blue', false, camera2Data.calibrationValue || 19.8);
+                const lineData = drawLineWithInfo(null, firstLine, firstLine.color || 'cyan', false, camera2Data.calibrationValue || 19.8);
                 setLineInfo2(`선 1: ${lineData.mm}mm (${lineData.angle}°)`);
               }
             }

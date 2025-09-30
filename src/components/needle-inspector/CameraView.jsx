@@ -218,9 +218,9 @@ const CameraView = forwardRef(({
               title="빨간색 선"
             />
             <button 
-              onClick={() => onLineColorChange('blue')}
-              className={`color-button blue-button ${selectedLineColor === 'blue' ? 'selected' : ''}`}
-              title="파란색 선"
+              onClick={() => onLineColorChange('cyan')}
+              className={`color-button cyan-button ${selectedLineColor === 'cyan' ? 'selected' : ''}`}
+              title="민트색 선"
             />
           </div>
           <button 
