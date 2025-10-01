@@ -229,24 +229,20 @@ class DualMotorController:
     def move_with_speed_motor2(self, speed: int, position: int):
         try:
             cmd = generate_speed_mode_command(speed, position, motor_id=0x02)
-            print(f"[DEBUG] 모터2 스피드 모드 명령어: {cmd.hex().upper()}")
-            print(f"[DEBUG] 속도: {speed}, 위치: {position}")
             
             # 모터2 이동 명령은 1회만 전송
             with self.lock:
                 if self.serial and self.serial.is_open:
                     bytes_written = self.serial.write(cmd)
                     self.serial.flush()
-                    print(f"[INFO] 모터2 이동 명령 즉시 전송 완료: {bytes_written}바이트")
                     
                     # 이동 명령 후 상태 읽기 모드로 전환
                     self.motor2_status_mode = True
                     self.last_command_motor2 = generate_status_read_command(motor_id=0x02)
-                    print(f"[INFO] 모터2 상태 읽기 모드로 전환: {self.last_command_motor2.hex().upper()}")
                 else:
                     return "❌ 시리얼 포트가 열려있지 않습니다"
                     
-            return f"📤 모터2 속도/위치 이동 명령 즉시 전송 완료: {cmd.hex().upper()}"
+            return f"📤 모터2 속도/위치 이동 명령 즉시 전송 완료: {' '.join([cmd.hex()[i:i+2].upper() for i in range(0, len(cmd.hex()), 2)])}"
         except Exception as e:
             return f"❌ 모터2 명령 전송 실패: {str(e)}"
 

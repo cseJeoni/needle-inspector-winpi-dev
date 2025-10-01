@@ -5,17 +5,29 @@ def generate_position_mode_command(target_position, motor_id=0x01):
     return _generate_mode_command(mode_code=0x00, speed=0, position=target_position, force=0, motor_id=motor_id)
 
 def generate_speed_mode_command(target_speed, target_position, motor_id=0x01):
-    # 가이드에 따른 스피드 모드 명령어 (Register 0x28 사용)
+    # 스피드 모드 명령어: 3개 레지스터 동시 설정
+    # Register 0x25 (Control Mode) = 0x02 (스피드 모드)
+    # Register 0x28 (Target Speed) = target_speed
+    # Register 0x29 (Target Position) = target_position
     header = [0x55, 0xAA]
-    frame_length = 0x07
+    frame_length = 0x0D  # 13바이트 데이터
     command_type = 0x32
     
+    # Register 0x25: Control Mode = 0x02 (스피드 모드)
+    control_mode_register = [0x25, 0x00]
+    control_mode_data = [0x02, 0x00]
+    
+    # Motor Output Voltage Register (사용하지 않음)
+    voltage_register = [0x00, 0x00]
+    voltage_data = [0x00, 0x00]
+    
     # Register 0x28: Target Speed
-    speed_register = [0x28, 0x00]
     speed_data = [target_speed & 0xFF, (target_speed >> 8) & 0xFF]
+    
+    # Register 0x29: Target Position  
     position_data = [target_position & 0xFF, (target_position >> 8) & 0xFF]
     
-    payload = speed_register + speed_data + position_data
+    payload = control_mode_register + control_mode_data + voltage_register + voltage_data + speed_data + position_data
     checksum = (frame_length + motor_id + command_type + sum(payload)) & 0xFF
     
     return bytes(header + [frame_length, motor_id, command_type] + payload + [checksum])
