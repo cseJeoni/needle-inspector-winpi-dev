@@ -337,7 +337,7 @@ class DualMotorController:
                 target_pos_val = hex_str[14:18]     # Target Position (7~8번째 바이트)
                 actual_pos_val = hex_str[18:22]     # Actual Position (9~10번째 바이트)
                 actual_current_val = hex_str[22:26] # Actual Current (11~12번째 바이트)
-                force_sensor_val = hex_str[30:34]   # The value of force sensor (15~16번째 바이트)
+                force_sensor_val = hex_str[26:30]   # The value of force sensor (15~16번째 바이트)
                 
                 # 바이트 순서 변경 (리틀 엔디안)
                 target_pos_reorder = target_pos_val[2:] + target_pos_val[:2]
