@@ -23,6 +23,7 @@ class DualMotorController:
         self.reader_thread = None
         self.last_command_motor1 = None
         self.last_command_motor2 = None
+        self.motor1_status_mode = True  # True: 상태 읽기, False: 이동 명령
         self.motor2_status_mode = True  # True: 상태 읽기, False: 이동 명령
 
         # Motor 1 (기존 모터) 상태
@@ -126,8 +127,12 @@ class DualMotorController:
             )
             self.running = True
             
-            # 모터2를 상태 읽기 모드로 초기화
+            # 모터1과 모터2를 상태 읽기 모드로 초기화
             with self.lock:
+                self.motor1_status_mode = True
+                self.last_command_motor1 = generate_status_read_command(motor_id=0x01)
+                print(f"[INFO] 모터1 상태 읽기 모드 초기화: {self.last_command_motor1.hex().upper()}")
+                
                 self.motor2_status_mode = True
                 self.last_command_motor2 = generate_status_read_command(motor_id=0x02)
                 print(f"[INFO] 모터2 상태 읽기 모드 초기화: {self.last_command_motor2.hex().upper()}")
@@ -152,10 +157,10 @@ class DualMotorController:
         return self.serial and self.serial.is_open
 
     # Motor 1 (기존 모터) 제어 함수들
-    def move_to_position(self, pos: int, mode="servo"):
+    def move_to_position(self, pos: int, mode="position"):
         return self.move_to_position_motor1(pos, mode)
 
-    def move_to_position_motor1(self, pos: int, mode="servo"):
+    def move_to_position_motor1(self, pos: int, mode="position"):
         try:
             if mode == "servo":
                 cmd = generate_servo_mode_command(pos, motor_id=0x01)
@@ -164,11 +169,21 @@ class DualMotorController:
             else:
                 return f"❌ 지원하지 않는 모드입니다: {mode}"
 
+            # 모터1 이동 명령은 1회만 전송
             with self.lock:
-                self.last_command_motor1 = cmd
-            return f"📤 모터1 위치 이동 명령 큐잉 완료: {cmd.hex().upper()}"
+                if self.serial and self.serial.is_open:
+                    bytes_written = self.serial.write(cmd)
+                    self.serial.flush()
+                    
+                    # 이동 명령 후 상태 읽기 모드로 전환
+                    self.motor1_status_mode = True
+                    self.last_command_motor1 = generate_status_read_command(motor_id=0x01)
+                else:
+                    return "❌ 시리얼 포트가 열려있지 않습니다"
+                    
+            return f"📤 모터1 위치 이동 명령 즉시 전송 완료: {' '.join([cmd.hex()[i:i+2].upper() for i in range(0, len(cmd.hex()), 2)])}"
         except Exception as e:
-            return f"❌ 모터1 명령 생성 실패: {str(e)}"
+            return f"❌ 모터1 명령 전송 실패: {str(e)}"
 
     def move_with_speed(self, speed: int, position: int):
         return self.move_with_speed_motor1(speed, position)
@@ -176,11 +191,22 @@ class DualMotorController:
     def move_with_speed_motor1(self, speed: int, position: int):
         try:
             cmd = generate_speed_mode_command(speed, position, motor_id=0x01)
+            
+            # 모터1 이동 명령은 1회만 전송
             with self.lock:
-                self.last_command_motor1 = cmd
-            return f"📤 모터1 속도/위치 이동 명령 큐잉 완료: {cmd.hex().upper()}"
+                if self.serial and self.serial.is_open:
+                    bytes_written = self.serial.write(cmd)
+                    self.serial.flush()
+                    
+                    # 이동 명령 후 상태 읽기 모드로 전환
+                    self.motor1_status_mode = True
+                    self.last_command_motor1 = generate_status_read_command(motor_id=0x01)
+                else:
+                    return "❌ 시리얼 포트가 열려있지 않습니다"
+                    
+            return f"📤 모터1 속도/위치 이동 명령 즉시 전송 완료: {' '.join([cmd.hex()[i:i+2].upper() for i in range(0, len(cmd.hex()), 2)])}"
         except Exception as e:
-            return f"❌ 모터1 명령 생성 실패: {str(e)}"
+            return f"❌ 모터1 명령 전송 실패: {str(e)}"
 
     def set_force(self, force: float):
         return self.set_force_motor1(force)
@@ -190,11 +216,22 @@ class DualMotorController:
             # N을 g로 변환 (1N = 101.97g)
             force_g = int(force * 101.97)
             cmd = generate_force_mode_command(force_g, motor_id=0x01)
+            
+            # 모터1 힘 제어 명령은 1회만 전송
             with self.lock:
-                self.last_command_motor1 = cmd
-            return f"📤 모터1 힘 제어 명령 큐잉 완료: {cmd.hex().upper()}"
+                if self.serial and self.serial.is_open:
+                    bytes_written = self.serial.write(cmd)
+                    self.serial.flush()
+                    
+                    # 힘 제어 명령 후 상태 읽기 모드로 전환
+                    self.motor1_status_mode = True
+                    self.last_command_motor1 = generate_status_read_command(motor_id=0x01)
+                else:
+                    return "❌ 시리얼 포트가 열려있지 않습니다"
+                    
+            return f"📤 모터1 힘 제어 명령 즉시 전송 완료: {' '.join([cmd.hex()[i:i+2].upper() for i in range(0, len(cmd.hex()), 2)])}"
         except Exception as e:
-            return f"❌ 모터1 명령 생성 실패: {str(e)}"
+            return f"❌ 모터1 명령 전송 실패: {str(e)}"
 
     def move_with_speed_force(self, force: float, speed: int, position: int):
         return self.move_with_speed_force_motor1(force, speed, position)
@@ -204,11 +241,22 @@ class DualMotorController:
             # N을 g로 변환 (1N = 101.97g)
             force_g = int(force * 101.97)
             cmd = generate_speed_force_mode_command(force_g, speed, position, motor_id=0x01)
+            
+            # 모터1 스피드+힘 제어 명령은 1회만 전송
             with self.lock:
-                self.last_command_motor1 = cmd
-            return f"📤 모터1 속도/힘/위치 이동 명령 큐잉 완료: {cmd.hex().upper()}"
+                if self.serial and self.serial.is_open:
+                    bytes_written = self.serial.write(cmd)
+                    self.serial.flush()
+                    
+                    # 명령 후 상태 읽기 모드로 전환
+                    self.motor1_status_mode = True
+                    self.last_command_motor1 = generate_status_read_command(motor_id=0x01)
+                else:
+                    return "❌ 시리얼 포트가 열려있지 않습니다"
+                    
+            return f"📤 모터1 속도/힘/위치 이동 명령 즉시 전송 완료: {' '.join([cmd.hex()[i:i+2].upper() for i in range(0, len(cmd.hex()), 2)])}"
         except Exception as e:
-            return f"❌ 모터1 명령 생성 실패: {str(e)}"
+            return f"❌ 모터1 명령 전송 실패: {str(e)}"
 
     # Motor 2 (저항 측정 모터) 제어 함수들
     def move_to_position_motor2(self, pos: int, mode="servo"):
