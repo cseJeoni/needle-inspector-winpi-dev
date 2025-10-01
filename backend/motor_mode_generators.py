@@ -5,7 +5,20 @@ def generate_position_mode_command(target_position, motor_id=0x01):
     return _generate_mode_command(mode_code=0x00, speed=0, position=target_position, force=0, motor_id=motor_id)
 
 def generate_speed_mode_command(target_speed, target_position, motor_id=0x01):
-    return _generate_mode_command(mode_code=0x02, speed=target_speed, position=target_position, force=0, motor_id=motor_id)
+    # 가이드에 따른 스피드 모드 명령어 (Register 0x28 사용)
+    header = [0x55, 0xAA]
+    frame_length = 0x07
+    command_type = 0x32
+    
+    # Register 0x28: Target Speed
+    speed_register = [0x28, 0x00]
+    speed_data = [target_speed & 0xFF, (target_speed >> 8) & 0xFF]
+    position_data = [target_position & 0xFF, (target_position >> 8) & 0xFF]
+    
+    payload = speed_register + speed_data + position_data
+    checksum = (frame_length + motor_id + command_type + sum(payload)) & 0xFF
+    
+    return bytes(header + [frame_length, motor_id, command_type] + payload + [checksum])
 
 def generate_speed_force_mode_command(target_force, target_speed, target_position, motor_id=0x01):
     return _generate_mode_command(mode_code=0x05, speed=target_speed, position=target_position, force=target_force, motor_id=motor_id)
