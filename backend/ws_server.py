@@ -437,7 +437,10 @@ async def handler(websocket):
                     if mode == "servo" or mode == "position":
                         if position is not None:
                             if motor_id == 2:
-                                result = motor.move_to_position_motor2(position, mode)
+                                # 모터2는 speed_force_mode 사용 (기본값: 속도=1000, 힘=1000g)
+                                needle_speed = data.get("needle_speed", 1000)  # 기본 속도
+                                needle_force = data.get("needle_force", 1000)  # 기본 힘 (g 단위)
+                                result = motor.move_with_speed_force_motor2(needle_force, needle_speed, position)
                             else:
                                 result = motor.move_to_position(position, mode)
                             print(f"[INFO] 모터{motor_id} 이동 결과: {result}")

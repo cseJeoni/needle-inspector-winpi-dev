@@ -86,7 +86,15 @@ export default function NeedleCheckPanelV4Multi({
       motor_id: motorId
     }
 
-    console.log(`모터 ${motorId} 위치 명령 전송:`, msg);
+    // 모터2일 때 니들 속도와 힘 값 추가
+    if (motorId === 2) {
+      msg.needle_speed = needleSpeed2 || 1000;  // 기본값 1000
+      msg.needle_force = needleForce2 || 1000;  // 기본값 1000g
+      console.log(`모터 ${motorId} 속도/힘/위치 명령 전송:`, msg);
+    } else {
+      console.log(`모터 ${motorId} 위치 명령 전송:`, msg);
+    }
+
     websocket.send(JSON.stringify(msg));
   }
   
