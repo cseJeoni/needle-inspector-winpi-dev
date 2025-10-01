@@ -9,7 +9,8 @@ from motor_mode_generators import (
     generate_position_mode_command,
     generate_speed_mode_command,
     generate_force_mode_command,
-    generate_speed_force_mode_command
+    generate_speed_force_mode_command,
+    generate_status_read_command
 )
 
 class DualMotorController:
@@ -22,6 +23,7 @@ class DualMotorController:
         self.reader_thread = None
         self.last_command_motor1 = None
         self.last_command_motor2 = None
+        self.motor2_status_mode = True  # True: 상태 읽기, False: 이동 명령
 
         # Motor 1 (기존 모터) 상태
         self.motor1_setPos = 0
@@ -123,6 +125,13 @@ class DualMotorController:
                 timeout=0.1
             )
             self.running = True
+            
+            # 모터2를 상태 읽기 모드로 초기화
+            with self.lock:
+                self.motor2_status_mode = True
+                self.last_command_motor2 = generate_status_read_command(motor_id=0x02)
+                print(f"[INFO] 모터2 상태 읽기 모드 초기화: {self.last_command_motor2.hex().upper()}")
+            
             self.sender_thread = Thread(target=self.send_loop, daemon=True)
             self.reader_thread = Thread(target=self.read_loop, daemon=True)
             self.sender_thread.start()
@@ -223,19 +232,23 @@ class DualMotorController:
             print(f"[DEBUG] 모터2 스피드 모드 명령어: {cmd.hex().upper()}")
             print(f"[DEBUG] 속도: {speed}, 위치: {position}")
             
-            # 모터2는 1회만 전송 (반복하지 않음)
+            # 모터2 이동 명령은 1회만 전송
             with self.lock:
                 if self.serial and self.serial.is_open:
                     bytes_written = self.serial.write(cmd)
                     self.serial.flush()
-                    print(f"[INFO] 모터2 명령 즉시 전송 완료: {bytes_written}바이트")
-                    # last_command_motor2는 업데이트하지 않음 (반복 전송 방지)
+                    print(f"[INFO] 모터2 이동 명령 즉시 전송 완료: {bytes_written}바이트")
+                    
+                    # 이동 명령 후 상태 읽기 모드로 전환
+                    self.motor2_status_mode = True
+                    self.last_command_motor2 = generate_status_read_command(motor_id=0x02)
+                    print(f"[INFO] 모터2 상태 읽기 모드로 전환: {self.last_command_motor2.hex().upper()}")
                 else:
                     return "❌ 시리얼 포트가 열려있지 않습니다"
                     
             return f"📤 모터2 속도/위치 이동 명령 즉시 전송 완료: {cmd.hex().upper()}"
         except Exception as e:
-            return f"❌ 모터2 명령 생성 실패: {str(e)}"
+            return f"❌ 모터2 명령 전송 실패: {str(e)}"
 
     def move_with_speed_force_motor2(self, force: float, speed: int, position: int):
         try:
@@ -268,6 +281,8 @@ class DualMotorController:
                     if self.last_command_motor2:
                         bytes_written = self.serial.write(self.last_command_motor2)
                         self.serial.flush()
+                        if self.motor2_status_mode:
+                            print(f"[SEND_DEBUG] 모터2 상태읽기 전송: {self.last_command_motor2.hex().upper()}")
                         if bytes_written != len(self.last_command_motor2):
                             print(f"[Warning] 모터2 전송된 바이트 수 불일치: {bytes_written}/{len(self.last_command_motor2)}")
                             
@@ -323,13 +338,16 @@ class DualMotorController:
     def parse_response(self, frame):
         try:
             hex_str = frame.hex().upper()
+            print(f"[PARSE_DEBUG] 수신 프레임: {hex_str}, 길이: {len(hex_str)}")
 
             if len(hex_str) < 34:  # 최소 필요한 길이 체크
+                print(f"[PARSE_DEBUG] 프레임이 너무 짧음: {len(hex_str)} < 34")
                 return
 
             # 모터 ID 확인 (프레임의 6-7번째 문자, 즉 3번째 바이트)
             motor_id_hex = hex_str[6:8]
             motor_id = int(motor_id_hex, 16)
+            print(f"[PARSE_DEBUG] 모터 ID: {motor_id}")
 
             # 모터1과 모터2 모두 동일한 방식으로 파싱
             setPos_val = hex_str[14:18]  # setPos
@@ -362,11 +380,13 @@ class DualMotorController:
                 self.motor1_position = position
                 self.motor1_force = round(force * 0.001 * 9.81, 1)
                 self.motor1_sensor = sensor
+                print(f"[PARSE_DEBUG] 모터1 업데이트: 위치={position}")
             elif motor_id == 0x02:
                 self.motor2_setPos = setPos
                 self.motor2_position = position
                 self.motor2_force = round(force * 0.001 * 9.81, 1)
                 self.motor2_sensor = sensor
+                print(f"[PARSE_DEBUG] 모터2 업데이트: 위치={position}")
 
         except Exception as e:
             print(f"[DualParse Error] {str(e)}")

@@ -23,6 +23,16 @@ def generate_speed_mode_command(target_speed, target_position, motor_id=0x01):
 def generate_speed_force_mode_command(target_force, target_speed, target_position, motor_id=0x01):
     return _generate_mode_command(mode_code=0x05, speed=target_speed, position=target_position, force=target_force, motor_id=motor_id)
 
+def generate_status_read_command(motor_id=0x01):
+    # 상태 읽기 명령어: 55 AA 01 [ID] 30 [Checksum]
+    header = [0x55, 0xAA]
+    frame_length = 0x01
+    command_type = 0x30
+    
+    checksum = (frame_length + motor_id + command_type) & 0xFF
+    
+    return bytes(header + [frame_length, motor_id, command_type, checksum])
+
 def generate_force_mode_command(target_force, motor_id=0x01):
     # target_force는 g 단위 (예: 1000g = 0x03E8)
     header = [0x55, 0xAA]
