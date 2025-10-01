@@ -69,13 +69,15 @@ export default function NeedleInspectorUI() {
   const [isWaitingEepromRead, setIsWaitingEepromRead] = useState(false) // EEPROM 읽기 응답 대기 상태
 
   // 모터 1 설정값 (NeedleCheckPanel에서 사용)
-  const [needleOffset1, setNeedleOffset1] = useState(0.1) // 모터 1 니들 오프셋
+  const [needleOffset1, setNeedleOffset1] = useState(4.5) // 모터 1 니들 오프셋
   const [needleProtrusion1, setNeedleProtrusion1] = useState(3.0) // 모터 1 니들 돌출부분
   
   // 모터 2 설정값 (NeedleCheckPanelV4에서 사용)
-  const [needleOffset2, setNeedleOffset2] = useState(0.1) // 모터 2 니들 오프셋
-  const [needleProtrusion2, setNeedleProtrusion2] = useState(3.0) // 모터 2 니들 돌출부분
+  const [needleOffset2, setNeedleOffset2] = useState(50) // 모터 2 니들 오프셋
+  const [needleProtrusion2, setNeedleProtrusion2] = useState(30) // 모터 2 니들 돌출부분
   const [needleSpeed2, setNeedleSpeed2] = useState(1000) // 모터 2 니들 속도
+  const [isDecelerationEnabled, setIsDecelerationEnabled] = useState(false) // 감속 활성화 여부
+  const [decelerationSpeed, setDecelerationSpeed] = useState(100) // 감속 스피드
   const [resistanceDelay, setResistanceDelay] = useState(1000) // 저항 측정 지연 시간 (ms)
   const [resistanceThreshold, setResistanceThreshold] = useState(100) // 저항 임계값 (정상값)
   const [isResistanceAbnormal, setIsResistanceAbnormal] = useState(false) // 저항 이상 여부
@@ -1644,6 +1646,10 @@ export default function NeedleInspectorUI() {
               onResistanceThresholdChange={setResistanceThreshold}
               needleSpeed2={needleSpeed2}
               onNeedleSpeed2Change={setNeedleSpeed2}
+              isDecelerationEnabled={isDecelerationEnabled}
+              onDecelerationEnabledChange={setIsDecelerationEnabled}
+              decelerationSpeed={decelerationSpeed}
+              onDecelerationSpeedChange={setDecelerationSpeed}
             />
           ) : (
             <NeedleCheckPanel 

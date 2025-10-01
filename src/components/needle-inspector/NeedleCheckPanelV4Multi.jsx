@@ -42,7 +42,12 @@ export default function NeedleCheckPanelV4Multi({
   needleSpeed2,
   onNeedleSpeed2Change,
   needleForce2,
-  onNeedleForce2Change
+  onNeedleForce2Change,
+  // 감속 설정 props
+  isDecelerationEnabled,
+  onDecelerationEnabledChange,
+  decelerationSpeed,
+  onDecelerationSpeedChange
 }) {
   // 모터 상태에 따라 needleStatus 동기화
   const [needleStatus, setNeedleStatus] = useState(needlePosition === 'UP' ? 'UP' : needlePosition === 'DOWN' ? 'DOWN' : 'MOVING')
@@ -670,6 +675,80 @@ export default function NeedleCheckPanelV4Multi({
           </div>
         </div>
 
+        {/* DELAY */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5dvw' }}>
+          <label style={{ width: '35%', fontSize: '1.3dvh', color: '#D1D5DB' }}>DELAY (ms)</label>
+          
+          {/* 모터 1 - 빈 공간 */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.3dvw', flex: 1 }}>
+            <div style={{ width: '90%' }}></div>
+          </div>
+          
+          {/* 모터 2 */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.3dvw', flex: 1 }}>
+            <Input 
+              type="number"
+              value={resistanceDelay}
+              onChange={(e) => onResistanceDelayChange && onResistanceDelayChange(Number(e.target.value))}
+              min="0"
+              step="100"
+              disabled={!isNeedleCheckEnabled}
+              style={{ 
+                backgroundColor: '#171C26', 
+                color: !isNeedleCheckEnabled ? '#D1D5DB' : 'white', 
+                textAlign: 'center',
+                width: '95%',
+                fontSize: '1.1dvh', 
+                height: '3dvh',
+                opacity: !isNeedleCheckEnabled ? 0.6 : 1
+              }}
+            />
+          </div>
+        </div>
+
+        {/* 감속 설정 */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5dvw' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.3dvw', width: '35%' }}>
+            <input 
+              type="checkbox"
+              checked={isDecelerationEnabled}
+              onChange={(e) => onDecelerationEnabledChange && onDecelerationEnabledChange(e.target.checked)}
+              disabled={!isNeedleCheckEnabled}
+              style={{ 
+                width: '2dvh',
+                height: '2dvh',
+                opacity: !isNeedleCheckEnabled ? 0.6 : 1
+              }}
+            />
+            <label style={{ fontSize: '1.3dvh', color: '#D1D5DB', marginLeft: '0.3dvw' }}>감속 스피드</label>
+          </div>
+          
+          {/* 모터 1 - 빈 공간 */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.3dvw', flex: 1 }}>
+            <div style={{ width: '90%' }}></div>
+          </div>
+          
+          {/* 모터 2 */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.3dvw', flex: 1 }}>
+            <Input 
+              type="number"
+              value={decelerationSpeed}
+              onChange={(e) => onDecelerationSpeedChange && onDecelerationSpeedChange(Number(e.target.value))}
+              min="0"
+              disabled={!isNeedleCheckEnabled || !isDecelerationEnabled}
+              style={{ 
+                backgroundColor: '#171C26', 
+                color: (!isNeedleCheckEnabled || !isDecelerationEnabled) ? '#D1D5DB' : 'white', 
+                textAlign: 'center',
+                width: '95%',
+                fontSize: '1.1dvh', 
+                height: '3dvh',
+                opacity: (!isNeedleCheckEnabled || !isDecelerationEnabled) ? 0.6 : 1
+              }}
+            />
+          </div>
+        </div>
+
           </>
         )}
 
@@ -679,26 +758,8 @@ export default function NeedleCheckPanelV4Multi({
         {/* 저항 검사 */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5dvh', color: '#D1D5DB' }}>
           
-          {/* DELAY, 정상 범주 */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <label style={{ fontSize: '1.3dvh', color: '#D1D5DB', minWidth: '10%' }}>DELAY (ms)</label>
-            <Input 
-              type="number"
-              value={resistanceDelay}
-              onChange={(e) => onResistanceDelayChange && onResistanceDelayChange(Number(e.target.value))}
-              min="0"
-              step="100"
-              disabled={!isResistanceCheckEnabled}
-              style={{ 
-                backgroundColor: '#171C26', 
-                color: !isResistanceCheckEnabled ? '#D1D5DB' : 'white',
-                textAlign: 'center',
-                width: '20%',
-                fontSize: '1.1dvh', 
-                height: '3dvh',
-                opacity: !isResistanceCheckEnabled ? 0.6 : 1
-              }}
-            />
+          {/* 정상 범주 */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.3dvw' }}>
             <label style={{ fontSize: '1.3dvh', color: '#D1D5DB', minWidth: '12%' }}>정상 값</label>
             <Input 
               type="number"
