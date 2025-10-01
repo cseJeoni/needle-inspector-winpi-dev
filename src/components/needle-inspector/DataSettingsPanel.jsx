@@ -34,6 +34,7 @@ const DataSettingsPanel = forwardRef(({
   needleProtrusion1, // 모터 1 니들 돌출부분
   needleOffset2,
   needleProtrusion2,
+  needleSpeed2, // 모터 2 니들 속도
   resistanceDelay,
   resistanceThreshold,
   onResistanceAbnormalChange,
@@ -452,13 +453,13 @@ const DataSettingsPanel = forwardRef(({
         // 3단계: 모터 2 UP 명령 전송 (NeedleCheckPanelV4의 오프셋 + 돌출부분 값 사용)
         if (websocket && isWsConnected) {
           // NeedleCheckPanelV4에서 전달받은 모터2 값들 사용
-          const motor2Position = Math.round((needleOffset2 + needleProtrusion2) * 100);
+          const motor2Position = Math.round((needleOffset2 - needleProtrusion2) * 40);
           
-          console.log('3️⃣ 모터 2 UP 명령 전송 - 위치:', motor2Position, '(오프셋:', needleOffset2, '+ 돌출:', needleProtrusion2, ')')
+          console.log('3️⃣ 모터 2 UP 명령 전송 - 위치:', motor2Position, '(오프셋:', needleOffset2, '- 돌출:', needleProtrusion2, '), 속도:', needleSpeed2)
           websocket.send(JSON.stringify({ 
             cmd: "move", 
             position: motor2Position, 
-            mode: "position",
+            needle_speed: needleSpeed2,
             motor_id: 2
           }))
         } else {
@@ -547,13 +548,13 @@ const DataSettingsPanel = forwardRef(({
         }
         
         // 6단계: 저항값 정상일 때만 다음 단계 진행 (비정상 시 Promise reject로 catch 블록으로 이동)
-        const motor2DownPosition = Math.round(needleOffset2 * 100);
-        console.log('7️⃣ 모터 2 DOWN 명령 전송 - 위치:', motor2DownPosition, '(초기 위치:', needleOffset2, ')')
+        const motor2DownPosition = Math.round(needleOffset2 * 40);
+        console.log('7️⃣ 모터 2 DOWN 명령 전송 - 위치:', motor2DownPosition, '(초기 위치:', needleOffset2, '), 속도:', needleSpeed2)
         if (websocket && isWsConnected) {
           websocket.send(JSON.stringify({ 
             cmd: "move", 
             position: motor2DownPosition, 
-            mode: "position", 
+            needle_speed: needleSpeed2,
             motor_id: 2 
           }));
         } else {
@@ -678,11 +679,11 @@ const DataSettingsPanel = forwardRef(({
     // 모터1, 모터2 모두 DOWN 명령 전송 (초기 위치로) (메인 WebSocket 사용)
     if (websocket && isWsConnected) {
       const motor1DownPosition = Math.round(needleOffset1 * 100);
-      const motor2DownPosition = Math.round(needleOffset2 * 100);
+      const motor2DownPosition = Math.round(needleOffset2 * 40);
       console.log('모터1 DOWN 명령 전송 - 위치:', motor1DownPosition, '(초기 위치:', needleOffset1, ')')
       websocket.send(JSON.stringify({ cmd: "move", position: motor1DownPosition, mode: "position", motor_id: 1 }))
-      console.log('모터2 DOWN 명령 전송 - 위치:', motor2DownPosition, '(초기 위치:', needleOffset2, ')')
-      websocket.send(JSON.stringify({ cmd: "move", position: motor2DownPosition, mode: "position", motor_id: 2 }))
+      console.log('모터2 DOWN 명령 전송 - 위치:', motor2DownPosition, '(초기 위치:', needleOffset2, '), 속도:', needleSpeed2)
+      websocket.send(JSON.stringify({ cmd: "move", position: motor2DownPosition, needle_speed: needleSpeed2, motor_id: 2 }))
     } else {
       console.error('WebSocket 연결되지 않음 - 모터 DOWN 명령 실패')
     }

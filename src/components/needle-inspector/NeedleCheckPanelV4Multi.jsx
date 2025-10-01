@@ -207,10 +207,10 @@ export default function NeedleCheckPanelV4Multi({
     for (let i = 0; i < repeatCount; i++) {
       console.log(`🔄 모터${motorId} ${i + 1}/${repeatCount} 사이클 시작`)
       
-      // UP 명령 (초기 위치 + 돌출 부분)
+      // UP 명령 (모터1: 초기 위치 + 돌출 부분, 모터2: 초기 위치 - 돌출 부분)
       const upPosition = motorId === 1 ? 
         Math.round((needleOffset1 + needleProtrusion1) * 100) : 
-        Math.round((needleOffset2 + needleProtrusion2) * 40);
+        Math.round((needleOffset2 - needleProtrusion2) * 40);
       console.log(`🎯 모터${motorId} UP 명령 실행 (${upPosition})`)
       sendMotorCommand(upPosition, motorId)
       
@@ -532,8 +532,8 @@ export default function NeedleCheckPanelV4Multi({
             <Button
               onClick={() => {
                 if (needleProtrusionState2 === 'UP') {
-                  const motorPosition = Math.round((needleOffset2 + needleProtrusion2) * 40);
-                  console.log('모터2 니들 돌출 부분 UP:', needleOffset2, '+', needleProtrusion2, '=', needleOffset2 + needleProtrusion2, '모터 위치:', motorPosition);
+                  const motorPosition = Math.round((needleOffset2 - needleProtrusion2) * 40);
+                  console.log('모터2 니들 돌출 부분 UP:', needleOffset2, '-', needleProtrusion2, '=', needleOffset2 - needleProtrusion2, '모터 위치:', motorPosition);
                   sendMotorCommand(motorPosition, 2);
                   setNeedleProtrusionState2('DOWN');
                 } else {

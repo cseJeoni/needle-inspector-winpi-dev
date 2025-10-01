@@ -1602,6 +1602,7 @@ export default function NeedleInspectorUI() {
             needleProtrusion1={needleProtrusion1} // 모터 1 니들 돌출부분 전달
             needleOffset2={needleOffset2} // 모터 2 니들 오프셋 전달
             needleProtrusion2={needleProtrusion2} // 모터 2 니들 돌출부분 전달
+            needleSpeed2={needleSpeed2} // 모터 2 니들 속도 전달
             resistanceDelay={resistanceDelay} // 저항 측정 지연 시간 전달
             resistanceThreshold={resistanceThreshold} // 저항 임계값 전달
             onResistanceAbnormalChange={setIsResistanceAbnormal} // 저항 이상 상태 변경 함수 전달
