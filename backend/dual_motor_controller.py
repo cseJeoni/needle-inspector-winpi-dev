@@ -281,8 +281,6 @@ class DualMotorController:
                     if self.last_command_motor2:
                         bytes_written = self.serial.write(self.last_command_motor2)
                         self.serial.flush()
-                        if self.motor2_status_mode:
-                            print(f"[SEND_DEBUG] 모터2 상태읽기 전송: {self.last_command_motor2.hex().upper()}")
                         if bytes_written != len(self.last_command_motor2):
                             print(f"[Warning] 모터2 전송된 바이트 수 불일치: {bytes_written}/{len(self.last_command_motor2)}")
                             
@@ -338,16 +336,13 @@ class DualMotorController:
     def parse_response(self, frame):
         try:
             hex_str = frame.hex().upper()
-            print(f"[PARSE_DEBUG] 수신 프레임: {hex_str}, 길이: {len(hex_str)}")
 
             if len(hex_str) < 34:  # 최소 필요한 길이 체크
-                print(f"[PARSE_DEBUG] 프레임이 너무 짧음: {len(hex_str)} < 34")
                 return
 
             # 모터 ID 확인 (프레임의 6-7번째 문자, 즉 3번째 바이트)
             motor_id_hex = hex_str[6:8]
             motor_id = int(motor_id_hex, 16)
-            print(f"[PARSE_DEBUG] 모터 ID: {motor_id}")
 
             # 모터1과 모터2 모두 동일한 방식으로 파싱
             setPos_val = hex_str[14:18]  # setPos
@@ -380,13 +375,11 @@ class DualMotorController:
                 self.motor1_position = position
                 self.motor1_force = round(force * 0.001 * 9.81, 1)
                 self.motor1_sensor = sensor
-                print(f"[PARSE_DEBUG] 모터1 업데이트: 위치={position}")
             elif motor_id == 0x02:
                 self.motor2_setPos = setPos
                 self.motor2_position = position
                 self.motor2_force = round(force * 0.001 * 9.81, 1)
                 self.motor2_sensor = sensor
-                print(f"[PARSE_DEBUG] 모터2 업데이트: 위치={position}")
 
         except Exception as e:
             print(f"[DualParse Error] {str(e)}")
