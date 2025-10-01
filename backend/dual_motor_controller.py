@@ -220,20 +220,20 @@ class DualMotorController:
     def move_with_speed_motor2(self, speed: int, position: int):
         try:
             cmd = generate_speed_mode_command(speed, position, motor_id=0x02)
+            print(f"[DEBUG] 모터2 스피드 모드 명령어: {cmd.hex().upper()}")
+            print(f"[DEBUG] 속도: {speed}, 위치: {position}")
+            
+            # 모터2는 1회만 전송 (반복하지 않음)
             with self.lock:
-                self.last_command_motor2 = cmd
-            return f"📤 모터2 속도/위치 이동 명령 큐잉 완료: {cmd.hex().upper()}"
-        except Exception as e:
-            return f"❌ 모터2 명령 생성 실패: {str(e)}"
-
-    def set_force_motor2(self, force: float):
-        try:
-            # N을 g로 변환 (1N = 101.97g)
-            force_g = int(force * 101.97)
-            cmd = generate_force_mode_command(force_g, motor_id=0x02)
-            with self.lock:
-                self.last_command_motor2 = cmd
-            return f"📤 모터2 힘 제어 명령 큐잉 완료: {cmd.hex().upper()}"
+                if self.serial and self.serial.is_open:
+                    bytes_written = self.serial.write(cmd)
+                    self.serial.flush()
+                    print(f"[INFO] 모터2 명령 즉시 전송 완료: {bytes_written}바이트")
+                    # last_command_motor2는 업데이트하지 않음 (반복 전송 방지)
+                else:
+                    return "❌ 시리얼 포트가 열려있지 않습니다"
+                    
+            return f"📤 모터2 속도/위치 이동 명령 즉시 전송 완료: {cmd.hex().upper()}"
         except Exception as e:
             return f"❌ 모터2 명령 생성 실패: {str(e)}"
 
