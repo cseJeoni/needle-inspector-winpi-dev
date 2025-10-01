@@ -45,7 +45,6 @@ export default function NeedleInspectorUI() {
   const [isMotor2Connected, setIsMotor2Connected] = useState(false)
   const [motor2Error, setMotor2Error] = useState(null)
   const [currentPosition2, setCurrentPosition2] = useState(0)
-  const [motor2Force, setMotor2Force] = useState(0)  // 모터2 힘센서값
   const [needlePosition2, setNeedlePosition2] = useState('UNKNOWN') // UP, DOWN, UNKNOWN
 
   // 디버깅 패널 관련 상태
@@ -77,7 +76,6 @@ export default function NeedleInspectorUI() {
   const [needleOffset2, setNeedleOffset2] = useState(0.1) // 모터 2 니들 오프셋
   const [needleProtrusion2, setNeedleProtrusion2] = useState(3.0) // 모터 2 니들 돌출부분
   const [needleSpeed2, setNeedleSpeed2] = useState(1000) // 모터 2 니들 속도
-  const [needleForce2, setNeedleForce2] = useState(1000) // 모터 2 니들 힘 (g 단위)
   const [resistanceDelay, setResistanceDelay] = useState(1000) // 저항 측정 지연 시간 (ms)
   const [resistanceThreshold, setResistanceThreshold] = useState(100) // 저항 임계값 (정상값)
   const [isResistanceAbnormal, setIsResistanceAbnormal] = useState(false) // 저항 이상 여부
@@ -1143,9 +1141,6 @@ export default function NeedleInspectorUI() {
             setNeedlePosition2('UP') // 기본 'UP'으로 설정
             setIsMotor2Connected(true) // 모터 2 데이터가 있으면 연결된 것으로 간주
           }
-          if (motor2_force !== undefined) {
-            setMotor2Force(motor2_force) // 모터2 힘센서값 업데이트
-          }
           
           // GPIO23 기반 니들팁 연결 상태 업데이트
           if (typeof needle_tip_connected === 'boolean') {
@@ -1473,9 +1468,6 @@ export default function NeedleInspectorUI() {
             <div style={{ fontSize: '10px', marginBottom: '2px' }}>
               위치: {currentPosition2}
             </div>
-            <div style={{ fontSize: '10px', marginBottom: '2px' }}>
-              힘센서: {motor2Force}g
-            </div>
             {motor2Error && (
               <div style={{ fontSize: '9px', color: '#FCA5A5', marginTop: '2px' }}>
                 오류: {motor2Error}
@@ -1651,8 +1643,6 @@ export default function NeedleInspectorUI() {
               onResistanceThresholdChange={setResistanceThreshold}
               needleSpeed2={needleSpeed2}
               onNeedleSpeed2Change={setNeedleSpeed2}
-              needleForce2={needleForce2}
-              onNeedleForce2Change={setNeedleForce2}
             />
           ) : (
             <NeedleCheckPanel 

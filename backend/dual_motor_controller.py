@@ -331,77 +331,42 @@ class DualMotorController:
             motor_id_hex = hex_str[6:8]
             motor_id = int(motor_id_hex, 16)
 
-            # 모터2의 speed_force_mode 응답 파싱 (더 긴 응답 프레임)
-            if motor_id == 0x02 and len(hex_str) >= 42:  # speed_force_mode 응답은 더 길다
-                # speed_force_mode 응답 구조에 따른 파싱
-                target_pos_val = hex_str[14:18]     # Target Position (7~8번째 바이트)
-                actual_pos_val = hex_str[18:22]     # Actual Position (9~10번째 바이트)
-                actual_current_val = hex_str[22:26] # Actual Current (11~12번째 바이트)
-                force_sensor_val = hex_str[26:30]   # The value of force sensor (15~16번째 바이트)
-                
-                # 바이트 순서 변경 (리틀 엔디안)
-                target_pos_reorder = target_pos_val[2:] + target_pos_val[:2]
-                actual_pos_reorder = actual_pos_val[2:] + actual_pos_val[:2]
-                force_sensor_reorder = force_sensor_val[2:] + force_sensor_val[:2]
-                
-                target_pos = int(target_pos_reorder, 16)
-                actual_pos = int(actual_pos_reorder, 16)
-                force_sensor = int(force_sensor_reorder, 16)
-                
-                # 2의 보수 처리
-                if target_pos >= 0x8000:
-                    target_pos -= 0x10000
-                if actual_pos >= 0x8000:
-                    actual_pos -= 0x10000
-                if force_sensor >= 0x8000:
-                    force_sensor -= 0x10000
-                
-                # 모터2 상태 업데이트 (speed_force_mode)
-                self.motor2_setPos = target_pos
-                self.motor2_position = actual_pos
-                self.motor2_force = force_sensor  # 힘센서값 (g 단위)
-                self.motor2_sensor = force_sensor  # 센서값도 동일하게 설정
-                
-                print(f"[Motor2 Speed_Force] Target: {target_pos}, Actual: {actual_pos}, Force: {force_sensor}g")
-                
-            else:
-                # 기존 모터1 또는 일반 응답 파싱
-                setPos_val = hex_str[14:18]  # setPos
-                rec_val = hex_str[18:22]  # actPos
-                force_val = hex_str[26:30]  # force
-                sensor_val = hex_str[30:34]  # sensor
+            # 모터1과 모터2 모두 동일한 방식으로 파싱
+            setPos_val = hex_str[14:18]  # setPos
+            rec_val = hex_str[18:22]  # actPos
+            force_val = hex_str[26:30]  # force
+            sensor_val = hex_str[30:34]  # sensor
 
-                setPos_reorder = setPos_val[2:] + setPos_val[:2]
-                rec_reorder = rec_val[2:] + rec_val[:2]
-                force_reorder = force_val[2:] + force_val[:2]
-                sensor_reorder = sensor_val[2:] + sensor_val[:2]
+            setPos_reorder = setPos_val[2:] + setPos_val[:2]
+            rec_reorder = rec_val[2:] + rec_val[:2]
+            force_reorder = force_val[2:] + force_val[:2]
+            sensor_reorder = sensor_val[2:] + sensor_val[:2]
 
-                setPos = int(setPos_reorder, 16)
-                position = int(rec_reorder, 16)
-                force = int(force_reorder, 16)
-                sensor = int(sensor_reorder, 16)
+            setPos = int(setPos_reorder, 16)
+            position = int(rec_reorder, 16)
+            force = int(force_reorder, 16)
+            sensor = int(sensor_reorder, 16)
 
-                if setPos >= 0x8000:
-                    setPos -= 0x10000
-                if position >= 0x8000:
-                    position -= 0x10000
-                if force >= 0x8000:
-                    force -= 0x10000
-                if sensor >= 0x8000:
-                    sensor -= 0x10000
+            if setPos >= 0x8000:
+                setPos -= 0x10000
+            if position >= 0x8000:
+                position -= 0x10000
+            if force >= 0x8000:
+                force -= 0x10000
+            if sensor >= 0x8000:
+                sensor -= 0x10000
 
-                # 모터 ID에 따라 상태 업데이트
-                if motor_id == 0x01:
-                    self.motor1_setPos = setPos
-                    self.motor1_position = position
-                    self.motor1_force = round(force * 0.001 * 9.81, 1)
-                    self.motor1_sensor = sensor
-                elif motor_id == 0x02:
-                    # 모터2가 일반 모드일 때
-                    self.motor2_setPos = setPos
-                    self.motor2_position = position
-                    self.motor2_force = round(force * 0.001 * 9.81, 1)
-                    self.motor2_sensor = sensor
+            # 모터 ID에 따라 상태 업데이트
+            if motor_id == 0x01:
+                self.motor1_setPos = setPos
+                self.motor1_position = position
+                self.motor1_force = round(force * 0.001 * 9.81, 1)
+                self.motor1_sensor = sensor
+            elif motor_id == 0x02:
+                self.motor2_setPos = setPos
+                self.motor2_position = position
+                self.motor2_force = round(force * 0.001 * 9.81, 1)
+                self.motor2_sensor = sensor
 
         except Exception as e:
             print(f"[DualParse Error] {str(e)}")

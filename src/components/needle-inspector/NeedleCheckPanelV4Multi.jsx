@@ -86,11 +86,10 @@ export default function NeedleCheckPanelV4Multi({
       motor_id: motorId
     }
 
-    // 모터2일 때 니들 속도와 힘 값 추가
+    // 모터2일 때 니들 속도 값 추가
     if (motorId === 2) {
       msg.needle_speed = needleSpeed2 || 1000;  // 기본값 1000
-      msg.needle_force = needleForce2 || 1000;  // 기본값 1000g
-      console.log(`모터 ${motorId} 속도/힘/위치 명령 전송:`, msg);
+      console.log(`모터 ${motorId} 속도/위치 명령 전송:`, msg);
     } else {
       console.log(`모터 ${motorId} 위치 명령 전송:`, msg);
     }
@@ -662,46 +661,15 @@ export default function NeedleCheckPanelV4Multi({
                 backgroundColor: '#171C26', 
                 color: !isNeedleCheckEnabled ? '#D1D5DB' : 'white', 
                 textAlign: 'center',
-                width: '60%',
+                width: '95%',
                 fontSize: '1.1dvh', 
                 height: '3dvh',
                 opacity: !isNeedleCheckEnabled ? 0.6 : 1
               }}
             />
-            <div style={{ width: '30%' }}></div>
           </div>
         </div>
 
-        {/* 니들 힘 */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5dvw' }}>
-          <label style={{ width: '35%', fontSize: '1.3dvh', color: '#D1D5DB' }}>니들 힘</label>
-          
-          {/* 모터 1 - 빈 공간 */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.3dvw', flex: 1 }}>
-            <div style={{ width: '90%' }}></div>
-          </div>
-          
-          {/* 모터 2 */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.3dvw', flex: 1 }}>
-            <Input 
-              type="number"
-              value={needleForce2 || 0}
-              onChange={(e) => onNeedleForce2Change && onNeedleForce2Change(Number(e.target.value))}
-              min="0"
-              disabled={!isNeedleCheckEnabled}
-              style={{ 
-                backgroundColor: '#171C26', 
-                color: !isNeedleCheckEnabled ? '#D1D5DB' : 'white', 
-                textAlign: 'center',
-                width: '60%',
-                fontSize: '1.1dvh', 
-                height: '3dvh',
-                opacity: !isNeedleCheckEnabled ? 0.6 : 1
-              }}
-            />
-            <div style={{ width: '30%' }}></div>
-          </div>
-        </div>
           </>
         )}
 
