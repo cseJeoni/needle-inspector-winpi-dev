@@ -1445,7 +1445,7 @@ export default function NeedleInspectorUI() {
               🔧 모터 1: {isMotorConnected ? '연결됨' : '연결 안됨'}
             </div>
             <div style={{ fontSize: '10px', marginBottom: '2px' }}>
-              위치: {currentPosition} 
+              위치: {currentPosition} ({(currentPosition / 100).toFixed(2)}mm)
             </div>
             {motorError && (
               <div style={{ fontSize: '9px', color: '#FCA5A5', marginTop: '2px' }}>
@@ -1466,7 +1466,7 @@ export default function NeedleInspectorUI() {
               🔧 모터 2: {isMotor2Connected ? '연결됨' : '연결 안됨'}
             </div>
             <div style={{ fontSize: '10px', marginBottom: '2px' }}>
-              위치: {currentPosition2}
+              위치: {currentPosition2} ({(currentPosition2 / 40).toFixed(2)}mm)
             </div>
             {motor2Error && (
               <div style={{ fontSize: '9px', color: '#FCA5A5', marginTop: '2px' }}>

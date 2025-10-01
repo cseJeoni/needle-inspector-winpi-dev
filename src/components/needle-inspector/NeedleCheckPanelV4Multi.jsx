@@ -210,7 +210,7 @@ export default function NeedleCheckPanelV4Multi({
       // UP 명령 (초기 위치 + 돌출 부분)
       const upPosition = motorId === 1 ? 
         Math.round((needleOffset1 + needleProtrusion1) * 100) : 
-        Math.round((needleOffset2 + needleProtrusion2) * 100);
+        Math.round((needleOffset2 + needleProtrusion2) * 40);
       console.log(`🎯 모터${motorId} UP 명령 실행 (${upPosition})`)
       sendMotorCommand(upPosition, motorId)
       
@@ -220,7 +220,7 @@ export default function NeedleCheckPanelV4Multi({
       // DOWN 명령 (초기 위치)
       const downPosition = motorId === 1 ? 
         Math.round(needleOffset1 * 100) : 
-        Math.round(needleOffset2 * 100);
+        Math.round(needleOffset2 * 40);
       console.log(`🎯 모터${motorId} DOWN 명령 실행 (${downPosition})`)
       sendMotorCommand(downPosition, motorId)
       
@@ -428,7 +428,7 @@ export default function NeedleCheckPanelV4Multi({
             <Button
               onClick={() => {
                 if (needleOffsetState2 === 'UP') {
-                  const motorPosition = Math.round(needleOffset2 * 100);
+                  const motorPosition = Math.round(needleOffset2 * 40);
                   console.log('모터2 니들 오프셋 UP:', needleOffset2, '모터 위치:', motorPosition);
                   sendMotorCommand(motorPosition, 2);
                   setNeedleOffsetState2('DOWN');
@@ -532,12 +532,12 @@ export default function NeedleCheckPanelV4Multi({
             <Button
               onClick={() => {
                 if (needleProtrusionState2 === 'UP') {
-                  const motorPosition = Math.round((needleOffset2 + needleProtrusion2) * 100);
+                  const motorPosition = Math.round((needleOffset2 + needleProtrusion2) * 40);
                   console.log('모터2 니들 돌출 부분 UP:', needleOffset2, '+', needleProtrusion2, '=', needleOffset2 + needleProtrusion2, '모터 위치:', motorPosition);
                   sendMotorCommand(motorPosition, 2);
                   setNeedleProtrusionState2('DOWN');
                 } else {
-                  const motorPosition = Math.round(needleOffset2 * 100);
+                  const motorPosition = Math.round(needleOffset2 * 40);
                   console.log('모터2 니듡 돌출 부분 DOWN: 니듡 초기 위치로', needleOffset2, '모터 위치:', motorPosition);
                   sendMotorCommand(motorPosition, 2);
                   setNeedleProtrusionState2('UP');
