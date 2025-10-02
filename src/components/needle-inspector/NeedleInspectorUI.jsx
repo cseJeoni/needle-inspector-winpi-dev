@@ -45,6 +45,7 @@ export default function NeedleInspectorUI() {
   const [isMotor2Connected, setIsMotor2Connected] = useState(false)
   const [motor2Error, setMotor2Error] = useState(null)
   const [currentPosition2, setCurrentPosition2] = useState(0)
+  const [motor2Position, setMotor2Position] = useState(0) // 실시간 모터2 위치
   const [needlePosition2, setNeedlePosition2] = useState('UNKNOWN') // UP, DOWN, UNKNOWN
 
   // 디버깅 패널 관련 상태
@@ -82,6 +83,8 @@ export default function NeedleInspectorUI() {
   const [resistanceDelay, setResistanceDelay] = useState(1000) // 저항 측정 지연 시간 (ms)
   const [resistanceThreshold, setResistanceThreshold] = useState(100) // 저항 임계값 (정상값)
   const [isResistanceAbnormal, setIsResistanceAbnormal] = useState(false) // 저항 이상 여부
+  const [motor2TargetPosition, setMotor2TargetPosition] = useState(0) // 모터2 목표 위치 (감속 로직용)
+  const [hasDecelerated, setHasDecelerated] = useState(false) // 감속 실행 여부
 
   // 저항 측정 상태 (MTR 4.0에서만 사용)
   const [resistance1, setResistance1] = useState(NaN)
@@ -1656,6 +1659,7 @@ export default function NeedleInspectorUI() {
             onResistance1StatusChange={setResistance1Status} // 저항1 상태 변경 함수 전달
             onResistance2StatusChange={setResistance2Status} // 저항2 상태 변경 함수 전달
             gpio5State={gpio5State} // GPIO 5번 쇼트 체크 상태 전달
+            motor2Position={motor2Position} // 실시간 모터2 위치 전달
           />
           </div>
           <div className="w-[26.5%]">

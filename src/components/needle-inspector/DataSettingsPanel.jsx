@@ -45,7 +45,8 @@ const DataSettingsPanel = forwardRef(({
   onResistance2Change,
   onResistance1StatusChange,
   onResistance2StatusChange,
-  gpio5State // GPIO 5번 쇼트 체크 상태
+  gpio5State, // GPIO 5번 쇼트 체크 상태
+  motor2Position // 실시간 모터2 위치
 }, ref) => {
   // isStarted와 readEepromData는 이제 props로 받아서 사용
   const [selectedYear, setSelectedYear] = useState("")
@@ -456,12 +457,12 @@ const DataSettingsPanel = forwardRef(({
         // 3단계: 모터 2 UP 명령 전송 (NeedleCheckPanelV4의 오프셋 + 돌출부분 값 사용)
         if (websocket && isWsConnected) {
           // NeedleCheckPanelV4에서 전달받은 모터2 값들 사용
-          const motor2Position = Math.round((needleOffset2 - needleProtrusion2) * 40);
+          const motor2TargetPos = Math.round((needleOffset2 - needleProtrusion2) * 40);
           
-          console.log('3️⃣ 모터 2 UP 명령 전송 - 위치:', motor2Position, '(오프셋:', needleOffset2, '- 돌출:', needleProtrusion2, '), 속도:', needleSpeed2)
+          console.log('3️⃣ 모터 2 UP 명령 전송 - 위치:', motor2TargetPos, '(오프셋:', needleOffset2, '- 돌출:', needleProtrusion2, '), 속도:', needleSpeed2)
           websocket.send(JSON.stringify({ 
             cmd: "move", 
-            position: motor2Position, 
+            position: motor2TargetPos, 
             needle_speed: needleSpeed2,
             motor_id: 2
           }))
@@ -470,8 +471,8 @@ const DataSettingsPanel = forwardRef(({
           return
         }
         
-        // 4단계: DELAY 대기 (감속 기능은 실시간 위치 모니터링으로 처리)
-        console.log('4️⃣ 저항 측정 대기 중... DELAY:', resistanceDelay, 'ms')
+        // 4단계: 모터2 이동 완료 대기 (블로킹 대기 제거 - 실시간 감속을 위해)
+        console.log('4️⃣ 모터2 이동 시작 - 실시간 감속 모니터링 활성화')
         
         // 감속 기능이 활성화된 경우 목표 위치 설정 (실시간 모니터링에서 사용)
         if (isDecelerationEnabled) {
@@ -480,8 +481,77 @@ const DataSettingsPanel = forwardRef(({
           console.log('🐌 감속 기능 활성화 - 목표 위치:', motor2TargetPosition, ', 감속 위치:', decelerationPosition, 'mm (', decelerationThreshold, '단위), 감속 스피드:', decelerationSpeed)
         }
         
-        // DELAY 시간만큼 대기 (감속은 실시간 위치 모니터링에서 처리)
-        await new Promise(resolve => setTimeout(resolve, resistanceDelay))
+        // 모터2 이동 완료를 기다리는 Promise (WebSocket 상태 기반 대기)
+        console.log('⏱️ 모터2 목표 위치 도달 대기 중...')
+        const targetPosition = Math.round((needleOffset2 - needleProtrusion2) * 40);
+        console.log('🎯 목표 위치:', targetPosition, ', 현재 위치:', motor2Position)
+        
+        // 모터 이동 시작 대기 (500ms)
+        console.log('⏳ 모터2 이동 시작 대기 중... (500ms)')
+        await new Promise(resolve => setTimeout(resolve, 500))
+        
+        // WebSocket을 통한 실시간 모터2 위치 모니터링
+        await new Promise((resolve, reject) => {
+          let checkCount = 0;
+          const maxChecks = 100; // 10초 타임아웃 (100ms * 100)
+          let motor2RealtimePosition = motor2Position; // 초기값
+          
+          // WebSocket 메시지 리스너 추가 (실시간 모터2 위치 업데이트)
+          const handleMotorStatusUpdate = (event) => {
+            try {
+              const response = JSON.parse(event.data);
+              if (response.type === 'status' && response.data && response.data.motor2_position !== undefined) {
+                motor2RealtimePosition = response.data.motor2_position;
+              }
+            } catch (error) {
+              // JSON 파싱 오류 무시
+            }
+          };
+          
+          if (websocket && isWsConnected) {
+            websocket.addEventListener('message', handleMotorStatusUpdate);
+          }
+          
+          const checkMotorPosition = () => {
+            checkCount++;
+            
+            const distance = Math.abs(motor2RealtimePosition - targetPosition);
+            
+            // 디버깅 로그 (2초마다)
+            if (checkCount % 20 === 0) {
+              console.log(`🔍 위치 체크 ${checkCount}/100 - 실시간: ${motor2RealtimePosition}, 목표: ${targetPosition}, 거리: ${distance}`);
+              console.log(`   Props: ${motor2Position} vs 실시간: ${motor2RealtimePosition}`);
+            }
+            
+            // 조건 1: 목표 위치에 도달 (±5 단위 허용) - 단, 최소 1초(10회) 후부터 체크
+            if (distance <= 5 && checkCount >= 10) {
+              console.log('✅ 모터2 목표 위치 도달 완료 - 실시간:', motor2RealtimePosition, ', 목표:', targetPosition)
+              // WebSocket 리스너 제거
+              if (websocket) {
+                websocket.removeEventListener('message', handleMotorStatusUpdate);
+              }
+              setTimeout(resolve, 200)
+            }
+            // 조건 2: 타임아웃
+            else if (checkCount >= maxChecks) {
+              console.error('❌ 모터2 이동 타임아웃 - 실시간:', motor2RealtimePosition, ', 목표:', targetPosition, ', 거리:', distance)
+              // WebSocket 리스너 제거
+              if (websocket) {
+                websocket.removeEventListener('message', handleMotorStatusUpdate);
+              }
+              reject(new Error(`모터2 이동 타임아웃 (실시간: ${motor2RealtimePosition}, 목표: ${targetPosition})`))
+            } else {
+              // 100ms마다 위치 체크
+              setTimeout(checkMotorPosition, 100)
+            }
+          }
+          checkMotorPosition()
+        }).catch((error) => {
+          console.error('❌ 모터2 이동 실패:', error.message)
+          onWorkStatusChange && onWorkStatusChange('write_failed')
+          onStartedChange && onStartedChange(true)
+          throw error // 상위로 에러 전파
+        })
         
         // 5단계: 저항 측정 실행 및 결과 대기
         console.log('5️⃣ 저항 측정 시작')
@@ -574,9 +644,69 @@ const DataSettingsPanel = forwardRef(({
           return
         }
         
-        // 8단계: NeedleCheckPanelV4의 딜레이 값만큼 대기
-        console.log('8️⃣ 딜레이 대기 중... DELAY:', resistanceDelay, 'ms')
-        await new Promise(resolve => setTimeout(resolve, resistanceDelay))
+        // 8단계: 모터2 복귀 완료 대기 (WebSocket 실시간 모니터링)
+        console.log('8️⃣ 모터2 초기 위치 복귀 대기 중... (실시간 모니터링)')
+        
+        // 모터 복귀 시작 대기 (500ms)
+        console.log('⏳ 모터2 복귀 시작 대기 중... (500ms)')
+        await new Promise(resolve => setTimeout(resolve, 500))
+        
+        await new Promise((resolve, reject) => {
+          let checkCount = 0;
+          const maxChecks = 100; // 10초 타임아웃 (100ms * 100)
+          let motor2RealtimePosition = motor2Position; // 초기값
+          
+          // WebSocket 메시지 리스너 추가 (실시간 모터2 위치 업데이트)
+          const handleMotorReturnUpdate = (event) => {
+            try {
+              const response = JSON.parse(event.data);
+              if (response.type === 'status' && response.data && response.data.motor2_position !== undefined) {
+                motor2RealtimePosition = response.data.motor2_position;
+              }
+            } catch (error) {
+              // JSON 파싱 오류 무시
+            }
+          };
+          
+          if (websocket && isWsConnected) {
+            websocket.addEventListener('message', handleMotorReturnUpdate);
+          }
+          
+          const checkReturnPosition = () => {
+            checkCount++;
+            
+            const distance = Math.abs(motor2RealtimePosition - motor2DownPosition);
+            
+            // 디버깅 로그 (2초마다)
+            if (checkCount % 20 === 0) {
+              console.log(`🔍 복귀 체크 ${checkCount}/100 - 실시간: ${motor2RealtimePosition}, 목표: ${motor2DownPosition}, 거리: ${distance}`);
+              console.log(`   Props: ${motor2Position} vs 실시간: ${motor2RealtimePosition}`);
+            }
+            
+            // 조건 1: 초기 위치에 도달 (±5 단위 허용) - 단, 최소 1초(10회) 후부터 체크
+            if (distance <= 5 && checkCount >= 10) {
+              console.log('✅ 모터2 초기 위치 복귀 완료 - 실시간:', motor2RealtimePosition, ', 목표:', motor2DownPosition)
+              // WebSocket 리스너 제거
+              if (websocket) {
+                websocket.removeEventListener('message', handleMotorReturnUpdate);
+              }
+              setTimeout(resolve, 200)
+            }
+            // 조건 2: 타임아웃
+            else if (checkCount >= maxChecks) {
+              console.error('❌ 모터2 복귀 타임아웃 - 실시간:', motor2RealtimePosition, ', 목표:', motor2DownPosition, ', 거리:', distance)
+              // WebSocket 리스너 제거
+              if (websocket) {
+                websocket.removeEventListener('message', handleMotorReturnUpdate);
+              }
+              reject(new Error(`모터2 복귀 타임아웃 (실시간: ${motor2RealtimePosition}, 목표: ${motor2DownPosition})`))
+            } else {
+              // 100ms마다 위치 체크
+              setTimeout(checkReturnPosition, 100)
+            }
+          }
+          checkReturnPosition()
+        })
         
         // 9단계: 모터 1 UP 명령 전송
         const motor1UpPosition = Math.round((needleOffset1 + needleProtrusion1) * 100);
