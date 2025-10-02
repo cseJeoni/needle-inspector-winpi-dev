@@ -77,6 +77,7 @@ export default function NeedleInspectorUI() {
   const [needleProtrusion2, setNeedleProtrusion2] = useState(30) // 모터 2 니들 돌출부분
   const [needleSpeed2, setNeedleSpeed2] = useState(1000) // 모터 2 니들 속도
   const [isDecelerationEnabled, setIsDecelerationEnabled] = useState(false) // 감속 활성화 여부
+  const [decelerationPosition, setDecelerationPosition] = useState(5.0) // 감속 위치 (목표 위치에서 얼마나 떨어진 지점에서 감속할지, mm 단위)
   const [decelerationSpeed, setDecelerationSpeed] = useState(100) // 감속 스피드
   const [resistanceDelay, setResistanceDelay] = useState(1000) // 저항 측정 지연 시간 (ms)
   const [resistanceThreshold, setResistanceThreshold] = useState(100) // 저항 임계값 (정상값)
@@ -743,12 +744,25 @@ export default function NeedleInspectorUI() {
     if (nextStartedState) {
       // START 버튼 클릭 시: DataSettingsPanel에서 MTR 버전/국가 정보와 함께 EEPROM 읽기 처리
       console.log("🚀 START 버튼 클릭 - DataSettingsPanel에서 EEPROM 처리");
+      
+      // 감속 관련 상태 초기화
+      if (isDecelerationEnabled && selectedNeedleType && selectedNeedleType.startsWith('MULTI')) {
+        const targetPosition = Math.round((needleOffset2 - needleProtrusion2) * 40);
+        setMotor2TargetPosition(targetPosition);
+        setHasDecelerated(false);
+        console.log('🐌 감속 모니터링 시작 - 목표 위치:', targetPosition);
+      }
+      
       // START 시 상태 변경 제거 - EEPROM 쓰기 완료 시에만 상태 변경
     } else {
       // STOP 버튼 클릭 시: 데이터 초기화
       console.log("🛑 STOP 버튼 클릭 - EEPROM 데이터 초기화");
       setReadEepromData(null);
       setWorkStatus('waiting');
+      
+      // 감속 관련 상태 초기화
+      setMotor2TargetPosition(0);
+      setHasDecelerated(false);
     }
   };
 
@@ -1140,8 +1154,34 @@ export default function NeedleInspectorUI() {
           // 모터 2 상태 업데이트
           if (motor2_position !== undefined) {
             setCurrentPosition2(motor2_position)
+            setMotor2Position(motor2_position) // 실시간 위치 업데이트
             setNeedlePosition2('UP') // 기본 'UP'으로 설정
             setIsMotor2Connected(true) // 모터 2 데이터가 있으면 연결된 것으로 간주
+            
+            // 실시간 감속 로직: 목표 위치에 가까워지면 감속 명령 전송
+            if (isDecelerationEnabled && motor2TargetPosition > 0 && !hasDecelerated && isStarted && selectedNeedleType && selectedNeedleType.startsWith('MULTI')) {
+              const currentPos = motor2_position;
+              const targetPos = motor2TargetPosition;
+              const threshold = Math.round(decelerationPosition * 40); // mm를 모터 단위로 변환
+              const distance = Math.abs(targetPos - currentPos);
+              
+              // 목표 위치에 가까워지면 감속 (임계값 이내이고 아직 목표에 도달하지 않은 경우)
+              if (distance <= threshold && distance > 0) {
+                console.log('🐌 목표 위치 근접 감속 실행 - 현재:', currentPos, ', 목표:', targetPos, ', 거리:', distance, ', 임계값:', threshold);
+                
+                // 감속 명령 전송
+                if (ws && isWsConnected) {
+                  ws.send(JSON.stringify({ 
+                    cmd: "move", 
+                    position: targetPos, 
+                    needle_speed: decelerationSpeed,
+                    motor_id: 2
+                  }));
+                  setHasDecelerated(true); // 감속 실행 완료 표시
+                  console.log('✅ 감속 명령 전송 완료 - 감속 스피드:', decelerationSpeed);
+                }
+              }
+            }
           }
           
           // GPIO23 기반 니들팁 연결 상태 업데이트
@@ -1605,6 +1645,9 @@ export default function NeedleInspectorUI() {
             needleOffset2={needleOffset2} // 모터 2 니들 오프셋 전달
             needleProtrusion2={needleProtrusion2} // 모터 2 니들 돌출부분 전달
             needleSpeed2={needleSpeed2} // 모터 2 니들 속도 전달
+            isDecelerationEnabled={isDecelerationEnabled} // 감속 활성화 여부 전달
+            decelerationPosition={decelerationPosition} // 감속 위치 전달
+            decelerationSpeed={decelerationSpeed} // 감속 스피드 전달
             resistanceDelay={resistanceDelay} // 저항 측정 지연 시간 전달
             resistanceThreshold={resistanceThreshold} // 저항 임계값 전달
             onResistanceAbnormalChange={setIsResistanceAbnormal} // 저항 이상 상태 변경 함수 전달
@@ -1648,6 +1691,8 @@ export default function NeedleInspectorUI() {
               onNeedleSpeed2Change={setNeedleSpeed2}
               isDecelerationEnabled={isDecelerationEnabled}
               onDecelerationEnabledChange={setIsDecelerationEnabled}
+              decelerationPosition={decelerationPosition}
+              onDecelerationPositionChange={setDecelerationPosition}
               decelerationSpeed={decelerationSpeed}
               onDecelerationSpeedChange={setDecelerationSpeed}
             />

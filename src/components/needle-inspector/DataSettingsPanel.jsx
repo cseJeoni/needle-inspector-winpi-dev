@@ -35,6 +35,9 @@ const DataSettingsPanel = forwardRef(({
   needleOffset2,
   needleProtrusion2,
   needleSpeed2, // 모터 2 니들 속도
+  isDecelerationEnabled, // 감속 활성화 여부
+  decelerationPosition, // 감속 위치
+  decelerationSpeed, // 감속 스피드
   resistanceDelay,
   resistanceThreshold,
   onResistanceAbnormalChange,
@@ -467,8 +470,17 @@ const DataSettingsPanel = forwardRef(({
           return
         }
         
-        // 4단계: DELAY 대기 후 저항 측정
+        // 4단계: DELAY 대기 (감속 기능은 실시간 위치 모니터링으로 처리)
         console.log('4️⃣ 저항 측정 대기 중... DELAY:', resistanceDelay, 'ms')
+        
+        // 감속 기능이 활성화된 경우 목표 위치 설정 (실시간 모니터링에서 사용)
+        if (isDecelerationEnabled) {
+          const motor2TargetPosition = Math.round((needleOffset2 - needleProtrusion2) * 40);
+          const decelerationThreshold = Math.round(decelerationPosition * 40); // mm를 모터 단위로 변환
+          console.log('🐌 감속 기능 활성화 - 목표 위치:', motor2TargetPosition, ', 감속 위치:', decelerationPosition, 'mm (', decelerationThreshold, '단위), 감속 스피드:', decelerationSpeed)
+        }
+        
+        // DELAY 시간만큼 대기 (감속은 실시간 위치 모니터링에서 처리)
         await new Promise(resolve => setTimeout(resolve, resistanceDelay))
         
         // 5단계: 저항 측정 실행 및 결과 대기
