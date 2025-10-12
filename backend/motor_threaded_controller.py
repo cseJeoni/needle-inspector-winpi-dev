@@ -172,7 +172,7 @@ class MotorThreadedController:
     def send_loop(self):
         while self.running:
             try:
-                time.sleep(0.05)
+                time.sleep(0.1)
                 with self.lock:
                     if self.last_command:
                         bytes_written = self.serial.write(self.last_command)
