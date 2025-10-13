@@ -37,6 +37,7 @@ class DualMotorController:
         self.motor2_position = 0
         self.motor2_force = 0
         self.motor2_sensor = 0
+        self.motor2_deceleration_info = None # 감속 정보 저장
         
         # EEPROM 관련 변수 (기존 호환성 유지)
         self.eeprom_data = {
@@ -274,22 +275,32 @@ class DualMotorController:
         except Exception as e:
             return f"❌ 모터2 명령 생성 실패: {str(e)}"
 
-    def move_with_speed_motor2(self, speed: int, position: int):
+    def move_with_speed_motor2(self, speed: int, position: int, deceleration_enabled=False, deceleration_position=0, deceleration_speed=0):
         try:
             cmd = generate_speed_mode_command(speed, position, motor_id=0x02)
-            
-            # 모터2 이동 명령은 1회만 전송
+
             with self.lock:
                 if self.serial and self.serial.is_open:
-                    bytes_written = self.serial.write(cmd)
+                    self.serial.write(cmd)
                     self.serial.flush()
-                    
+
+                    # 감속 정보 저장
+                    if deceleration_enabled:
+                        self.motor2_deceleration_info = {
+                            "target_position": position,
+                            "deceleration_point": position + (deceleration_position * 40), # 실제 모터 스케일로 변환
+                            "deceleration_speed": deceleration_speed,
+                            "is_decelerating": False # 감속 명령이 한 번만 전송되도록 플래그 추가
+                        }
+                    else:
+                        self.motor2_deceleration_info = None
+
                     # 이동 명령 후 상태 읽기 모드로 전환
                     self.motor2_status_mode = True
                     self.last_command_motor2 = generate_status_read_command(motor_id=0x02)
                 else:
                     return "❌ 시리얼 포트가 열려있지 않습니다"
-                    
+
             return f"📤 모터2 속도/위치 이동 명령 즉시 전송 완료: {' '.join([cmd.hex()[i:i+2].upper() for i in range(0, len(cmd.hex()), 2)])}"
         except Exception as e:
             return f"❌ 모터2 명령 전송 실패: {str(e)}"
@@ -322,6 +333,25 @@ class DualMotorController:
                 
                 # Motor 2 명령 전송
                 with self.lock:
+                    # 감속 로직 체크
+                    if self.motor2_deceleration_info and not self.motor2_deceleration_info["is_decelerating"]:
+                        # 모터는 현재 위치(motor2_position)에서 목표 위치(target_position)로 이동 중
+                        # 현재 위치가 감속 지점(deceleration_point)을 지났는지 확인
+                        # 모터2는 값이 작아지는 방향으로 이동하므로 부등호 주의
+                        if self.motor2_position <= self.motor2_deceleration_info["deceleration_point"]:
+                            print(f"[INFO] 모터2 감속 시작. 현재위치: {self.motor2_position}, 감속지점: {self.motor2_deceleration_info['deceleration_point']}")
+                            decel_info = self.motor2_deceleration_info
+                            new_cmd = generate_speed_mode_command(
+                                speed=decel_info["deceleration_speed"],
+                                position=decel_info["target_position"],
+                                motor_id=0x02
+                            )
+                            self.serial.write(new_cmd)
+                            self.serial.flush()
+                            self.motor2_deceleration_info["is_decelerating"] = True # 감속 명령 전송 완료
+                            # 감속 명령 후에는 일반 상태 읽기 명령으로 돌아감
+                            self.last_command_motor2 = generate_status_read_command(motor_id=0x02)
+
                     if self.last_command_motor2:
                         bytes_written = self.serial.write(self.last_command_motor2)
                         self.serial.flush()

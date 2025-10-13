@@ -439,7 +439,19 @@ async def handler(websocket):
                             if motor_id == 2:
                                 # 모터2는 speed_mode 사용
                                 needle_speed = data.get("needle_speed", 1000)  # 기본 속도
-                                result = motor.move_with_speed_motor2(needle_speed, position)
+                                
+                                # 감속 관련 파라미터 추출
+                                deceleration_enabled = data.get("deceleration_enabled", False)
+                                deceleration_position = data.get("deceleration_position", 0)
+                                deceleration_speed = data.get("deceleration_speed", 0)
+                                
+                                result = motor.move_with_speed_motor2(
+                                    speed=needle_speed, 
+                                    position=position,
+                                    deceleration_enabled=deceleration_enabled,
+                                    deceleration_position=deceleration_position,
+                                    deceleration_speed=deceleration_speed
+                                )
                             else:
                                 result = motor.move_to_position(position, mode)
                             print(f"[INFO] 모터{motor_id} 이동 결과: {result}")

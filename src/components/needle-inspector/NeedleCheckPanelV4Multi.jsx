@@ -93,9 +93,17 @@ export default function NeedleCheckPanelV4Multi({
       motor_id: motorId
     }
 
-    // 모터2일 때 니들 속도 값 추가
+    // 모터2일 때 니들 속도 및 감속 값 추가
     if (motorId === 2) {
-      msg.needle_speed = needleSpeed2 || 1000;  // 기본값 1000
+      msg.needle_speed = needleSpeed2 || 1000; // 기본값 1000
+
+      // 감속 기능이 활성화된 경우 관련 정보 추가
+      if (isDecelerationEnabled) {
+        msg.deceleration_enabled = true;
+        msg.deceleration_position = decelerationPosition;
+        msg.deceleration_speed = decelerationSpeed;
+      }
+
       console.log(`모터 ${motorId} 속도/위치 명령 전송:`, msg);
     } else {
       console.log(`모터 ${motorId} 위치 명령 전송:`, msg);
