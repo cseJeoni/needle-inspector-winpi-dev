@@ -289,9 +289,10 @@ class DualMotorController:
                     print(f"[DEBUG] 모터2 감속 정보 초기화 완료 - 이전 정보: {prev_decel_info}")
                     
                     # 명령 전송
-                    self.serial.write(cmd)
+                    bytes_written = self.serial.write(cmd)
                     self.serial.flush()
-                    print(f"[DEBUG] 모터2 이동 명령 전송 완료 - 목표: {position} ({position/40:.1f}mm), 속도: {speed}, 감속활성화: {deceleration_enabled}")
+                    print(f"[DEBUG] 모터2 이동 명령 전송 완료 - 목표: {position} ({position/40:.1f}mm), 속도: {speed}, 감속활성화: {deceleration_enabled}, 전송바이트: {bytes_written}/{len(cmd)}")
+                    print(f"[DEBUG] 전송된 명령: {' '.join([cmd.hex()[i:i+2].upper() for i in range(0, len(cmd.hex()), 2)])}")
 
                     # 감속 정보 저장 (감속이 활성화된 경우에만)
                     if deceleration_enabled and deceleration_position > 0 and deceleration_speed > 0:
@@ -312,6 +313,7 @@ class DualMotorController:
                     # 이동 명령 후 상태 읽기 모드로 전환
                     self.motor2_status_mode = True
                     self.last_command_motor2 = generate_status_read_command(motor_id=0x02)
+                    print(f"[DEBUG] 모터2 상태 읽기 모드로 전환 완료")
                 else:
                     return "❌ 시리얼 포트가 열려있지 않습니다"
 
@@ -444,6 +446,7 @@ class DualMotorController:
             hex_str = frame.hex().upper()
 
             if len(hex_str) < 34:  # 최소 필요한 길이 체크
+                print(f"[DEBUG] 짧은 프레임 무시: {hex_str} (length: {len(hex_str)})")
                 return
 
             # 모터 ID 확인 (프레임의 6-7번째 문자, 즉 3번째 바이트)
@@ -477,19 +480,26 @@ class DualMotorController:
 
             # 모터 ID에 따라 상태 업데이트
             if motor_id == 0x01:
+                prev_pos = self.motor1_position
                 self.motor1_setPos = setPos
                 self.motor1_position = position
                 self.motor1_force = round(force * 0.001 * 9.81, 1)
                 self.motor1_sensor = sensor
+                if abs(position - prev_pos) > 10:  # 위치 변화가 클 때만 로그
+                    print(f"[DEBUG] 모터1 상태 업데이트: 위치 {prev_pos} → {position} ({position/100:.1f}mm)")
             elif motor_id == 0x02:
+                prev_pos = self.motor2_position
                 self.motor2_setPos = setPos
                 self.motor2_position = position
                 self.motor2_force = round(force * 0.001 * 9.81, 1)
                 self.motor2_sensor = sensor
+                if abs(position - prev_pos) > 10:  # 위치 변화가 클 때만 로그
+                    print(f"[DEBUG] 모터2 상태 업데이트: 위치 {prev_pos} → {position} ({position/40:.1f}mm), setPos: {setPos}")
 
         except Exception as e:
             print(f"[DualParse Error] {str(e)}")
             print(f"[DualParse Error] frame: {frame.hex().upper()}")
+            print(f"[DualParse Error] frame length: {len(frame)}, hex length: {len(frame.hex())}")
 
     # Motor 2 상태 조회 함수들
     def get_motor2_status(self):
