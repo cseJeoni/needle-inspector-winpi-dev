@@ -294,17 +294,18 @@ class DualMotorController:
 
                     # 감속 정보 저장 (감속이 활성화된 경우에만)
                     if deceleration_enabled and deceleration_position > 0 and deceleration_speed > 0:
-                        # 감속 지점 = 목표 위치 + 감속 거리 (목표 위치로부터 감속 거리만큼 떨어진 지점)
-                        decel_point = position + (deceleration_position * 40)
+                        # 감속 지점 = 목표 위치 + 감속 거리 + 여유 거리 (빠른 속도에서도 감속 놀치지 않도록)
+                        safety_margin = 200 if speed >= 2000 else 100  # 속도에 따른 여유 거리 (5mm 또는 2.5mm)
+                        decel_point = position + (deceleration_position * 40) + safety_margin
                         self.motor2_deceleration_info = {
                             "target_position": position,
                             "deceleration_point": decel_point,
                             "deceleration_speed": deceleration_speed,
                             "is_decelerating": False # 감속 명령이 한 번만 전송되도록 플래그 추가
                         }
-                        print(f"[INFO] 모터2 감속 설정 완료 - 목표위치: {position} ({position/40:.1f}mm), 감속거리: {deceleration_position}mm, 감속지점: {decel_point} ({decel_point/40:.1f}mm), 감속속도: {deceleration_speed}")
+                        print(f"[INFO] 모터2 감속 설정 완료 - 목표위치: {position} ({position/40:.1f}mm), 감속거리: {deceleration_position}mm, 감속지점: {decel_point} ({decel_point/40:.1f}mm), 감속속도: {deceleration_speed}, 이동속도: {speed}, 여유거리: {safety_margin} ({safety_margin/40:.1f}mm)")
                     else:
-                        print(f"[INFO] 모터2 일반 이동 (감속 없음) - 목표위치: {position} ({position/40:.1f}mm)")
+                        print(f"[INFO] 모터2 일반 이동 (감속 없음) - 목표위치: {position} ({position/40:.1f}mm), 속도: {speed}")
                         self.motor2_deceleration_info = None
 
                     # 이동 명령 후 상태 읽기 모드로 전환
@@ -331,7 +332,7 @@ class DualMotorController:
     def send_loop(self):
         while self.running:
             try:
-                time.sleep(0.025)  # 두 모터를 번갈아 가며 명령 전송하므로 간격을 절반으로
+                time.sleep(0.010)  # 감속 감지를 위해 더 빠른 주기로 조정 (10ms)
                 
                 # Motor 1 명령 전송
                 with self.lock:
@@ -341,7 +342,7 @@ class DualMotorController:
                         if bytes_written != len(self.last_command_motor1):
                             print(f"[Warning] 모터1 전송된 바이트 수 불일치: {bytes_written}/{len(self.last_command_motor1)}")
                 
-                time.sleep(0.025)  # 모터 간 간격
+                time.sleep(0.010)  # 모터 간 간격 (10ms)
                 
                 # Motor 2 명령 전송
                 with self.lock:
