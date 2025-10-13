@@ -284,13 +284,14 @@ class DualMotorController:
             with self.lock:
                 if self.serial and self.serial.is_open:
                     # 항상 먼저 감속 정보 초기화 (새로운 이동 명령이 들어왔으므로)
+                    prev_decel_info = self.motor2_deceleration_info
                     self.motor2_deceleration_info = None
-                    print(f"[DEBUG] 모터2 감속 정보 초기화 완료")
+                    print(f"[DEBUG] 모터2 감속 정보 초기화 완료 - 이전 정보: {prev_decel_info}")
                     
                     # 명령 전송
                     self.serial.write(cmd)
                     self.serial.flush()
-                    print(f"[DEBUG] 모터2 이동 명령 전송 완료 - 목표: {position} ({position/40:.1f}mm), 속도: {speed}")
+                    print(f"[DEBUG] 모터2 이동 명령 전송 완료 - 목표: {position} ({position/40:.1f}mm), 속도: {speed}, 감속활성화: {deceleration_enabled}")
 
                     # 감속 정보 저장 (감속이 활성화된 경우에만)
                     if deceleration_enabled and deceleration_position > 0 and deceleration_speed > 0:
@@ -355,9 +356,15 @@ class DualMotorController:
                             decel_point = self.motor2_deceleration_info["deceleration_point"]
                             target_pos = self.motor2_deceleration_info["target_position"]
                             
-                            # 모터가 목표 위치보다 높은 곳에서 내려올 때만 감속 체크
-                            if self.motor2_position > target_pos and self.motor2_position <= decel_point:
-                                print(f"[INFO] 모터2 감속 시작. 현재위치: {self.motor2_position} ({self.motor2_position/40:.1f}mm), 감속지점: {decel_point} ({decel_point/40:.1f}mm), 목표위치: {target_pos} ({target_pos/40:.1f}mm)")
+                            # 모터가 DOWN 방향으로 이동 중이고, 목표 위치보다 높은 곳에서 내려올 때만 감속 체크
+                            # 추가 조건: 목표 위치가 현재 위치보다 작아야 함 (DOWN 방향 이동)
+                            current_pos = self.motor2_position
+                            is_moving_down = target_pos < current_pos  # DOWN 방향 이동 체크
+                            
+                            if (is_moving_down and  # DOWN 방향 이동 중일 때만
+                                current_pos > target_pos and  # 아직 목표에 도달하지 않음
+                                current_pos <= decel_point):  # 감속 지점에 도달함
+                                print(f"[INFO] 모터2 감속 시작 (DOWN 이동). 현재위치: {current_pos} ({current_pos/40:.1f}mm), 감속지점: {decel_point} ({decel_point/40:.1f}mm), 목표위치: {target_pos} ({target_pos/40:.1f}mm)")
                                 
                                 new_cmd = generate_speed_mode_command(
                                     self.motor2_deceleration_info["deceleration_speed"],
