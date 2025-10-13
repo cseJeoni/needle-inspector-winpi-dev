@@ -335,7 +335,7 @@ class DualMotorController:
     def send_loop(self):
         while self.running:
             try:
-                time.sleep(0.010)  # 감속 감지를 위해 더 빠른 주기로 조정 (10ms)
+                time.sleep(0.02)  # 감속 감지를 위해 더 빠른 주기로 조정 (10ms)
                 
                 # Motor 1 명령 전송
                 with self.lock:
@@ -345,7 +345,7 @@ class DualMotorController:
                         if bytes_written != len(self.last_command_motor1):
                             print(f"[Warning] 모터1 전송된 바이트 수 불일치: {bytes_written}/{len(self.last_command_motor1)}")
                 
-                time.sleep(0.010)  # 모터 간 간격 (10ms)
+                time.sleep(0.02)  # 모터 간 간격 (10ms)
                 
                 # Motor 2 명령 전송
                 with self.lock:

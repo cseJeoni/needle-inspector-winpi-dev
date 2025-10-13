@@ -403,7 +403,9 @@ async def handler(websocket):
     try:
         async for msg in websocket:
             try:
+                print(f"[DEBUG] WebSocket 메시지 수신: {msg[:200]}...")  # 처음 200자만 출력
                 data = json.loads(msg)
+                print(f"[DEBUG] 파싱된 명령: {data.get('cmd', 'UNKNOWN')}")
 
                 if data["cmd"] == "connect":
                     port = data.get("port")
@@ -432,8 +434,9 @@ async def handler(websocket):
                     force = data.get("force")
                     motor_id = data.get("motor_id", 1)  # 기본값은 모터 1
                     
-                    # WebSocket 메시지 수신 로그 (디버깅용)
-                    print(f"[DEBUG] WebSocket move 명령 수신: motor_id={motor_id}, position={position}, mode={mode}, data={data}")
+                        # WebSocket 메시지 수신 로그 (디버깅용)
+                    print(f"[DEBUG] WebSocket move 명령 수신: motor_id={motor_id}, position={position}, mode={mode}")
+                    print(f"[DEBUG] 전체 데이터: {data}")
                     
                     # 모터 이동 명령 처리
                     
@@ -634,7 +637,10 @@ async def handler(websocket):
                     }))
 
             except Exception as e:
-                print(f"[ERROR] 처리 중 에러: {str(e)}")
+                print(f"[ERROR] WebSocket 메시지 처리 중 에러: {str(e)}")
+                print(f"[ERROR] 문제가 된 메시지: {message}")
+                import traceback
+                print(f"[ERROR] 상세 오류: {traceback.format_exc()}")
                 await websocket.send(json.dumps({
                     "type": "error",
                     "result": str(e)
