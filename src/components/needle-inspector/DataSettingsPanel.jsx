@@ -460,12 +460,21 @@ const DataSettingsPanel = forwardRef(({
           const motor2TargetPos = Math.round((needleOffset2 - needleProtrusion2) * 40);
           
           console.log('3️⃣ 모터 2 UP 명령 전송 - 위치:', motor2TargetPos, '(오프셋:', needleOffset2, '- 돌출:', needleProtrusion2, '), 속도:', needleSpeed2)
-          websocket.send(JSON.stringify({ 
-            cmd: "move", 
-            position: motor2TargetPos, 
+          const moveCommand = {
+            cmd: "move",
+            position: motor2TargetPos,
             needle_speed: needleSpeed2,
             motor_id: 2
-          }))
+          };
+
+          // 감속 기능이 활성화된 경우, 감속 파라미터 추가
+          if (isDecelerationEnabled) {
+            moveCommand.deceleration_enabled = true;
+            moveCommand.deceleration_position = decelerationPosition;
+            moveCommand.deceleration_speed = decelerationSpeed;
+          }
+
+          websocket.send(JSON.stringify(moveCommand));
         } else {
           console.error('WebSocket 연결되지 않음 - 모터 2 UP 명령 실패')
           return
