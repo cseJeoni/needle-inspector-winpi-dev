@@ -432,6 +432,9 @@ async def handler(websocket):
                     force = data.get("force")
                     motor_id = data.get("motor_id", 1)  # 기본값은 모터 1
                     
+                    # WebSocket 메시지 수신 로그 (디버깅용)
+                    print(f"[DEBUG] WebSocket move 명령 수신: motor_id={motor_id}, position={position}, mode={mode}, data={data}")
+                    
                     # 모터 이동 명령 처리
                     
                     if mode == "servo" or mode == "position":

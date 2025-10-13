@@ -285,6 +285,7 @@ class DualMotorController:
                 if self.serial and self.serial.is_open:
                     # 항상 먼저 감속 정보 초기화 (새로운 이동 명령이 들어왔으므로)
                     self.motor2_deceleration_info = None
+                    print(f"[DEBUG] 모터2 감속 정보 초기화 완료")
                     
                     # 명령 전송
                     self.serial.write(cmd)
