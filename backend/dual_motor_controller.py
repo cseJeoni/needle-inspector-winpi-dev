@@ -342,8 +342,8 @@ class DualMotorController:
                             print(f"[INFO] 모터2 감속 시작. 현재위치: {self.motor2_position}, 감속지점: {self.motor2_deceleration_info['deceleration_point']}")
                             decel_info = self.motor2_deceleration_info
                             new_cmd = generate_speed_mode_command(
-                                speed=decel_info["deceleration_speed"],
-                                position=decel_info["target_position"],
+                                decel_info["deceleration_speed"],
+                                decel_info["target_position"],
                                 motor_id=0x02
                             )
                             self.serial.write(new_cmd)
