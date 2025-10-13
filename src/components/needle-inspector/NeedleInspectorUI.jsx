@@ -14,7 +14,7 @@ const PX_TO_MM = 1 / 3.78; // 1px 당 mm
 // 모터 연결 기본 설정값
 const MOTOR_CONFIG = {
   device: 'usb-motor',
-  baudrate: 19200,
+  baudrate: 57600,
   parity: 'none',
   dataBits: 8,
   stopBits: 1
