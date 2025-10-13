@@ -286,12 +286,15 @@ class DualMotorController:
 
                     # 감속 정보 저장
                     if deceleration_enabled:
+                        # 감속 지점 = 목표 위치 + 감속 거리 (목표 위치로부터 감속 거리만큼 떨어진 지점)
+                        decel_point = position + (deceleration_position * 40)
                         self.motor2_deceleration_info = {
                             "target_position": position,
-                            "deceleration_point": position + (deceleration_position * 40), # 실제 모터 스케일로 변환
+                            "deceleration_point": decel_point,
                             "deceleration_speed": deceleration_speed,
                             "is_decelerating": False # 감속 명령이 한 번만 전송되도록 플래그 추가
                         }
+                        print(f"[INFO] 감속 설정 완료 - 목표위치: {position} ({position/40:.1f}mm), 감속거리: {deceleration_position}mm, 감속지점: {decel_point} ({decel_point/40:.1f}mm)")
                     else:
                         self.motor2_deceleration_info = None
 
@@ -339,7 +342,9 @@ class DualMotorController:
                         # 현재 위치가 감속 지점(deceleration_point)을 지났는지 확인
                         # 모터2는 값이 작아지는 방향으로 이동하므로 부등호 주의
                         if self.motor2_position <= self.motor2_deceleration_info["deceleration_point"]:
-                            print(f"[INFO] 모터2 감속 시작. 현재위치: {self.motor2_position}, 감속지점: {self.motor2_deceleration_info['deceleration_point']}")
+                            decel_point = self.motor2_deceleration_info["deceleration_point"]
+                            target_pos = self.motor2_deceleration_info["target_position"]
+                            print(f"[INFO] 모터2 감속 시작. 현재위치: {self.motor2_position} ({self.motor2_position/40:.1f}mm), 감속지점: {decel_point} ({decel_point/40:.1f}mm), 목표위치: {target_pos} ({target_pos/40:.1f}mm)")
                             decel_info = self.motor2_deceleration_info
                             new_cmd = generate_speed_mode_command(
                                 decel_info["deceleration_speed"],
