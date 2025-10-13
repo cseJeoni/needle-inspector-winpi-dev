@@ -175,11 +175,13 @@ class DualMotorController:
                 if self.serial and self.serial.is_open:
                     bytes_written = self.serial.write(cmd)
                     self.serial.flush()
+                    print(f"[INFO] 모터1 이동 명령 전송 - 위치: {pos} ({pos/100:.1f}mm), 모드: {mode}, 전송 바이트: {bytes_written}")
                     
                     # 이동 명령 후 상태 읽기 모드로 전환
                     self.motor1_status_mode = True
                     self.last_command_motor1 = generate_status_read_command(motor_id=0x01)
                 else:
+                    print(f"[ERROR] 모터1 이동 실패 - 시리얼 포트 닫혀있음")
                     return "❌ 시리얼 포트가 열려있지 않습니다"
                     
             return f"📤 모터1 위치 이동 명령 즉시 전송 완료: {' '.join([cmd.hex()[i:i+2].upper() for i in range(0, len(cmd.hex()), 2)])}"
@@ -281,11 +283,16 @@ class DualMotorController:
 
             with self.lock:
                 if self.serial and self.serial.is_open:
+                    # 항상 먼저 감속 정보 초기화 (새로운 이동 명령이 들어왔으므로)
+                    self.motor2_deceleration_info = None
+                    
+                    # 명령 전송
                     self.serial.write(cmd)
                     self.serial.flush()
+                    print(f"[DEBUG] 모터2 이동 명령 전송 완료 - 목표: {position} ({position/40:.1f}mm), 속도: {speed}")
 
-                    # 감속 정보 저장
-                    if deceleration_enabled:
+                    # 감속 정보 저장 (감속이 활성화된 경우에만)
+                    if deceleration_enabled and deceleration_position > 0 and deceleration_speed > 0:
                         # 감속 지점 = 목표 위치 + 감속 거리 (목표 위치로부터 감속 거리만큼 떨어진 지점)
                         decel_point = position + (deceleration_position * 40)
                         self.motor2_deceleration_info = {
@@ -294,8 +301,9 @@ class DualMotorController:
                             "deceleration_speed": deceleration_speed,
                             "is_decelerating": False # 감속 명령이 한 번만 전송되도록 플래그 추가
                         }
-                        print(f"[INFO] 감속 설정 완료 - 목표위치: {position} ({position/40:.1f}mm), 감속거리: {deceleration_position}mm, 감속지점: {decel_point} ({decel_point/40:.1f}mm)")
+                        print(f"[INFO] 모터2 감속 설정 완료 - 목표위치: {position} ({position/40:.1f}mm), 감속거리: {deceleration_position}mm, 감속지점: {decel_point} ({decel_point/40:.1f}mm), 감속속도: {deceleration_speed}")
                     else:
+                        print(f"[INFO] 모터2 일반 이동 (감속 없음) - 목표위치: {position} ({position/40:.1f}mm)")
                         self.motor2_deceleration_info = None
 
                     # 이동 명령 후 상태 읽기 모드로 전환
@@ -336,26 +344,36 @@ class DualMotorController:
                 
                 # Motor 2 명령 전송
                 with self.lock:
-                    # 감속 로직 체크
-                    if self.motor2_deceleration_info and not self.motor2_deceleration_info["is_decelerating"]:
-                        # 모터는 현재 위치(motor2_position)에서 목표 위치(target_position)로 이동 중
-                        # 현재 위치가 감속 지점(deceleration_point)을 지났는지 확인
-                        # 모터2는 값이 작아지는 방향으로 이동하므로 부등호 주의
-                        if self.motor2_position <= self.motor2_deceleration_info["deceleration_point"]:
+                    # 감속 로직 체크 (감속 정보가 있고, 아직 감속하지 않았을 때만)
+                    if self.motor2_deceleration_info and not self.motor2_deceleration_info.get("is_decelerating", False):
+                        try:
+                            # 모터는 현재 위치(motor2_position)에서 목표 위치(target_position)로 이동 중
+                            # 현재 위치가 감속 지점(deceleration_point)을 지났는지 확인
+                            # 모터2는 값이 작아지는 방향으로 이동하므로 부등호 주의
                             decel_point = self.motor2_deceleration_info["deceleration_point"]
                             target_pos = self.motor2_deceleration_info["target_position"]
-                            print(f"[INFO] 모터2 감속 시작. 현재위치: {self.motor2_position} ({self.motor2_position/40:.1f}mm), 감속지점: {decel_point} ({decel_point/40:.1f}mm), 목표위치: {target_pos} ({target_pos/40:.1f}mm)")
-                            decel_info = self.motor2_deceleration_info
-                            new_cmd = generate_speed_mode_command(
-                                decel_info["deceleration_speed"],
-                                decel_info["target_position"],
-                                motor_id=0x02
-                            )
-                            self.serial.write(new_cmd)
-                            self.serial.flush()
-                            self.motor2_deceleration_info["is_decelerating"] = True # 감속 명령 전송 완료
-                            # 감속 명령 후에는 일반 상태 읽기 명령으로 돌아감
-                            self.last_command_motor2 = generate_status_read_command(motor_id=0x02)
+                            
+                            # 모터가 목표 위치보다 높은 곳에서 내려올 때만 감속 체크
+                            if self.motor2_position > target_pos and self.motor2_position <= decel_point:
+                                print(f"[INFO] 모터2 감속 시작. 현재위치: {self.motor2_position} ({self.motor2_position/40:.1f}mm), 감속지점: {decel_point} ({decel_point/40:.1f}mm), 목표위치: {target_pos} ({target_pos/40:.1f}mm)")
+                                
+                                new_cmd = generate_speed_mode_command(
+                                    self.motor2_deceleration_info["deceleration_speed"],
+                                    self.motor2_deceleration_info["target_position"],
+                                    motor_id=0x02
+                                )
+                                self.serial.write(new_cmd)
+                                self.serial.flush()
+                                
+                                # 감속 명령 전송 완료 표시
+                                self.motor2_deceleration_info["is_decelerating"] = True
+                                print(f"[INFO] 모터2 감속 명령 전송 완료 - 속도: {self.motor2_deceleration_info['deceleration_speed']}")
+                                
+                                # 감속 명령 후에는 일반 상태 읽기 명령으로 돌아감
+                                self.last_command_motor2 = generate_status_read_command(motor_id=0x02)
+                        except Exception as e:
+                            print(f"[ERROR] 모터2 감속 처리 중 오류: {str(e)}")
+                            self.motor2_deceleration_info = None  # 오류 발생 시 감속 정보 초기화
 
                     if self.last_command_motor2:
                         bytes_written = self.serial.write(self.last_command_motor2)

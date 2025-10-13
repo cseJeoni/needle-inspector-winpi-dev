@@ -445,6 +445,12 @@ async def handler(websocket):
                                 deceleration_position = data.get("deceleration_position", 0)
                                 deceleration_speed = data.get("deceleration_speed", 0)
                                 
+                                # 감속 파라미터 로그 출력
+                                if deceleration_enabled:
+                                    print(f"[INFO] 모터2 감속 파라미터 수신 - 목표위치: {position}, 속도: {needle_speed}, 감속활성화: {deceleration_enabled}, 감속위치: {deceleration_position}mm, 감속속도: {deceleration_speed}")
+                                else:
+                                    print(f"[INFO] 모터2 일반 이동 - 목표위치: {position}, 속도: {needle_speed}")
+                                
                                 result = motor.move_with_speed_motor2(
                                     speed=needle_speed, 
                                     position=position,
