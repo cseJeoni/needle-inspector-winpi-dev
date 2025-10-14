@@ -652,7 +652,7 @@ async def handler(websocket):
 async def push_motor_status():
     
     while True:
-        await asyncio.sleep(0.05)
+        await asyncio.sleep(0.005)
         if motor.is_connected():
             # GPIO 상태 읽기
             gpio5_state = "UNKNOWN"

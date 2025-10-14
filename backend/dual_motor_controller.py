@@ -379,7 +379,7 @@ class DualMotorController:
                         bytes_written = self.serial.write(high_priority_cmd)
                         self.serial.flush()
                         print(f"[CMD_QUEUE] 우선순위 명령 전송: {high_priority_cmd.hex().upper()} ({bytes_written} bytes)")
-                        time.sleep(0.02)  # 드라이버 처리 시간 보장 (20ms)
+                        time.sleep(0.005)  # 드라이버 처리 시간 보장 (5ms)
                     
                 except Empty:
                     # 3. 큐가 비어있을 때 - 평상시 상태 폴링 수행
@@ -392,7 +392,7 @@ class DualMotorController:
                             if bytes_written != len(self.last_command_motor1):
                                 print(f"[Warning] 모터1 전송된 바이트 수 불일치: {bytes_written}/{len(self.last_command_motor1)}")
                     
-                    time.sleep(0.01)  # 모터 간 간격 (10ms)
+                    time.sleep(0.005)  # 모터 간 간격 (5ms)
                     
                     # Motor 2 상태 읽기 및 감속 로직 처리
                     with self.lock:
@@ -440,7 +440,7 @@ class DualMotorController:
                             if bytes_written != len(self.last_command_motor2):
                                 print(f"[Warning] 모터2 전송된 바이트 수 불일치: {bytes_written}/{len(self.last_command_motor2)}")
                     
-                    time.sleep(0.01)  # 다음 루프까지 대기 (10ms)
+                    time.sleep(0.005)  # 다음 루프까지 대기 (5ms)
                             
             except Exception as e:
                 print(f"[CMD_QUEUE Error] {str(e)}")
