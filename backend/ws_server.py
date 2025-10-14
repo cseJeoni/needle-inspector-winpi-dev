@@ -403,9 +403,7 @@ async def handler(websocket):
     try:
         async for msg in websocket:
             try:
-                print(f"[DEBUG] WebSocket 메시지 수신: {msg[:200]}...")  # 처음 200자만 출력
                 data = json.loads(msg)
-                print(f"[DEBUG] 파싱된 명령: {data.get('cmd', 'UNKNOWN')}")
 
                 if data["cmd"] == "connect":
                     port = data.get("port")
@@ -433,10 +431,6 @@ async def handler(websocket):
                     speed = data.get("speed")
                     force = data.get("force")
                     motor_id = data.get("motor_id", 1)  # 기본값은 모터 1
-                    
-                        # WebSocket 메시지 수신 로그 (디버깅용)
-                    print(f"[DEBUG] WebSocket move 명령 수신: motor_id={motor_id}, position={position}, mode={mode}")
-                    print(f"[DEBUG] 전체 데이터: {data}")
                     
                     # 모터 이동 명령 처리
                     
@@ -563,7 +557,6 @@ async def handler(websocket):
                     mtr_version = data.get("mtrVersion", "2.0")  # 기본값: MTR 2.0
                     country = data.get("country", "CLASSYS")    # 기본값: CLASSYS
                     
-                    print(f"[DEBUG] EEPROM 쓰기 - 원본 데이터: {data}")
                     print(f"[INFO] EEPROM 쓰기 요청: MTR={mtr_version}, 국가={country}, TIP_TYPE={tip_type}, SHOT_COUNT={shot_count}, DATE={year}-{month}-{day}, MAKER={maker_code}")
                     
                     if tip_type is None or year is None or month is None or day is None or maker_code is None:
@@ -601,7 +594,6 @@ async def handler(websocket):
                     mtr_version = data.get("mtrVersion", "2.0")  # 기본값: MTR 2.0
                     country = data.get("country", "CLASSYS")    # 기본값: CLASSYS
                     
-                    print(f"[DEBUG] EEPROM 읽기 - 원본 데이터: {data}")
                     print(f"[INFO] EEPROM 읽기 요청: MTR={mtr_version}, 국가={country}")
                     
                     # MTR 버전과 국가에 따라 적절한 함수 선택

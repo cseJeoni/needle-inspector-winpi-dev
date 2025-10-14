@@ -75,20 +75,16 @@ class MotorController:
         try:
             # 상태 요청 명령 전송
             status_cmd = bytes.fromhex("55AA04010000000033")
-            print(f"[DEBUG] 상태 요청 명령 전송: {status_cmd.hex().upper()}")
             self.serial.write(status_cmd)
             
             # 응답 대기
             response = self.serial.read(64)
-            print(f"[DEBUG] 수신된 응답 길이: {len(response)}")
-            print(f"[DEBUG] 수신된 응답: {response.hex().upper()}")
             
             if len(response) < 30:
                 return "❌ 응답이 충분하지 않음"
 
             try:
                 hex_str = response.hex().upper()
-                print(f"[DEBUG] 응답 HEX: {hex_str}")
                 
                 # 응답 형식 검증
                 if not hex_str.startswith("55AA"):
@@ -100,7 +96,6 @@ class MotorController:
                 force_val = hex_str[data_start+4:data_start+8]
                 sensor_val = hex_str[data_start+8:data_start+12]
                 
-                print(f"[DEBUG] 추출된 값 - 위치: {rec_val}, 힘: {force_val}, 센서: {sensor_val}")
 
                 # 바이트 순서 변경 (리틀 엔디안)
                 reorder = rec_val[2:] + rec_val[:2]
@@ -121,7 +116,6 @@ class MotorController:
 
                 force_n = round(force * 0.001 * 9.81, 1)
 
-                print(f"[DEBUG] 변환된 값 - 위치: {position}, 힘: {force_n}N, 센서: {sensor}")
 
                 self.last_position = position
                 self.last_force = force_n

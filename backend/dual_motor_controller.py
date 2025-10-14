@@ -542,7 +542,6 @@ class DualMotorController:
             hex_str = frame.hex().upper()
 
             if len(hex_str) < 34:  # 최소 필요한 길이 체크
-                print(f"[DEBUG] 짧은 프레임 무시: {hex_str} (length: {len(hex_str)})")
                 return
 
             # 모터 ID 확인 (프레임의 6-7번째 문자, 즉 3번째 바이트)
@@ -581,16 +580,12 @@ class DualMotorController:
                 self.motor1_position = position
                 self.motor1_force = round(force * 0.001 * 9.81, 1)
                 self.motor1_sensor = sensor
-                if abs(position - prev_pos) > 10:  # 위치 변화가 클 때만 로그
-                    print(f"[DEBUG] 모터1 상태 업데이트: 위치 {prev_pos} → {position} ({position/100:.1f}mm)")
             elif motor_id == 0x02:
                 prev_pos = self.motor2_position
                 self.motor2_setPos = setPos
                 self.motor2_position = position
                 self.motor2_force = round(force * 0.001 * 9.81, 1)
                 self.motor2_sensor = sensor
-                if abs(position - prev_pos) > 10:  # 위치 변화가 클 때만 로그
-                    print(f"[DEBUG] 모터2 상태 업데이트: 위치 {prev_pos} → {position} ({position/40:.1f}mm), setPos: {setPos}")
 
         except Exception as e:
             print(f"[DualParse Error] {str(e)}")
