@@ -80,7 +80,6 @@ export default function NeedleInspectorUI() {
   const [isDecelerationEnabled, setIsDecelerationEnabled] = useState(false) // 감속 활성화 여부
   const [decelerationPosition, setDecelerationPosition] = useState(5.0) // 감속 위치 (목표 위치에서 얼마나 떨어진 지점에서 감속할지, mm 단위)
   const [decelerationSpeed, setDecelerationSpeed] = useState(100) // 감속 스피드
-  const [resistanceDelay, setResistanceDelay] = useState(1000) // 저항 측정 지연 시간 (ms)
   const [resistanceThreshold, setResistanceThreshold] = useState(100) // 저항 임계값 (정상값)
   const [isResistanceAbnormal, setIsResistanceAbnormal] = useState(false) // 저항 이상 여부
   const [motor2TargetPosition, setMotor2TargetPosition] = useState(0) // 모터2 목표 위치 (감속 로직용)
@@ -1683,7 +1682,6 @@ export default function NeedleInspectorUI() {
             isDecelerationEnabled={isDecelerationEnabled} // 감속 활성화 여부 전달
             decelerationPosition={decelerationPosition} // 감속 위치 전달
             decelerationSpeed={decelerationSpeed} // 감속 스피드 전달
-            resistanceDelay={resistanceDelay} // 저항 측정 지연 시간 전달
             resistanceThreshold={resistanceThreshold} // 저항 임계값 전달
             onResistanceAbnormalChange={setIsResistanceAbnormal} // 저항 이상 상태 변경 함수 전달
             onResistance1Change={setResistance1} // 저항1 값 변경 함수 전달
@@ -1719,8 +1717,6 @@ export default function NeedleInspectorUI() {
               onNeedleOffset2Change={setNeedleOffset2}
               needleProtrusion2={needleProtrusion2}
               onNeedleProtrusion2Change={setNeedleProtrusion2}
-              resistanceDelay={resistanceDelay}
-              onResistanceDelayChange={setResistanceDelay}
               resistanceThreshold={resistanceThreshold}
               onResistanceThresholdChange={setResistanceThreshold}
               needleSpeed2={needleSpeed2}

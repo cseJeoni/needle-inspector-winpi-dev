@@ -34,8 +34,6 @@ export default function NeedleCheckPanelV4Multi({
   needleProtrusion2,
   onNeedleOffset2Change,
   onNeedleProtrusion2Change,
-  resistanceDelay,
-  onResistanceDelayChange,
   resistanceThreshold,
   onResistanceThresholdChange,
   // 니들 속도 및 힘 설정 props
@@ -685,36 +683,6 @@ export default function NeedleCheckPanelV4Multi({
           </div>
         </div>
 
-        {/* DELAY */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5dvw' }}>
-          <label style={{ width: '35%', fontSize: '1.3dvh', color: '#D1D5DB' }}>DELAY (ms)</label>
-          
-          {/* 모터 1 - 빈 공간 */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.3dvw', flex: 1 }}>
-            <div style={{ width: '90%' }}></div>
-          </div>
-          
-          {/* 모터 2 */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.3dvw', flex: 1 }}>
-            <Input 
-              type="number"
-              value={resistanceDelay}
-              onChange={(e) => onResistanceDelayChange && onResistanceDelayChange(Number(e.target.value))}
-              min="0"
-              step="100"
-              disabled={!isNeedleCheckEnabled}
-              style={{ 
-                backgroundColor: '#171C26', 
-                color: !isNeedleCheckEnabled ? '#D1D5DB' : 'white', 
-                textAlign: 'center',
-                width: '95%',
-                fontSize: '1.1dvh', 
-                height: '3dvh',
-                opacity: !isNeedleCheckEnabled ? 0.6 : 1
-              }}
-            />
-          </div>
-        </div>
 
         {/* 감속 기능 체크박스 */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5dvw' }}>

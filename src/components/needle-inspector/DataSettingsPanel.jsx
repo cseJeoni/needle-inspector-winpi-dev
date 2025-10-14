@@ -38,7 +38,6 @@ const DataSettingsPanel = forwardRef(({
   isDecelerationEnabled, // 감속 활성화 여부
   decelerationPosition, // 감속 위치
   decelerationSpeed, // 감속 스피드
-  resistanceDelay,
   resistanceThreshold,
   onResistanceAbnormalChange,
   onResistance1Change,
