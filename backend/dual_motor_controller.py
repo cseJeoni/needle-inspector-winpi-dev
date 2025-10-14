@@ -409,82 +409,85 @@ class DualMotorController:
         """큐 기반 명령어 전송 루프 - 모든 시리얼 쓰기 작업을 순차적으로 처리"""
         while self.running:
             try:
-                # 1. 우선순위 높은 이동/제어 명령어 확인 (큐에서 가져오기)
-                try:
-                    queued_cmd = self.command_queue.get_nowait()
-                    
-                    # 2. 명령어 전송 및 처리 대기
-                    if self.serial and self.serial.is_open:
-                        # QueuedCommand 객체에서 실제 명령어 추출
-                        if isinstance(queued_cmd, QueuedCommand):
-                            cmd_bytes = queued_cmd.command
-                            motor_id = queued_cmd.motor_id
-                            wait_completion = queued_cmd.wait_for_completion
-                            target_pos = queued_cmd.target_position
-                            tolerance = queued_cmd.completion_tolerance
-                        else:
-                            # 하위 호환성: 기존 bytes 객체 처리
-                            cmd_bytes = queued_cmd
-                            motor_id = 1
-                            wait_completion = False
-                            target_pos = None
-                            tolerance = 50
+                # 1. 완료 대기 중이 아닐 때만 새 명령어 처리
+                if not (self.current_command and self.current_command.wait_for_completion):
+                    try:
+                        queued_cmd = self.command_queue.get_nowait()
                         
-                        bytes_written = self.serial.write(cmd_bytes)
-                        self.serial.flush()
-                        print(f"[CMD_QUEUE] 우선순위 명령 전송: {cmd_bytes.hex().upper()} (모터{motor_id}, {bytes_written} bytes)")
-                        
-                        # 3. 완료 대기가 필요한 경우 위치 도달까지 대기
-                        if wait_completion and target_pos is not None:
-                            print(f"[CMD_QUEUE] 명령 완료 대기 시작 - 목표위치: {target_pos}({target_pos/40:.1f}mm), 허용오차: {tolerance}")
-                            self.current_command = queued_cmd
-                            
-                            # 위치 도달까지 대기 (최대 30초)
-                            wait_start = time.time()
-                            while time.time() - wait_start < 30:  # 30초 타임아웃
-                                time.sleep(0.01)  # 10ms 간격으로 체크
-                                
-                                # 현재 위치 확인
-                                if motor_id == 2:
-                                    current_pos = self.motor2_position
-                                else:
-                                    current_pos = self.position
-                                
-                                # 목표 위치 도달 확인
-                                if abs(current_pos - target_pos) <= tolerance:
-                                    elapsed = time.time() - wait_start
-                                    print(f"[CMD_QUEUE] 명령 완료! 위치도달: {current_pos}({current_pos/40:.1f}mm), 소요시간: {elapsed:.2f}초")
-                                    break
+                        # 2. 명령어 전송 및 처리 대기
+                        if self.serial and self.serial.is_open:
+                            # QueuedCommand 객체에서 실제 명령어 추출
+                            if isinstance(queued_cmd, QueuedCommand):
+                                cmd_bytes = queued_cmd.command
+                                motor_id = queued_cmd.motor_id
+                                wait_completion = queued_cmd.wait_for_completion
+                                target_pos = queued_cmd.target_position
+                                tolerance = queued_cmd.completion_tolerance
                             else:
-                                print(f"[CMD_QUEUE] 명령 완료 대기 타임아웃 (30초) - 현재위치: {current_pos}")
+                                # 하위 호환성: 기존 bytes 객체 처리
+                                cmd_bytes = queued_cmd
+                                motor_id = 1
+                                wait_completion = False
+                                target_pos = None
+                                tolerance = 50
                             
-                            self.current_command = None
+                            bytes_written = self.serial.write(cmd_bytes)
+                            self.serial.flush()
+                            print(f"[CMD_QUEUE] 우선순위 명령 전송: {cmd_bytes.hex().upper()} (모터{motor_id}, {bytes_written} bytes)")
+                            
+                            # 3. 완료 대기가 필요한 경우 현재 명령 저장 (비블로킹)
+                            if wait_completion and target_pos is not None:
+                                print(f"[CMD_QUEUE] 명령 완료 대기 설정 - 목표위치: {target_pos}({target_pos/40:.1f}mm), 허용오차: {tolerance}")
+                                with self.lock:
+                                    self.current_command = queued_cmd
+                                    self.current_command.wait_start_time = time.time()  # 대기 시작 시간 기록
+                            else:
+                                time.sleep(0.005)  # 드라이버 처리 시간 보장 (5ms)
+                        
+                    except Empty:
+                        pass  # 큐가 비어있으면 상태 폴링으로 이동
+                
+                # 완료 대기 중인 명령 체크 (항상 실행)
+                with self.lock:
+                    if self.current_command and self.current_command.wait_for_completion:
+                        cmd = self.current_command
+                        current_time = time.time()
+                        
+                        # 현재 위치 확인
+                        if cmd.motor_id == 2:
+                            current_pos = self.motor2_position
                         else:
-                            time.sleep(0.005)  # 드라이버 처리 시간 보장 (5ms)
-                    
-                except Empty:
-                    # 3. 큐가 비어있을 때 - 평상시 상태 폴링 수행
-                    
-                    # Motor 1 상태 읽기
-                    with self.lock:
-                        if self.last_command_motor1 and self.serial and self.serial.is_open:
-                            bytes_written = self.serial.write(self.last_command_motor1)
-                            self.serial.flush()
-                            if bytes_written != len(self.last_command_motor1):
-                                print(f"[Warning] 모터1 전송된 바이트 수 불일치: {bytes_written}/{len(self.last_command_motor1)}")
-                    
-                    time.sleep(0.005)  # 모터 간 간격 (5ms)
-                    
-                    # Motor 2 상태 읽기 (기존 감속 로직 제거 - 2단계 큐 시스템 사용)
-                    with self.lock:
-                        if self.last_command_motor2 and self.serial and self.serial.is_open:
-                            bytes_written = self.serial.write(self.last_command_motor2)
-                            self.serial.flush()
-                            if bytes_written != len(self.last_command_motor2):
-                                print(f"[Warning] 모터2 전송된 바이트 수 불일치: {bytes_written}/{len(self.last_command_motor2)}")
-                    
-                    time.sleep(0.005)  # 다음 루프까지 대기 (5ms)
-                            
+                            current_pos = self.position
+                        
+                        # 목표 위치 도달 확인
+                        if abs(current_pos - cmd.target_position) <= cmd.completion_tolerance:
+                            elapsed = current_time - cmd.wait_start_time
+                            print(f"[CMD_QUEUE] 명령 완료! 위치도달: {current_pos}({current_pos/40:.1f}mm), 소요시간: {elapsed:.2f}초")
+                            self.current_command = None  # 완료 대기 해제
+                        elif current_time - cmd.wait_start_time > 30:  # 30초 타임아웃
+                            print(f"[CMD_QUEUE] 명령 완료 대기 타임아웃 (30초) - 현재위치: {current_pos}, 목표: {cmd.target_position}")
+                            self.current_command = None  # 타임아웃으로 해제
+                
+                # Motor 1 상태 읽기
+                with self.lock:
+                    if self.last_command_motor1 and self.serial and self.serial.is_open:
+                        bytes_written = self.serial.write(self.last_command_motor1)
+                        self.serial.flush()
+                        if bytes_written != len(self.last_command_motor1):
+                            print(f"[Warning] 모터1 전송된 바이트 수 불일치: {bytes_written}/{len(self.last_command_motor1)}")
+                
+                time.sleep(0.005)  # 모터 간 간격 (5ms)
+                
+                # Motor 2 상태 읽기 (기존 감속 로직 제거 - 2단계 큐 시스템 사용)
+                with self.lock:
+                    if self.last_command_motor2 and self.serial and self.serial.is_open:
+                        bytes_written = self.serial.write(self.last_command_motor2)
+                        self.serial.flush()
+                        if bytes_written != len(self.last_command_motor2):
+                            print(f"[Warning] 모터2 전송된 바이트 수 불일치: {bytes_written}/{len(self.last_command_motor2)}")
+                
+                time.sleep(0.005)  # 다음 루프까지 대기 (5ms)
+                        
             except Exception as e:
                 print(f"[CMD_QUEUE Error] {str(e)}")
                 time.sleep(0.1)
