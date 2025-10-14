@@ -58,6 +58,9 @@ const DataSettingsPanel = forwardRef(({
   
   // 저장 데이터 설정 활성화 상태 (기본값: 비활성화)
   const [isDataSettingsEnabled, setIsDataSettingsEnabled] = useState(false)
+  
+  // 사이클 실행 상태 (스타트 버튼 비활성화용)
+  const [isCycleRunning, setIsCycleRunning] = useState(false)
 
   // GPIO 6번 START 버튼에서 접근할 수 있도록 handleToggle 함수를 ref로 노출
   useImperativeHandle(ref, () => ({
@@ -400,6 +403,12 @@ const DataSettingsPanel = forwardRef(({
     setIsDataSettingsEnabled(!isDataSettingsEnabled)  }
 
   const handleToggle = async () => {
+    // 사이클 실행 중이면 버튼 클릭 무시
+    if (isCycleRunning) {
+      console.log('⚠️ 사이클 실행 중 - 스타트 버튼 클릭 무시')
+      return
+    }
+    
     const tipType = calculateTipType()
     
     if (!isStarted) {
@@ -410,17 +419,29 @@ const DataSettingsPanel = forwardRef(({
         return // 조기 종료
       }
       
-      // GPIO 5번 쇼트 검사는 EEPROM 처리 후에만 실행
+      // 사이클 시작
+      setIsCycleRunning(true)
+      console.log('🚀 사이클 시작 - 스타트 버튼 비활성화')
       
-      // 니들 타입에 따른 로직 분기
-      const isMultiNeedle = mtrVersion === '4.0' && selectedNeedleType && selectedNeedleType.startsWith('MULTI');
-      
-      if (isMultiNeedle) {
-        console.log('🔍 MTR4 MULTI 니들 - 저항 측정 로직 실행')
-        await handleMultiNeedleLogic()
-      } else {
-        console.log('🔍 일반 니들 (MTR2 또는 MTR4 non-MULTI) - 일반 로직 실행')
-        await handleGeneralNeedleLogic()
+      try {
+        // GPIO 5번 쇼트 검사는 EEPROM 처리 후에만 실행
+        
+        // 니들 타입에 따른 로직 분기
+        const isMultiNeedle = mtrVersion === '4.0' && selectedNeedleType && selectedNeedleType.startsWith('MULTI');
+        
+        if (isMultiNeedle) {
+          console.log('🔍 MTR4 MULTI 니들 - 저항 측정 로직 실행')
+          await handleMultiNeedleLogic()
+        } else {
+          console.log('🔍 일반 니들 (MTR2 또는 MTR4 non-MULTI) - 일반 로직 실행')
+          await handleGeneralNeedleLogic()
+        }
+      } catch (error) {
+        console.error('❌ 사이클 실행 중 오류:', error)
+      } finally {
+        // 사이클 완료
+        setIsCycleRunning(false)
+        console.log('✅ 사이클 완료 - 스타트 버튼 활성화')
       }
     } else {
       // STOP 버튼 로직
@@ -1025,21 +1046,23 @@ const DataSettingsPanel = forwardRef(({
 
         <Button
           onClick={handleToggle}
+          disabled={isCycleRunning}
           style={{
             width: '100%',
             fontWeight: 'bold',
             padding: '0.8dvh 0',
             fontSize: '1.4dvh',
             backgroundColor: '#171C26',
-            color: isStarted ? '#FF5455' : '#4ADE80',
-            border: isStarted ? '1px solid #FF5455' : '1px solid #4ADE80',
+            color: isCycleRunning ? '#9CA3AF' : (isStarted ? '#FF5455' : '#4ADE80'),
+            border: isCycleRunning ? '1px solid #9CA3AF' : (isStarted ? '1px solid #FF5455' : '1px solid #4ADE80'),
             borderRadius: '0.375rem',
-            cursor: 'pointer',
+            cursor: isCycleRunning ? 'not-allowed' : 'pointer',
+            opacity: isCycleRunning ? 0.6 : 1,
             marginTop: '1.2dvh',
             marginBottom: '1.2dvh'
           }}
         >
-          {isStarted ? "STOP" : "START"}
+          {isCycleRunning ? "실행 중..." : (isStarted ? "STOP" : "START")}
         </Button>
 
 
