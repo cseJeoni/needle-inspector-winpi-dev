@@ -93,6 +93,9 @@ export default function NeedleInspectorUI() {
   const [resistance2Status, setResistance2Status] = useState('N/A')
   const [isResistanceMeasuring, setIsResistanceMeasuring] = useState(false)
 
+  // 명령어 큐 상태 (디버깅용)
+  const [commandQueueSize, setCommandQueueSize] = useState(0)
+
   // 니들팁 연결 상태에 따른 작업 상태 업데이트
   useEffect(() => {
     if (needleTipConnected) {
@@ -1147,7 +1150,8 @@ export default function NeedleInspectorUI() {
             motor2_position,
             motor2_force,
             motor2_sensor,
-            motor2_setPos
+            motor2_setPos,
+            command_queue_size
           } = res.data
           
           // 모터 1 상태 업데이트
@@ -1190,6 +1194,11 @@ export default function NeedleInspectorUI() {
           // GPIO23 기반 니들팁 연결 상태 업데이트
           if (typeof needle_tip_connected === 'boolean') {
             setNeedleTipConnected(needle_tip_connected)
+          }
+          
+          // 명령어 큐 크기 업데이트 (디버깅용)
+          if (typeof command_queue_size === 'number') {
+            setCommandQueueSize(command_queue_size)
           }
           
           // EEPROM 데이터 자동 처리 제거 - START/STOP 버튼으로만 제어
@@ -1545,6 +1554,29 @@ export default function NeedleInspectorUI() {
               fontWeight: 'bold'
             }}>
               {needleTipConnected ? '✅ 니들팁 연결됨 (GPIO23 LOW)' : '🚫 니들팁 없음 (GPIO23 HIGH)'}
+            </div>
+          </div>
+
+          {/* 명령어 큐 상태 섹션 */}
+          <div style={{ 
+            marginBottom: '8px',
+            padding: '6px',
+            borderRadius: '4px',
+            backgroundColor: commandQueueSize > 0 ? '#7C2D12' : '#065F46',
+            border: `1px solid ${commandQueueSize > 0 ? '#F97316' : '#10B981'}`
+          }}>
+            <div style={{ fontSize: '11px', fontWeight: 'bold', marginBottom: '4px' }}>
+              📋 명령어 큐 상태
+            </div>
+            <div style={{ 
+              fontSize: '10px', 
+              color: commandQueueSize > 0 ? '#FED7AA' : '#D1FAE5',
+              fontWeight: 'bold'
+            }}>
+              {commandQueueSize > 0 ? `🟡 대기 중: ${commandQueueSize}개` : '🟢 비어있음 (0개)'}
+            </div>
+            <div style={{ fontSize: '9px', color: '#9CA3AF', marginTop: '2px' }}>
+              {commandQueueSize > 0 ? '명령어가 순차 처리 중입니다' : '모든 명령어 처리 완료'}
             </div>
           </div>
 

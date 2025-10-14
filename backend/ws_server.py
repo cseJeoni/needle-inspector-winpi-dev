@@ -670,7 +670,6 @@ async def push_motor_status():
             if gpio_available and pin6:
                 # GPIO6 START 버튼 스위치 상태 읽기
                 gpio6_state = "HIGH" if pin6.is_active else "LOW"
-
             # EEPROM 데이터는 GPIO11 인터럽트에서 관리되므로 전역 변수 사용
             # 모터 2 상태 가져오기
             motor2_status = motor.get_motor2_status()
@@ -688,6 +687,8 @@ async def push_motor_status():
                     "motor2_force": motor2_status["force"],
                     "motor2_sensor": motor2_status["sensor"],
                     "motor2_setPos": motor2_status["setPos"],
+                    # 명령어 큐 상태 (디버깅용)
+                    "command_queue_size": motor.get_queue_size(),
                     # GPIO 상태
                     "gpio5": gpio5_state,    # GPIO5 Short 체크 상태
                     "gpio11": gpio11_state,  # GPIO11 니들팁 연결 상태

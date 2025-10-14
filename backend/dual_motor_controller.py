@@ -16,7 +16,7 @@ from motor_mode_generators import (
 class DualMotorController:
     def __init__(self):
         self.serial = None
-        self.send_queue = Queue()
+        self.command_queue = Queue()  # 명령어 큐 시스템
         self.lock = Lock()
         self.running = False
         self.sender_thread = None
@@ -149,6 +149,8 @@ class DualMotorController:
 
     def disconnect(self):
         self.running = False
+        # 명령어 큐 초기화
+        self.clear_queue()
         if self.serial and self.serial.is_open:
             self.serial.close()
             return "🔌 포트 연결 해제 완료"
@@ -170,23 +172,22 @@ class DualMotorController:
             else:
                 return f"❌ 지원하지 않는 모드입니다: {mode}"
 
-            # 모터1 이동 명령은 1회만 전송
-            with self.lock:
-                if self.serial and self.serial.is_open:
-                    bytes_written = self.serial.write(cmd)
-                    self.serial.flush()
-                    print(f"[INFO] 모터1 이동 명령 전송 - 위치: {pos} ({pos/100:.1f}mm), 모드: {mode}, 전송 바이트: {bytes_written}")
-                    
-                    # 이동 명령 후 상태 읽기 모드로 전환
+            # 명령어를 큐에 추가 (우선순위 높음)
+            if self.serial and self.serial.is_open:
+                self.command_queue.put(cmd)
+                print(f"[CMD_QUEUE] 모터1 이동 명령 큐잉 - 위치: {pos} ({pos/100:.1f}mm), 모드: {mode}")
+                
+                # 이동 명령 후 상태 읽기 모드로 전환
+                with self.lock:
                     self.motor1_status_mode = True
                     self.last_command_motor1 = generate_status_read_command(motor_id=0x01)
-                else:
-                    print(f"[ERROR] 모터1 이동 실패 - 시리얼 포트 닫혀있음")
-                    return "❌ 시리얼 포트가 열려있지 않습니다"
+            else:
+                print(f"[ERROR] 모터1 이동 실패 - 시리얼 포트 닫혀있음")
+                return "❌ 시리얼 포트가 열려있지 않습니다"
                     
-            return f"📤 모터1 위치 이동 명령 즉시 전송 완료: {' '.join([cmd.hex()[i:i+2].upper() for i in range(0, len(cmd.hex()), 2)])}"
+            return f"📤 모터1 위치 이동 명령 큐잉 완료: {' '.join([cmd.hex()[i:i+2].upper() for i in range(0, len(cmd.hex()), 2)])}"
         except Exception as e:
-            return f"❌ 모터1 명령 전송 실패: {str(e)}"
+            return f"❌ 모터1 명령 큐잉 실패: {str(e)}"
 
     def move_with_speed(self, speed: int, position: int):
         return self.move_with_speed_motor1(speed, position)
@@ -195,21 +196,21 @@ class DualMotorController:
         try:
             cmd = generate_speed_mode_command(speed, position, motor_id=0x01)
             
-            # 모터1 이동 명령은 1회만 전송
-            with self.lock:
-                if self.serial and self.serial.is_open:
-                    bytes_written = self.serial.write(cmd)
-                    self.serial.flush()
-                    
-                    # 이동 명령 후 상태 읽기 모드로 전환
+            # 명령어를 큐에 추가 (우선순위 높음)
+            if self.serial and self.serial.is_open:
+                self.command_queue.put(cmd)
+                print(f"[CMD_QUEUE] 모터1 속도/위치 명령 큐잉 - 속도: {speed}, 위치: {position} ({position/100:.1f}mm)")
+                
+                # 이동 명령 후 상태 읽기 모드로 전환
+                with self.lock:
                     self.motor1_status_mode = True
                     self.last_command_motor1 = generate_status_read_command(motor_id=0x01)
-                else:
-                    return "❌ 시리얼 포트가 열려있지 않습니다"
+            else:
+                return "❌ 시리얼 포트가 열려있지 않습니다"
                     
-            return f"📤 모터1 속도/위치 이동 명령 즉시 전송 완료: {' '.join([cmd.hex()[i:i+2].upper() for i in range(0, len(cmd.hex()), 2)])}"
+            return f"📤 모터1 속도/위치 이동 명령 큐잉 완료: {' '.join([cmd.hex()[i:i+2].upper() for i in range(0, len(cmd.hex()), 2)])}"
         except Exception as e:
-            return f"❌ 모터1 명령 전송 실패: {str(e)}"
+            return f"❌ 모터1 명령 큐잉 실패: {str(e)}"
 
     def set_force(self, force: float):
         return self.set_force_motor1(force)
@@ -220,21 +221,21 @@ class DualMotorController:
             force_g = int(force * 101.97)
             cmd = generate_force_mode_command(force_g, motor_id=0x01)
             
-            # 모터1 힘 제어 명령은 1회만 전송
-            with self.lock:
-                if self.serial and self.serial.is_open:
-                    bytes_written = self.serial.write(cmd)
-                    self.serial.flush()
-                    
-                    # 힘 제어 명령 후 상태 읽기 모드로 전환
+            # 명령어를 큐에 추가 (우선순위 높음)
+            if self.serial and self.serial.is_open:
+                self.command_queue.put(cmd)
+                print(f"[CMD_QUEUE] 모터1 힘 제어 명령 큐잉 - 힘: {force}N ({force_g}g)")
+                
+                # 힘 제어 명령 후 상태 읽기 모드로 전환
+                with self.lock:
                     self.motor1_status_mode = True
                     self.last_command_motor1 = generate_status_read_command(motor_id=0x01)
-                else:
-                    return "❌ 시리얼 포트가 열려있지 않습니다"
+            else:
+                return "❌ 시리얼 포트가 열려있지 않습니다"
                     
-            return f"📤 모터1 힘 제어 명령 즉시 전송 완료: {' '.join([cmd.hex()[i:i+2].upper() for i in range(0, len(cmd.hex()), 2)])}"
+            return f"📤 모터1 힘 제어 명령 큐잉 완료: {' '.join([cmd.hex()[i:i+2].upper() for i in range(0, len(cmd.hex()), 2)])}"
         except Exception as e:
-            return f"❌ 모터1 명령 전송 실패: {str(e)}"
+            return f"❌ 모터1 명령 큐잉 실패: {str(e)}"
 
     def move_with_speed_force(self, force: float, speed: int, position: int):
         return self.move_with_speed_force_motor1(force, speed, position)
@@ -245,21 +246,21 @@ class DualMotorController:
             force_g = int(force * 101.97)
             cmd = generate_speed_force_mode_command(force_g, speed, position, motor_id=0x01)
             
-            # 모터1 스피드+힘 제어 명령은 1회만 전송
-            with self.lock:
-                if self.serial and self.serial.is_open:
-                    bytes_written = self.serial.write(cmd)
-                    self.serial.flush()
-                    
-                    # 명령 후 상태 읽기 모드로 전환
+            # 명령어를 큐에 추가 (우선순위 높음)
+            if self.serial and self.serial.is_open:
+                self.command_queue.put(cmd)
+                print(f"[CMD_QUEUE] 모터1 속도/힘/위치 명령 큐잉 - 힘: {force}N, 속도: {speed}, 위치: {position} ({position/100:.1f}mm)")
+                
+                # 명령 후 상태 읽기 모드로 전환
+                with self.lock:
                     self.motor1_status_mode = True
                     self.last_command_motor1 = generate_status_read_command(motor_id=0x01)
-                else:
-                    return "❌ 시리얼 포트가 열려있지 않습니다"
+            else:
+                return "❌ 시리얼 포트가 열려있지 않습니다"
                     
-            return f"📤 모터1 속도/힘/위치 이동 명령 즉시 전송 완료: {' '.join([cmd.hex()[i:i+2].upper() for i in range(0, len(cmd.hex()), 2)])}"
+            return f"📤 모터1 속도/힘/위치 이동 명령 큐잉 완료: {' '.join([cmd.hex()[i:i+2].upper() for i in range(0, len(cmd.hex()), 2)])}"
         except Exception as e:
-            return f"❌ 모터1 명령 전송 실패: {str(e)}"
+            return f"❌ 모터1 명령 큐잉 실패: {str(e)}"
 
     # Motor 2 (저항 측정 모터) 제어 함수들
     def move_to_position_motor2(self, pos: int, mode="servo"):
@@ -271,30 +272,39 @@ class DualMotorController:
             else:
                 return f"❌ 지원하지 않는 모드입니다: {mode}"
 
-            with self.lock:
-                self.last_command_motor2 = cmd
+            # 명령어를 큐에 추가 (우선순위 높음)
+            if self.serial and self.serial.is_open:
+                self.command_queue.put(cmd)
+                print(f"[CMD_QUEUE] 모터2 위치 이동 명령 큐잉 - 위치: {pos} ({pos/40:.1f}mm), 모드: {mode}")
+                
+                # 이동 명령 후 상태 읽기 모드로 전환
+                with self.lock:
+                    self.motor2_status_mode = True
+                    self.last_command_motor2 = generate_status_read_command(motor_id=0x02)
+            else:
+                return "❌ 시리얼 포트가 열려있지 않습니다"
+            
             return f"📤 모터2 위치 이동 명령 큐잉 완료: {cmd.hex().upper()}"
         except Exception as e:
-            return f"❌ 모터2 명령 생성 실패: {str(e)}"
+            return f"❌ 모터2 명령 큐잉 실패: {str(e)}"
 
     def move_with_speed_motor2(self, speed: int, position: int, deceleration_enabled=False, deceleration_position=0, deceleration_speed=0):
         try:
             cmd = generate_speed_mode_command(speed, position, motor_id=0x02)
 
-            with self.lock:
-                if self.serial and self.serial.is_open:
-                    # 항상 먼저 감속 정보 초기화 (새로운 이동 명령이 들어왔으므로)
+            if self.serial and self.serial.is_open:
+                # 항상 먼저 감속 정보 초기화 (새로운 이동 명령이 들어왔으므로)
+                with self.lock:
                     prev_decel_info = self.motor2_deceleration_info
                     self.motor2_deceleration_info = None
                     print(f"[DEBUG] 모터2 감속 정보 초기화 완료 - 이전 정보: {prev_decel_info}")
-                    
-                    # 명령 전송
-                    bytes_written = self.serial.write(cmd)
-                    self.serial.flush()
-                    print(f"[DEBUG] 모터2 이동 명령 전송 완료 - 목표: {position} ({position/40:.1f}mm), 속도: {speed}, 감속활성화: {deceleration_enabled}, 전송바이트: {bytes_written}/{len(cmd)}")
-                    print(f"[DEBUG] 전송된 명령: {' '.join([cmd.hex()[i:i+2].upper() for i in range(0, len(cmd.hex()), 2)])}")
+                
+                # 명령어를 큐에 추가 (우선순위 높음)
+                self.command_queue.put(cmd)
+                print(f"[CMD_QUEUE] 모터2 속도/위치 명령 큐잉 - 목표: {position} ({position/40:.1f}mm), 속도: {speed}, 감속활성화: {deceleration_enabled}")
 
-                    # 감속 정보 저장 (감속이 활성화된 경우에만)
+                # 감속 정보 저장 (감속이 활성화된 경우에만)
+                with self.lock:
                     if deceleration_enabled and deceleration_position > 0 and deceleration_speed > 0:
                         # 감속 지점 = 목표 위치 + 감속 거리 + 여유 거리 (빠른 속도에서도 감속 놀치지 않도록)
                         safety_margin = 200 if speed >= 2000 else 100  # 속도에 따른 여유 거리 (5mm 또는 2.5mm)
@@ -314,86 +324,126 @@ class DualMotorController:
                     self.motor2_status_mode = True
                     self.last_command_motor2 = generate_status_read_command(motor_id=0x02)
                     print(f"[DEBUG] 모터2 상태 읽기 모드로 전환 완료")
-                else:
-                    return "❌ 시리얼 포트가 열려있지 않습니다"
+            else:
+                return "❌ 시리얼 포트가 열려있지 않습니다"
 
-            return f"📤 모터2 속도/위치 이동 명령 즉시 전송 완료: {' '.join([cmd.hex()[i:i+2].upper() for i in range(0, len(cmd.hex()), 2)])}"
+            return f"📤 모터2 속도/위치 이동 명령 큐잉 완료: {' '.join([cmd.hex()[i:i+2].upper() for i in range(0, len(cmd.hex()), 2)])}"
         except Exception as e:
-            return f"❌ 모터2 명령 전송 실패: {str(e)}"
+            return f"❌ 모터2 명령 큐잉 실패: {str(e)}"
 
     def move_with_speed_force_motor2(self, force: float, speed: int, position: int):
         try:
             # N을 g로 변환 (1N = 101.97g)
             force_g = int(force * 101.97)
             cmd = generate_speed_force_mode_command(force_g, speed, position, motor_id=0x02)
-            with self.lock:
-                self.last_command_motor2 = cmd
+            
+            # 명령어를 큐에 추가 (우선순위 높음)
+            if self.serial and self.serial.is_open:
+                self.command_queue.put(cmd)
+                print(f"[CMD_QUEUE] 모터2 속도/힘/위치 명령 큐잉 - 힘: {force}N, 속도: {speed}, 위치: {position} ({position/40:.1f}mm)")
+                
+                # 명령 후 상태 읽기 모드로 전환
+                with self.lock:
+                    self.motor2_status_mode = True
+                    self.last_command_motor2 = generate_status_read_command(motor_id=0x02)
+            else:
+                return "❌ 시리얼 포트가 열려있지 않습니다"
+            
             return f"📤 모터2 속도/힘/위치 이동 명령 큐잉 완료: {cmd.hex().upper()}"
         except Exception as e:
-            return f"❌ 모터2 명령 생성 실패: {str(e)}"
+            return f"❌ 모터2 명령 큐잉 실패: {str(e)}"
+    
+    def get_queue_size(self):
+        """현재 명령어 큐의 크기를 반환"""
+        return self.command_queue.qsize()
+    
+    def clear_queue(self):
+        """명령어 큐를 비움 (긴급 상황 시 사용)"""
+        while not self.command_queue.empty():
+            try:
+                self.command_queue.get_nowait()
+            except Empty:
+                break
+        print("[CMD_QUEUE] 명령어 큐 초기화 완료")
 
     def send_loop(self):
+        """큐 기반 명령어 전송 루프 - 모든 시리얼 쓰기 작업을 순차적으로 처리"""
         while self.running:
             try:
-                time.sleep(0.005)  # baudrate 57600에 맞춰 최대 속도 (5ms)
-                
-                # Motor 1 명령 전송
-                with self.lock:
-                    if self.last_command_motor1:
-                        bytes_written = self.serial.write(self.last_command_motor1)
+                # 1. 우선순위 높은 이동/제어 명령어 확인 (큐에서 가져오기)
+                try:
+                    high_priority_cmd = self.command_queue.get_nowait()
+                    
+                    # 2. 명령어 전송 및 처리 대기
+                    if self.serial and self.serial.is_open:
+                        bytes_written = self.serial.write(high_priority_cmd)
                         self.serial.flush()
-                        if bytes_written != len(self.last_command_motor1):
-                            print(f"[Warning] 모터1 전송된 바이트 수 불일치: {bytes_written}/{len(self.last_command_motor1)}")
-                
-                time.sleep(0.005)  # 모터 간 간격 (5ms)
-                
-                # Motor 2 명령 전송
-                with self.lock:
-                    # 감속 로직 체크 (감속 정보가 있고, 아직 감속하지 않았을 때만)
-                    if self.motor2_deceleration_info and not self.motor2_deceleration_info.get("is_decelerating", False):
-                        try:
-                            # 모터는 현재 위치(motor2_position)에서 목표 위치(target_position)로 이동 중
-                            # 현재 위치가 감속 지점(deceleration_point)을 지났는지 확인
-                            # 모터2는 값이 작아지는 방향으로 이동하므로 부등호 주의
-                            decel_point = self.motor2_deceleration_info["deceleration_point"]
-                            target_pos = self.motor2_deceleration_info["target_position"]
-                            
-                            # 모터가 DOWN 방향으로 이동 중이고, 목표 위치보다 높은 곳에서 내려올 때만 감속 체크
-                            # 추가 조건: 목표 위치가 현재 위치보다 작아야 함 (DOWN 방향 이동)
-                            current_pos = self.motor2_position
-                            is_moving_down = target_pos < current_pos  # DOWN 방향 이동 체크
-                            
-                            if (is_moving_down and  # DOWN 방향 이동 중일 때만
-                                current_pos > target_pos and  # 아직 목표에 도달하지 않음
-                                current_pos <= decel_point):  # 감속 지점에 도달함
-                                print(f"[INFO] 모터2 감속 시작 (DOWN 이동). 현재위치: {current_pos} ({current_pos/40:.1f}mm), 감속지점: {decel_point} ({decel_point/40:.1f}mm), 목표위치: {target_pos} ({target_pos/40:.1f}mm)")
+                        print(f"[CMD_QUEUE] 우선순위 명령 전송: {high_priority_cmd.hex().upper()} ({bytes_written} bytes)")
+                        time.sleep(0.02)  # 드라이버 처리 시간 보장 (20ms)
+                    
+                except Empty:
+                    # 3. 큐가 비어있을 때 - 평상시 상태 폴링 수행
+                    
+                    # Motor 1 상태 읽기
+                    with self.lock:
+                        if self.last_command_motor1 and self.serial and self.serial.is_open:
+                            bytes_written = self.serial.write(self.last_command_motor1)
+                            self.serial.flush()
+                            if bytes_written != len(self.last_command_motor1):
+                                print(f"[Warning] 모터1 전송된 바이트 수 불일치: {bytes_written}/{len(self.last_command_motor1)}")
+                    
+                    time.sleep(0.01)  # 모터 간 간격 (10ms)
+                    
+                    # Motor 2 상태 읽기 및 감속 로직 처리
+                    with self.lock:
+                        # 감속 로직 체크 (감속 정보가 있고, 아직 감속하지 않았을 때만)
+                        if self.motor2_deceleration_info and not self.motor2_deceleration_info.get("is_decelerating", False):
+                            try:
+                                # 모터는 현재 위치(motor2_position)에서 목표 위치(target_position)로 이동 중
+                                # 현재 위치가 감속 지점(deceleration_point)을 지났는지 확인
+                                # 모터2는 값이 작아지는 방향으로 이동하므로 부등호 주의
+                                decel_point = self.motor2_deceleration_info["deceleration_point"]
+                                target_pos = self.motor2_deceleration_info["target_position"]
                                 
-                                new_cmd = generate_speed_mode_command(
-                                    self.motor2_deceleration_info["deceleration_speed"],
-                                    self.motor2_deceleration_info["target_position"],
-                                    motor_id=0x02
-                                )
-                                self.serial.write(new_cmd)
-                                self.serial.flush()
+                                # 모터가 DOWN 방향으로 이동 중이고, 목표 위치보다 높은 곳에서 내려올 때만 감속 체크
+                                # 추가 조건: 목표 위치가 현재 위치보다 작아야 함 (DOWN 방향 이동)
+                                current_pos = self.motor2_position
+                                is_moving_down = target_pos < current_pos  # DOWN 방향 이동 체크
                                 
-                                # 감속 명령 전송 완료 표시
-                                self.motor2_deceleration_info["is_decelerating"] = True
-                                print(f"[INFO] 모터2 감속 명령 전송 완료 - 속도: {self.motor2_deceleration_info['deceleration_speed']}")
-                                
-                                # 감속 명령 후에는 일반 상태 읽기 명령으로 돌아감
-                                self.last_command_motor2 = generate_status_read_command(motor_id=0x02)
-                        except Exception as e:
-                            print(f"[ERROR] 모터2 감속 처리 중 오류: {str(e)}")
-                            self.motor2_deceleration_info = None  # 오류 발생 시 감속 정보 초기화
+                                if (is_moving_down and  # DOWN 방향 이동 중일 때만
+                                    current_pos > target_pos and  # 아직 목표에 도달하지 않음
+                                    current_pos <= decel_point):  # 감속 지점에 도달함
+                                    print(f"[INFO] 모터2 감속 시작 (DOWN 이동). 현재위치: {current_pos} ({current_pos/40:.1f}mm), 감속지점: {decel_point} ({decel_point/40:.1f}mm), 목표위치: {target_pos} ({target_pos/40:.1f}mm)")
+                                    
+                                    # 감속 명령을 큐에 추가 (우선순위 높음)
+                                    new_cmd = generate_speed_mode_command(
+                                        self.motor2_deceleration_info["deceleration_speed"],
+                                        self.motor2_deceleration_info["target_position"],
+                                        motor_id=0x02
+                                    )
+                                    self.command_queue.put(new_cmd)
+                                    
+                                    # 감속 명령 전송 완료 표시
+                                    self.motor2_deceleration_info["is_decelerating"] = True
+                                    print(f"[CMD_QUEUE] 모터2 감속 명령 큐잉 완료 - 속도: {self.motor2_deceleration_info['deceleration_speed']}")
+                                    
+                                    # 감속 명령 후에는 일반 상태 읽기 명령으로 돌아감
+                                    self.last_command_motor2 = generate_status_read_command(motor_id=0x02)
+                            except Exception as e:
+                                print(f"[ERROR] 모터2 감속 처리 중 오류: {str(e)}")
+                                self.motor2_deceleration_info = None  # 오류 발생 시 감속 정보 초기화
 
-                    if self.last_command_motor2:
-                        bytes_written = self.serial.write(self.last_command_motor2)
-                        self.serial.flush()
-                        if bytes_written != len(self.last_command_motor2):
-                            print(f"[Warning] 모터2 전송된 바이트 수 불일치: {bytes_written}/{len(self.last_command_motor2)}")
+                        # 일반 모터2 상태 읽기
+                        if self.last_command_motor2 and self.serial and self.serial.is_open:
+                            bytes_written = self.serial.write(self.last_command_motor2)
+                            self.serial.flush()
+                            if bytes_written != len(self.last_command_motor2):
+                                print(f"[Warning] 모터2 전송된 바이트 수 불일치: {bytes_written}/{len(self.last_command_motor2)}")
+                    
+                    time.sleep(0.01)  # 다음 루프까지 대기 (10ms)
                             
             except Exception as e:
-                print(f"[DualSendThread Error] {str(e)}")
+                print(f"[CMD_QUEUE Error] {str(e)}")
                 time.sleep(0.1)
 
     def read_loop(self):
