@@ -85,46 +85,30 @@ export default function NeedleCheckPanel({ mode, isMotorConnected, needlePositio
     // MOVING 상태일 때는 버튼 비활성화
   }
 
-  const handleUpDown = async () => {
+  // 모터 UP 명령 함수
+  const handleMotorUp = () => {
     if (!isMotorConnected) {
       console.error("❌ 모터가 연결되지 않았습니다.")
       return
     }
 
-    if (needleStatus === 'MOVING') {
-      console.error("❌ 니들이 이미 움직이고 있습니다.")
+    // UP 명령 (초기 위치 + 돌출 부분)
+    const upPosition = Math.round((needleOffset + needleProtrusion) * 100);
+    console.log(`🎯 모터 UP 명령 실행 (${upPosition})`);
+    sendMotorCommand(upPosition);
+  }
+
+  // 모터 DOWN 명령 함수
+  const handleMotorDown = () => {
+    if (!isMotorConnected) {
+      console.error("❌ 모터가 연결되지 않았습니다.")
       return
     }
 
-    console.log(`🔄 니들 UP & DOWN ${repeatCount}회 시작 (명령어 큐 방식)`)
-    
-    for (let i = 0; i < repeatCount; i++) {
-      console.log(`🔄 ${i + 1}/${repeatCount} 사이클 시작`)
-      
-      // UP 명령 (초기 위치 + 돌출 부분)
-      const upPosition = Math.round((needleOffset + needleProtrusion) * 100);
-      console.log(`🎯 니들 UP 명령 실행 (${upPosition})`);
-      sendMotorCommand(upPosition);
-      
-      // UP 동작 완료 대기 (고정 시간)
-      await new Promise(resolve => setTimeout(resolve, 90))
-      
-      // DOWN 명령 (초기 위치)
-      const downPosition = Math.round(needleOffset * 100);
-      console.log(`🎯 니들 DOWN 명령 실행 (${downPosition})`);
-      sendMotorCommand(downPosition);
-      
-      // DOWN 동작 완료 대기 (고정 시간)
-      await new Promise(resolve => setTimeout(resolve, 90))
-      
-      // 다음 사이클 전 잠시 대기
-      if (i < repeatCount - 1) {
-        console.log(`⏳ 다음 사이클 대기 중...`)
-        await new Promise(resolve => setTimeout(resolve, 90))
-      }
-    }
-    
-    console.log(`✅ 니들 UP & DOWN ${repeatCount}회 완료`)
+    // DOWN 명령 (0)
+    const downPosition = 0;
+    console.log(`🎯 모터 DOWN 명령 실행 (${downPosition})`);
+    sendMotorCommand(downPosition);
   }
 
   // 1.0부터 20.0까지 0.1 간격으로 생성
@@ -185,11 +169,13 @@ export default function NeedleCheckPanel({ mode, isMotorConnected, needlePositio
               disabled={!isNeedleCheckEnabled}
               style={{
                 backgroundColor: '#171C26',
-                color: (!isNeedleCheckEnabled) ? '#D1D5DB' : 'white',
-                textAlign: 'center',
+                color: (!isNeedleCheckEnabled) ? '#D1D5DB' : '#BFB2E4',
                 width: '20%',
                 fontSize: '1.1dvh', 
                 height: '3dvh',
+                border: `1px solid ${(!isNeedleCheckEnabled) ? '#6B7280' : '#BFB2E4'}`,
+                borderRadius: '0.375rem',
+                cursor: (!isNeedleCheckEnabled) ? 'not-allowed' : 'pointer',
                 opacity: (!isNeedleCheckEnabled) ? 0.6 : 1
               }}
             >
@@ -253,29 +239,13 @@ export default function NeedleCheckPanel({ mode, isMotorConnected, needlePositio
           </div>
         </div>
 
-        {/* 니들 소음 확인 */}
+        {/* 모터 동작 확인 */}
         <div style={{ display: 'flex', gap: '0.5dvw' }}>
           <div style={{ display: 'flex', alignItems: 'center', flex: 1, gap: '0.5dvw' }}>
-            <label style={{ width: '40%', fontSize: '1.3dvh', color: '#D1D5DB' }}>니들 동작 확인</label>
-            <Input 
-              type="number"
-              value={repeatCount}
-              onChange={(e) => setRepeatCount(Number(e.target.value))}
-              min={1}
-              disabled={false}
-              style={{ 
-                backgroundColor: '#171C26', 
-                color: 'white', 
-                textAlign: 'center',
-                width: '20%',
-                fontSize: '1.1dvh', 
-                height: '3dvh',
-                opacity: 1
-              }}
-            />
+            <label style={{ width: '40%', fontSize: '1.3dvh', color: '#D1D5DB' }}>모터 동작 확인</label>
             <Button
-              onClick={handleUpDown}
-              disabled={!isMotorConnected || needleStatus === 'MOVING'}
+              onClick={handleMotorUp}
+              disabled={!isMotorConnected}
               style={{
                 backgroundColor: '#171C26',
                 color: (!isMotorConnected) ? '#D1D5DB' : '#BFB2E4',
@@ -284,11 +254,28 @@ export default function NeedleCheckPanel({ mode, isMotorConnected, needlePositio
                 height: '3dvh',
                 border: `1px solid ${(!isMotorConnected) ? '#6B7280' : '#BFB2E4'}`,
                 borderRadius: '0.375rem',
-                cursor: (!isMotorConnected || needleStatus === 'MOVING') ? 'not-allowed' : 'pointer',
-                opacity: (!isMotorConnected || needleStatus === 'MOVING') ? 0.6 : 1
+                cursor: (!isMotorConnected) ? 'not-allowed' : 'pointer',
+                opacity: (!isMotorConnected) ? 0.6 : 1
               }}
             >
-              UP
+              ↑
+            </Button>
+            <Button
+              onClick={handleMotorDown}
+              disabled={!isMotorConnected}
+              style={{
+                backgroundColor: '#171C26',
+                color: (!isMotorConnected) ? '#D1D5DB' : '#BFB2E4',
+                width: '20%',
+                fontSize: '1.1dvh', 
+                height: '3dvh',
+                border: `1px solid ${(!isMotorConnected) ? '#6B7280' : '#BFB2E4'}`,
+                borderRadius: '0.375rem',
+                cursor: (!isMotorConnected) ? 'not-allowed' : 'pointer',
+                opacity: (!isMotorConnected) ? 0.6 : 1
+              }}
+            >
+              ↓
             </Button>
           </div>
         </div>
