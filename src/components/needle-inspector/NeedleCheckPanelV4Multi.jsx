@@ -203,51 +203,32 @@ export default function NeedleCheckPanelV4Multi({
     console.log(`✅ 니들 UP & DOWN ${repeatCount1}회 완료`)
   }
 
-  // 듀얼 모터용 UP & DOWN 함수
-  const handleUpDownMotor = async (motorId, repeatCount) => {
+  // 모터 UP 명령 함수
+  const handleMotorUp = (motorId) => {
     if (!isMotorConnected) {
       console.error("❌ 모터가 연결되지 않았습니다.")
       return
     }
 
-    if (needleStatus === 'MOVING') {
-      console.error("❌ 니들이 이미 움직이고 있습니다.")
+    // UP 명령 (모터별 다른 로직)
+    const upPosition = motorId === 1 ? 
+      Math.round((needleOffset1 + needleProtrusion1) * 100) : 
+      Math.round((needleOffset2 - needleProtrusion2) * 40);
+    console.log(`🎯 모터${motorId} UP 명령 실행 (${upPosition})`)
+    sendMotorCommand(upPosition, motorId)
+  }
+
+  // 모터 DOWN 명령 함수
+  const handleMotorDown = (motorId) => {
+    if (!isMotorConnected) {
+      console.error("❌ 모터가 연결되지 않았습니다.")
       return
     }
 
-    console.log(`🔄 모터${motorId} UP & DOWN ${repeatCount}회 시작`)
-    
-    for (let i = 0; i < repeatCount; i++) {
-      console.log(`🔄 모터${motorId} ${i + 1}/${repeatCount} 사이클 시작`)
-      
-      // UP 명령 (모터1: 초기 위치 + 돌출 부분, 모터2: 초기 위치 - 돌출 부분)
-      const upPosition = motorId === 1 ? 
-        Math.round((needleOffset1 + needleProtrusion1) * 100) : 
-        Math.round((needleOffset2 - needleProtrusion2) * 40);
-      console.log(`🎯 모터${motorId} UP 명령 실행 (${upPosition})`)
-      sendMotorCommand(upPosition, motorId)
-      
-      // UP 동작 완료 대기 (고정 시간)
-      await new Promise(resolve => setTimeout(resolve, 90))
-      
-      // DOWN 명령 (초기 위치)
-      const downPosition = motorId === 1 ? 
-        Math.round(needleOffset1 * 100) : 
-        Math.round(needleOffset2 * 40);
-      console.log(`🎯 모터${motorId} DOWN 명령 실행 (${downPosition})`)
-      sendMotorCommand(downPosition, motorId)
-      
-      // DOWN 동작 완료 대기 (고정 시간)
-      await new Promise(resolve => setTimeout(resolve, 90))
-      
-      // 다음 사이클 전 잠시 대기
-      if (i < repeatCount - 1) {
-        console.log(`⏳ 모터${motorId} 다음 사이클 대기 중...`)
-        await new Promise(resolve => setTimeout(resolve, 90))
-      }
-    }
-    
-    console.log(`✅ 모터${motorId} UP & DOWN ${repeatCount}회 완료`)
+    // DOWN 명령 (모터별 다른 로직)
+    const downPosition = motorId === 1 ? 0 : 2000;
+    console.log(`🎯 모터${motorId} DOWN 명령 실행 (${downPosition})`)
+    sendMotorCommand(downPosition, motorId)
   }
 
   // 저항 측정 함수
@@ -414,11 +395,11 @@ export default function NeedleCheckPanelV4Multi({
               onClick={() => {
                 if (needleOffsetState1 === 'UP') {
                   const motorPosition = Math.round(needleOffset1 * 100);
-                  console.log('모터1 니들 오프셋 UP:', needleOffset1, '모터 위치:', motorPosition);
+                  console.log('모터1 니들 초기 위치 UP:', needleOffset1, '모터 위치:', motorPosition);
                   sendMotorCommand(motorPosition, 1);
                   setNeedleOffsetState1('DOWN');
                 } else {
-                  console.log('모터1 니들 오프셋 DOWN: 모터 위치 0');
+                  console.log('모터1 니들 초기 위치 DOWN: 모터 위치 0');
                   sendMotorCommand(0, 1);
                   setNeedleOffsetState1('UP');
                 }
@@ -463,11 +444,11 @@ export default function NeedleCheckPanelV4Multi({
               onClick={() => {
                 if (needleOffsetState2 === 'UP') {
                   const motorPosition = Math.round(needleOffset2 * 40);
-                  console.log('모터2 니들 오프셋 UP:', needleOffset2, '모터 위치:', motorPosition);
+                  console.log('모터2 니들 초기 위치 UP:', needleOffset2, '모터 위치:', motorPosition);
                   sendMotorCommand(motorPosition, 2);
                   setNeedleOffsetState2('DOWN');
                 } else {
-                  console.log('모터2 니들 오프셋 DOWN: 모터 위치 0');
+                  console.log('모터2 니들 초기 위치 DOWN: 모터 위치 0');
                   sendMotorCommand(0, 2);
                   setNeedleOffsetState2('UP');
                 }
@@ -522,7 +503,7 @@ export default function NeedleCheckPanelV4Multi({
                   setNeedleProtrusionState1('DOWN');
                 } else {
                   const motorPosition = Math.round(needleOffset1 * 100);
-                  console.log('모터1 니들 돌출 부분 DOWN: 니듡 초기 위치로', needleOffset1, '모터 위치:', motorPosition);
+                  console.log('모터1 니들 돌출 부분 DOWN: 니들 초기 위치로', needleOffset1, '모터 위치:', motorPosition);
                   sendMotorCommand(motorPosition, 1);
                   setNeedleProtrusionState1('UP');
                 }
@@ -572,7 +553,7 @@ export default function NeedleCheckPanelV4Multi({
                   setNeedleProtrusionState2('DOWN');
                 } else {
                   const motorPosition = Math.round(needleOffset2 * 40);
-                  console.log('모터2 니듡 돌출 부분 DOWN: 니듡 초기 위치로', needleOffset2, '모터 위치:', motorPosition);
+                  console.log('모터2 니들 돌출 부분 DOWN: 니들 초기 위치로', needleOffset2, '모터 위치:', motorPosition);
                   sendMotorCommand(motorPosition, 2);
                   setNeedleProtrusionState2('UP');
                 }
@@ -595,81 +576,83 @@ export default function NeedleCheckPanelV4Multi({
           </div>
         </div>
 
-        {/* 니들 소음 확인 - 듀얼 모터 */}
+        {/* 모터 동작 확인 - 듀얼 모터 */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5dvw' }}>
           <label style={{ width: '35%', fontSize: '1.3dvh', color: '#D1D5DB' }}>모터 동작 확인</label>
           
           {/* 모터 1 */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.3dvw', flex: 1 }}>
-            <Input 
-              type="number"
-              value={repeatCount1}
-              onChange={(e) => setRepeatCount1(Number(e.target.value))}
-              min={1}
-              disabled={false}
-              style={{ 
-                backgroundColor: '#171C26', 
-                color: 'white', 
-                textAlign: 'center',
-                width: '60%',
-                fontSize: '1.1dvh', 
-                height: '3dvh',
-                opacity: 1
-              }}
-            />
             <Button
-              onClick={() => handleUpDownMotor(1, repeatCount1)}
-              disabled={!isMotorConnected || needleStatus === 'MOVING'}
+              onClick={() => handleMotorUp(1)}
+              disabled={!isMotorConnected}
               style={{
                 backgroundColor: '#171C26',
                 color: (!isMotorConnected) ? '#D1D5DB' : '#BFB2E4',
-                width: '30%',
+                width: '45%',
                 fontSize: '1.3dvh',
                 height: '3dvh',
                 border: `1px solid ${(!isMotorConnected) ? '#6B7280' : '#BFB2E4'}`,
                 borderRadius: '0.375rem',
-                cursor: (!isMotorConnected || needleStatus === 'MOVING') ? 'not-allowed' : 'pointer',
-                opacity: (!isMotorConnected || needleStatus === 'MOVING') ? 0.6 : 1
+                cursor: (!isMotorConnected) ? 'not-allowed' : 'pointer',
+                opacity: (!isMotorConnected) ? 0.6 : 1
               }}
             >
               ↑
+            </Button>
+            <Button
+              onClick={() => handleMotorDown(1)}
+              disabled={!isMotorConnected}
+              style={{
+                backgroundColor: '#171C26',
+                color: (!isMotorConnected) ? '#D1D5DB' : '#BFB2E4',
+                width: '45%',
+                fontSize: '1.3dvh',
+                height: '3dvh',
+                border: `1px solid ${(!isMotorConnected) ? '#6B7280' : '#BFB2E4'}`,
+                borderRadius: '0.375rem',
+                cursor: (!isMotorConnected) ? 'not-allowed' : 'pointer',
+                opacity: (!isMotorConnected) ? 0.6 : 1
+              }}
+            >
+              ↓
             </Button>
           </div>
           
           {/* 모터 2 */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.3dvw', flex: 1 }}>
-            <Input 
-              type="number"
-              value={repeatCount2}
-              onChange={(e) => setRepeatCount2(Number(e.target.value))}
-              min={1}
-              disabled={false}
-              style={{ 
-                backgroundColor: '#171C26', 
-                color: 'white', 
-                textAlign: 'center',
-                width: '60%',
-                fontSize: '1.1dvh', 
-                height: '3dvh',
-                opacity: 1
-              }}
-            />
             <Button
-              onClick={() => handleUpDownMotor(2, repeatCount2)}
-              disabled={!isMotorConnected || needleStatus === 'MOVING'}
+              onClick={() => handleMotorUp(2)}
+              disabled={!isMotorConnected}
               style={{
                 backgroundColor: '#171C26',
                 color: (!isMotorConnected) ? '#DCD7DE' : '#E6C2D9',
-                width: '30%',
+                width: '45%',
                 fontSize: '1.3dvh',
                 height: '3dvh',
                 border: `1px solid ${(!isMotorConnected) ? '#DCD7DE' : '#E6C2D9'}`,
                 borderRadius: '0.375rem',
-                cursor: (!isMotorConnected || needleStatus === 'MOVING') ? 'not-allowed' : 'pointer',
-                opacity: (!isMotorConnected || needleStatus === 'MOVING') ? 0.6 : 1
+                cursor: (!isMotorConnected) ? 'not-allowed' : 'pointer',
+                opacity: (!isMotorConnected) ? 0.6 : 1
               }}
             >
-            ↑
+              ↑
+            </Button>
+            <Button
+              onClick={() => handleMotorDown(2)}
+              disabled={!isMotorConnected}
+              style={{
+                backgroundColor: '#171C26',
+                color: (!isMotorConnected) ? '#DCD7DE' : '#E6C2D9',
+                width: '45%',
+                fontSize: '1.3dvh',
+                height: '3dvh',
+                border: `1px solid ${(!isMotorConnected) ? '#DCD7DE' : '#E6C2D9'}`,
+                borderRadius: '0.375rem',
+                cursor: (!isMotorConnected) ? 'not-allowed' : 'pointer',
+                opacity: (!isMotorConnected) ? 0.6 : 1
+              }}
+            >
+              ↓
             </Button>
           </div>
         </div>
