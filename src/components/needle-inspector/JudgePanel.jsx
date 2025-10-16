@@ -21,23 +21,34 @@ export default function JudgePanel({ onJudge, isStarted, onReset, camera1Ref, ca
   const pressTimerRef = useRef(null)
   const [isPressing, setIsPressing] = useState(false)
   
-  // 관리자 모드가 활성화될 때 현재 설정된 이미지 저장 경로 로드
+  // 관리자 모드가 활성화될 때 현재 설정 로드
   useEffect(() => {
     if (isAdminMode) {
-      const loadImageSavePath = async () => {
+      const loadAdminSettings = async () => {
         try {
-          const result = await window.electronAPI.getImageSavePath();
-          if (result && result.success && result.data) {
+          // 이미지 저장 경로 로드
+          const imagePathResult = await window.electronAPI.getImageSavePath();
+          if (imagePathResult && imagePathResult.success && imagePathResult.data) {
             setAdminPaths(prev => ({
               ...prev,
-              savePath: result.data
+              savePath: imagePathResult.data
             }));
           }
+          
+          // 관리자 설정 로드 (MTR2, MTR4 파일 경로)
+          const adminResult = await window.electronAPI.getAdminSettings();
+          if (adminResult && adminResult.success && adminResult.data) {
+            setAdminPaths(prev => ({
+              ...prev,
+              ...adminResult.data
+            }));
+            console.log('관리자 설정 로드 완료:', adminResult.data);
+          }
         } catch (error) {
-          console.error('이미지 저장 경로 로드 실패:', error);
+          console.error('관리자 설정 로드 실패:', error);
         }
       };
-      loadImageSavePath();
+      loadAdminSettings();
     }
   }, [isAdminMode]);
   
@@ -318,17 +329,61 @@ export default function JudgePanel({ onJudge, isStarted, onReset, camera1Ref, ca
             <Button
               onClick={async () => {
                 try {
-                  // 결과 이미지 저장 경로 설정 저장 (savePath 사용)
+                  let hasChanges = false;
+                  
+                  // 1. 결과 이미지 저장 경로 설정
                   if (adminPaths.savePath) {
                     await window.electronAPI.saveImageSavePath(adminPaths.savePath);
-                    console.log('결과 이미지 저장 경로 설정 완룼:', adminPaths.savePath);
-                    alert('결과 이미지 저장 경로가 설정되었습니다.');
+                    console.log('결과 이미지 저장 경로 설정 완료:', adminPaths.savePath);
+                    hasChanges = true;
+                  }
+                  
+                  // 2. MTR2, MTR4 CSV 파일 설정 및 캐시 업데이트
+                  if (adminPaths.mtr2 || adminPaths.mtr4) {
+                    const csvData = { '2.0': [], '4.0': [] };
+                    
+                    // MTR2 파일 로드
+                    if (adminPaths.mtr2) {
+                      const mtr2Result = await window.electronAPI.loadCsvFile(adminPaths.mtr2);
+                      if (mtr2Result.success) {
+                        csvData['2.0'] = mtr2Result.data;
+                        console.log('MTR2 파일 로드 완료:', adminPaths.mtr2);
+                      } else {
+                        console.error('MTR2 파일 로드 실패:', mtr2Result.error);
+                      }
+                    }
+                    
+                    // MTR4 파일 로드
+                    if (adminPaths.mtr4) {
+                      const mtr4Result = await window.electronAPI.loadCsvFile(adminPaths.mtr4);
+                      if (mtr4Result.success) {
+                        csvData['4.0'] = mtr4Result.data;
+                        console.log('MTR4 파일 로드 완료:', adminPaths.mtr4);
+                      } else {
+                        console.error('MTR4 파일 로드 실패:', mtr4Result.error);
+                      }
+                    }
+                    
+                    // CSV 캐시 강제 업데이트
+                    const { resetAndInitializeCache } = await import('../../utils/csvCache.js');
+                    resetAndInitializeCache(csvData);
+                    
+                    // 관리자 설정 저장
+                    await window.electronAPI.saveAdminSettings(adminPaths);
+                    console.log('관리자 설정 저장 완료:', adminPaths);
+                    hasChanges = true;
+                  }
+                  
+                  if (hasChanges) {
+                    alert('설정이 적용되었습니다. 콤보박스가 업데이트됩니다.');
+                    // 페이지 새로고침으로 변경사항 반영
+                    window.location.reload();
                   } else {
-                    alert('저장 경로를 선택해주세요.');
+                    alert('적용할 설정이 없습니다. 파일이나 경로를 선택해주세요.');
                   }
                 } catch (error) {
-                  console.error('설정 저장 오류:', error);
-                  alert('설정 저장 중 오류가 발생했습니다.');
+                  console.error('설정 적용 오류:', error);
+                  alert('설정 적용 중 오류가 발생했습니다.');
                 }
               }}
               style={{

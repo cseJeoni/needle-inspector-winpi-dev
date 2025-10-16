@@ -12,7 +12,8 @@ import {
   getNeedleOptions,
   getId,
   isCacheReady,
-  initializeCache
+  initializeCache,
+  resetAndInitializeCache
 } from '../../utils/csvCache';
 
 const DataSettingsPanel = forwardRef(({
@@ -187,34 +188,72 @@ const DataSettingsPanel = forwardRef(({
         return;
       }
 
-      if (window.api && typeof window.api.loadCsvData === 'function') {
+      // 1. 관리자 설정 우선 확인
+      let csvData = null;
+      try {
+        const adminSettings = await window.electronAPI.getAdminSettings();
+        if (adminSettings.success && adminSettings.data && (adminSettings.data.mtr2 || adminSettings.data.mtr4)) {
+          console.log('🔧 관리자 설정에서 CSV 파일 경로 발견, 동적 로드 시작');
+          
+          const formattedData = { '2.0': [], '4.0': [] };
+          
+          // MTR2 파일 로드
+          if (adminSettings.data.mtr2) {
+            const mtr2Result = await window.electronAPI.loadCsvFile(adminSettings.data.mtr2);
+            if (mtr2Result.success) {
+              formattedData['2.0'] = mtr2Result.data;
+              console.log('✅ 관리자 설정 MTR2 파일 로드 완료');
+            }
+          }
+          
+          // MTR4 파일 로드
+          if (adminSettings.data.mtr4) {
+            const mtr4Result = await window.electronAPI.loadCsvFile(adminSettings.data.mtr4);
+            if (mtr4Result.success) {
+              formattedData['4.0'] = mtr4Result.data;
+              console.log('✅ 관리자 설정 MTR4 파일 로드 완료');
+            }
+          }
+          
+          // 캐시 강제 리셋 및 초기화
+          resetAndInitializeCache(formattedData);
+          csvData = formattedData;
+        }
+      } catch (error) {
+        console.warn('⚠️ 관리자 설정 로드 실패, 기본 경로 사용:', error);
+      }
+      
+      // 2. 관리자 설정이 없으면 기본 경로 사용
+      if (!csvData && window.api && typeof window.api.loadCsvData === 'function') {
         try {
-          const csvData = await window.api.loadCsvData();
+          console.log('📁 기본 경로에서 CSV 데이터 로드');
+          const defaultCsvData = await window.api.loadCsvData();
           
           // 데이터 형식을 csvCache가 기대하는 형식으로 변환
           const formattedData = {
-            '2.0': csvData.mtr2 || [],
-            '4.0': csvData.mtr4 || []
+            '2.0': defaultCsvData.mtr2 || [],
+            '4.0': defaultCsvData.mtr4 || []
           };
           
           initializeCache(formattedData);
-          
-          // 캐시 초기화 후, 상태 업데이트하여 UI 리렌더링
-          if (isCacheReady()) {
-            setCacheReady(true);
-            const countryOptions = getCountryOptions(mtrVersion);
-            if (countryOptions.length > 0) {
-              setSelectedCountry(countryOptions[0].value);
-              const needleOptions = getNeedleOptions(mtrVersion, countryOptions[0].value);
-              if (needleOptions.length > 0 && onSelectedNeedleTypeChange) {
-                onSelectedNeedleTypeChange(needleOptions[0].value);
-              }
-            }
-          }
+          csvData = formattedData;
         } catch (error) {
           console.error('CSV 데이터 로드 중 오류 발생:', error);
         }
-      } else {
+      }
+      
+      // 3. 캐시 초기화 후 UI 업데이트
+      if (csvData && isCacheReady()) {
+        setCacheReady(true);
+        const countryOptions = getCountryOptions(mtrVersion);
+        if (countryOptions.length > 0) {
+          setSelectedCountry(countryOptions[0].value);
+          const needleOptions = getNeedleOptions(mtrVersion, countryOptions[0].value);
+          if (needleOptions.length > 0 && onSelectedNeedleTypeChange) {
+            onSelectedNeedleTypeChange(needleOptions[0].value);
+          }
+        }
+      } else if (!window.api) {
         console.error('`window.api.loadCsvData` 함수를 찾을 수 없습니다. preload.js를 확인하세요.');
       }
     };

@@ -152,3 +152,32 @@ export function isCacheReady() {
 export function getCache() {
   return cache;
 }
+
+/**
+ * 캐시를 완전히 리셋하고 새로운 데이터로 초기화
+ * @param {Object} rowsByVer - 버전별 CSV 데이터 { '2.0': [...], '4.0': [...] }
+ */
+export function resetAndInitializeCache(rowsByVer) {
+  try {
+    console.log('🔄 CSV 캐시 강제 리셋 및 재초기화 시작');
+    
+    // 기존 캐시 완전 리셋
+    cache = {
+      ready: false,
+      data: {}
+    };
+    
+    if (!rowsByVer || (!rowsByVer['2.0'] && !rowsByVer['4.0'])) {
+      console.warn('⚠️ 유효하지 않은 CSV 데이터, 빈 캐시로 설정');
+      return;
+    }
+
+    // 새로운 데이터로 캐시 빌드
+    cache = buildCache(rowsByVer);
+    console.log('✅ CSV 캐시 강제 리셋 및 재초기화 완료');
+    
+  } catch (error) {
+    console.error('❌ CSV 캐시 강제 리셋 실패:', error);
+    cache = { ready: false, data: {} };
+  }
+}

@@ -86,6 +86,21 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // 이미지 저장 경로 로드 API
   getImageSavePath: () => {
     return ipcRenderer.invoke('get-image-save-path');
+  },
+  
+  // 동적 CSV 파일 로드 API
+  loadCsvFile: (filePath) => {
+    return ipcRenderer.invoke('load-csv-file', filePath);
+  },
+  
+  // 관리자 설정 저장 API
+  saveAdminSettings: (settings) => {
+    return ipcRenderer.invoke('save-admin-settings', settings);
+  },
+  
+  // 관리자 설정 로드 API
+  getAdminSettings: () => {
+    return ipcRenderer.invoke('get-admin-settings');
   }
 });
 

@@ -404,6 +404,49 @@ ipcMain.handle('get-image-save-path', async (event) => {
   }
 });
 
+// 동적 CSV 파일 로드 IPC 핸들러
+ipcMain.handle('load-csv-file', async (event, filePath) => {
+  try {
+    console.log(`[INFO] 동적 CSV 파일 로드: ${filePath}`);
+    
+    if (!fs.existsSync(filePath)) {
+      throw new Error(`파일이 존재하지 않습니다: ${filePath}`);
+    }
+    
+    const csvData = parseCSV(filePath);
+    console.log(`[INFO] CSV 파일 로드 완료: ${csvData.length}개 레코드`);
+    
+    return { success: true, data: csvData };
+  } catch (error) {
+    console.error(`[ERROR] CSV 파일 로드 실패 (${filePath}):`, error);
+    return { success: false, error: error.message, data: [] };
+  }
+});
+
+// 관리자 설정 저장 IPC 핸들러
+ipcMain.handle('save-admin-settings', async (event, settings) => {
+  try {
+    console.log('[INFO] 관리자 설정 저장:', settings);
+    store.set('adminSettings', settings);
+    return { success: true };
+  } catch (error) {
+    console.error('[ERROR] 관리자 설정 저장 실패:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+// 관리자 설정 로드 IPC 핸들러
+ipcMain.handle('get-admin-settings', async (event) => {
+  try {
+    const adminSettings = store.get('adminSettings', {});
+    console.log('[INFO] 관리자 설정 로드:', adminSettings);
+    return { success: true, data: adminSettings };
+  } catch (error) {
+    console.error('[ERROR] 관리자 설정 로드 실패:', error);
+    return { success: false, error: error.message, data: {} };
+  }
+});
+
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
 if (require('electron-squirrel-startup')) {
   app.quit();
