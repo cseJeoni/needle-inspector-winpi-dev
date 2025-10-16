@@ -1,7 +1,7 @@
 import Panel from "./Panel"
 import { Button } from "./Button"
 import { useAuth } from "../../hooks/useAuth.jsx"
-import { useState, useRef } from "react"
+import { useState, useRef, useEffect } from "react"
 
 export default function JudgePanel({ onJudge, isStarted, onReset, camera1Ref, camera2Ref, hasNeedleTip = true, websocket, isWsConnected, onCaptureMergedImage, eepromData, generateUserBasedPath, isWaitingEepromRead = false, onWaitingEepromReadChange, isResistanceAbnormal = false, needleOffset1, needleOffset2, workStatus = 'waiting', onDebugModeChange }) {
   // 사용자 정보 가져오기
@@ -14,12 +14,33 @@ export default function JudgePanel({ onJudge, isStarted, onReset, camera1Ref, ca
     users: '',
     mtr2: '',
     mtr4: '',
-    savePath: ''
+    savePath: '',
+    imageSavePath: '' // 결과 이미지 저장 경로 추가
   })
   
   // 3초 타이머 관련
   const pressTimerRef = useRef(null)
   const [isPressing, setIsPressing] = useState(false)
+  
+  // 관리자 모드가 활성화될 때 현재 설정된 이미지 저장 경로 로드
+  useEffect(() => {
+    if (isAdminMode) {
+      const loadImageSavePath = async () => {
+        try {
+          const result = await window.electronAPI.getImageSavePath();
+          if (result && result.success && result.data) {
+            setAdminPaths(prev => ({
+              ...prev,
+              imageSavePath: result.data
+            }));
+          }
+        } catch (error) {
+          console.error('이미지 저장 경로 로드 실패:', error);
+        }
+      };
+      loadImageSavePath();
+    }
+  }, [isAdminMode]);
   
   // 니듡 DOWN 명령 전송 함수 (메인 WebSocket 사용) - 모터 1, 2 모두 초기 위치로
   const sendNeedleDown = () => {
@@ -107,7 +128,7 @@ export default function JudgePanel({ onJudge, isStarted, onReset, camera1Ref, ca
       const fileName = `${captureDate}_${captureTime}_${tipType}_${mfgDate}_${workerCode}_${workerName}.png`;
 
       // 사용자 정보 기반 폴더 경로 생성
-      const baseDir = generateUserBasedPath ? generateUserBasedPath(judgeResult) : 
+      const baseDir = generateUserBasedPath ? await generateUserBasedPath(judgeResult) : 
                      (judgeResult === 'NG' ? 'C:\\Inspect\\NG' : 'C:\\Inspect\\PASS');
       
       // 폴더가 없으면 생성 (Electron API 사용)
@@ -289,6 +310,104 @@ export default function JudgePanel({ onJudge, isStarted, onReset, camera1Ref, ca
                 </Button>
               </div>
             ))}
+          </div>
+
+          {/* 결과 이미지 저장 경로 설정 */}
+          <div style={{
+            padding: '1dvh',
+            backgroundColor: '#1F2937',
+            borderRadius: '0.375rem',
+            marginBottom: '1dvh'
+          }}>
+            <label style={{
+              display: 'block',
+              fontSize: '1.2dvh',
+              color: '#D1D5DB',
+              marginBottom: '0.5dvh'
+            }}>
+              결과 이미지 저장 경로
+            </label>
+            <div style={{ display: 'flex', gap: '0.5dvw', alignItems: 'center' }}>
+              <input
+                type="text"
+                value={adminPaths.imageSavePath}
+                readOnly
+                placeholder="경로를 선택하세요"
+                style={{
+                  flex: 1,
+                  padding: '0.5dvh',
+                  fontSize: '1.1dvh',
+                  backgroundColor: '#374151',
+                  color: 'white',
+                  border: '1px solid #6B7280',
+                  borderRadius: '0.25rem'
+                }}
+              />
+              <Button
+                onClick={async () => {
+                  try {
+                    const result = await window.electronAPI.selectFolder();
+                    if (result && !result.canceled && result.filePaths.length > 0) {
+                      setAdminPaths(prev => ({
+                        ...prev,
+                        imageSavePath: result.filePaths[0]
+                      }));
+                    }
+                  } catch (error) {
+                    console.error('폴더 선택 오류:', error);
+                  }
+                }}
+                style={{
+                  padding: '0.5dvh 1dvw',
+                  fontSize: '1.1dvh',
+                  backgroundColor: '#4B5563',
+                  color: 'white',
+                  border: '1px solid #6B7280',
+                  borderRadius: '0.25rem',
+                  cursor: 'pointer',
+                  whiteSpace: 'nowrap'
+                }}
+              >
+                찾기
+              </Button>
+            </div>
+          </div>
+
+          {/* 적용하기 버튼 */}
+          <div style={{
+            marginBottom: '1dvh'
+          }}>
+            <Button
+              onClick={async () => {
+                try {
+                  // 결과 이미지 저장 경로 설정 저장
+                  if (adminPaths.imageSavePath) {
+                    await window.electronAPI.saveImageSavePath(adminPaths.imageSavePath);
+                    console.log('결과 이미지 저장 경로 설정 완료:', adminPaths.imageSavePath);
+                    alert('결과 이미지 저장 경로가 설정되었습니다.');
+                  } else {
+                    alert('저장 경로를 선택해주세요.');
+                  }
+                } catch (error) {
+                  console.error('설정 저장 오류:', error);
+                  alert('설정 저장 중 오류가 발생했습니다.');
+                }
+              }}
+              style={{
+                width: '100%',
+                height: '4dvh',
+                fontSize: '1.3dvh',
+                fontWeight: 'bold',
+                backgroundColor: '#059669',
+                color: 'white',
+                border: '1px solid #059669',
+                borderRadius: '0.375rem',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease'
+              }}
+            >
+              적용하기
+            </Button>
           </div>
 
           {/* 디버깅 모드 버튼 */}

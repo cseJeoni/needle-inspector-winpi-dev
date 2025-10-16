@@ -380,6 +380,30 @@ ipcMain.handle('load-all-camera-lines', async (event) => {
   }
 });
 
+// 이미지 저장 경로 저장 IPC 핸들러
+ipcMain.handle('save-image-save-path', async (event, imageSavePath) => {
+  try {
+    console.log('[INFO] 이미지 저장 경로 설정:', imageSavePath);
+    store.set('imageSavePath', imageSavePath);
+    return { success: true };
+  } catch (error) {
+    console.error('[ERROR] 이미지 저장 경로 설정 실패:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+// 이미지 저장 경로 로드 IPC 핸들러
+ipcMain.handle('get-image-save-path', async (event) => {
+  try {
+    const imageSavePath = store.get('imageSavePath', 'C:'); // 기본값: C:
+    console.log('[INFO] 이미지 저장 경로 로드:', imageSavePath);
+    return { success: true, data: imageSavePath };
+  } catch (error) {
+    console.error('[ERROR] 이미지 저장 경로 로드 실패:', error);
+    return { success: false, error: error.message, data: 'C:' };
+  }
+});
+
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
 if (require('electron-squirrel-startup')) {
   app.quit();

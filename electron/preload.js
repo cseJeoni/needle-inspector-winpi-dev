@@ -76,6 +76,16 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // 모든 카메라 선 정보 로드 API
   loadAllCameraLines: () => {
     return ipcRenderer.invoke('load-all-camera-lines');
+  },
+  
+  // 이미지 저장 경로 저장 API
+  saveImageSavePath: (imageSavePath) => {
+    return ipcRenderer.invoke('save-image-save-path', imageSavePath);
+  },
+  
+  // 이미지 저장 경로 로드 API
+  getImageSavePath: () => {
+    return ipcRenderer.invoke('get-image-save-path');
   }
 });
 

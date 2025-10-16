@@ -278,7 +278,7 @@ export default function NeedleInspectorUI() {
   };
 
   // 사용자 정보 기반 폴더 경로 생성 함수
-  const generateUserBasedPath = (judgeResult) => {
+  const generateUserBasedPath = async (judgeResult) => {
     const today = new Date();
     const workDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`; // YYYY-MM-DD (로컬 시간)
 
@@ -296,7 +296,19 @@ export default function NeedleInspectorUI() {
       console.log(`👤 사용자 정보 - 코드: ${workerCode}, 이름: ${workerName}`);
     }
 
-    const finalPath = `C:\\Inspect\\${userFolder}\\${workDate}\\${judgeResult}`;
+    // 관리자 설정에서 이미지 저장 경로 로드
+    let basePath = 'C:'; // 기본값
+    try {
+      const result = await window.electronAPI.getImageSavePath();
+      if (result && result.success && result.data) {
+        basePath = result.data;
+        console.log(`📁 관리자 설정 이미지 저장 경로: ${basePath}`);
+      }
+    } catch (error) {
+      console.warn('⚠️ 이미지 저장 경로 로드 실패, 기본값 사용:', error);
+    }
+
+    const finalPath = `${basePath}\\Inspect\\${userFolder}\\${workDate}\\${judgeResult}`;
     console.log(`📁 생성된 폴더 경로: ${finalPath}`);
     return finalPath;
   };
