@@ -14,8 +14,7 @@ export default function JudgePanel({ onJudge, isStarted, onReset, camera1Ref, ca
     users: '',
     mtr2: '',
     mtr4: '',
-    savePath: '',
-    imageSavePath: '' // 결과 이미지 저장 경로 추가
+    savePath: ''
   })
   
   // 3초 타이머 관련
@@ -31,7 +30,7 @@ export default function JudgePanel({ onJudge, isStarted, onReset, camera1Ref, ca
           if (result && result.success && result.data) {
             setAdminPaths(prev => ({
               ...prev,
-              imageSavePath: result.data
+              savePath: result.data
             }));
           }
         } catch (error) {
@@ -254,10 +253,10 @@ export default function JudgePanel({ onJudge, isStarted, onReset, camera1Ref, ca
         onMouseDown={() => handleMouseDown('judge')}
         onMouseUp={handleMouseUp}
       >
-        <div style={{ height: '100%', display: 'flex', flexDirection: 'column', gap: '1dvh' }}>
+        <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
 
           {/* 각 파일/경로 설정 행 */}
-          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '1dvh' }}>
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
             {adminItems.map(item => (
               <div key={item.key} style={{
                 display: 'flex',
@@ -312,78 +311,17 @@ export default function JudgePanel({ onJudge, isStarted, onReset, camera1Ref, ca
             ))}
           </div>
 
-          {/* 결과 이미지 저장 경로 설정 */}
-          <div style={{
-            padding: '1dvh',
-            backgroundColor: '#1F2937',
-            borderRadius: '0.375rem',
-            marginBottom: '1dvh'
-          }}>
-            <label style={{
-              display: 'block',
-              fontSize: '1.2dvh',
-              color: '#D1D5DB',
-              marginBottom: '0.5dvh'
-            }}>
-              결과 이미지 저장 경로
-            </label>
-            <div style={{ display: 'flex', gap: '0.5dvw', alignItems: 'center' }}>
-              <input
-                type="text"
-                value={adminPaths.imageSavePath}
-                readOnly
-                placeholder="경로를 선택하세요"
-                style={{
-                  flex: 1,
-                  padding: '0.5dvh',
-                  fontSize: '1.1dvh',
-                  backgroundColor: '#374151',
-                  color: 'white',
-                  border: '1px solid #6B7280',
-                  borderRadius: '0.25rem'
-                }}
-              />
-              <Button
-                onClick={async () => {
-                  try {
-                    const result = await window.electronAPI.selectFolder();
-                    if (result && !result.canceled && result.filePaths.length > 0) {
-                      setAdminPaths(prev => ({
-                        ...prev,
-                        imageSavePath: result.filePaths[0]
-                      }));
-                    }
-                  } catch (error) {
-                    console.error('폴더 선택 오류:', error);
-                  }
-                }}
-                style={{
-                  padding: '0.5dvh 1dvw',
-                  fontSize: '1.1dvh',
-                  backgroundColor: '#4B5563',
-                  color: 'white',
-                  border: '1px solid #6B7280',
-                  borderRadius: '0.25rem',
-                  cursor: 'pointer',
-                  whiteSpace: 'nowrap'
-                }}
-              >
-                찾기
-              </Button>
-            </div>
-          </div>
 
           {/* 적용하기 버튼 */}
           <div style={{
-            marginBottom: '1dvh'
           }}>
             <Button
               onClick={async () => {
                 try {
-                  // 결과 이미지 저장 경로 설정 저장
-                  if (adminPaths.imageSavePath) {
-                    await window.electronAPI.saveImageSavePath(adminPaths.imageSavePath);
-                    console.log('결과 이미지 저장 경로 설정 완료:', adminPaths.imageSavePath);
+                  // 결과 이미지 저장 경로 설정 저장 (savePath 사용)
+                  if (adminPaths.savePath) {
+                    await window.electronAPI.saveImageSavePath(adminPaths.savePath);
+                    console.log('결과 이미지 저장 경로 설정 완룼:', adminPaths.savePath);
                     alert('결과 이미지 저장 경로가 설정되었습니다.');
                   } else {
                     alert('저장 경로를 선택해주세요.');
