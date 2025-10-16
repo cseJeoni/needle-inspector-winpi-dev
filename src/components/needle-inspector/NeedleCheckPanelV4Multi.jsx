@@ -93,7 +93,7 @@ export default function NeedleCheckPanelV4Multi({
 
     // 모터2일 때 니들 속도 및 감속 값 추가
     if (motorId === 2) {
-      msg.needle_speed = needleSpeed2 || 1000; // 기본값 1000
+      msg.needle_speed = needleSpeed2 || 5000; // 기본값 1000
 
       // 감속 기능이 활성화된 경우 관련 정보 추가
       if (isDecelerationEnabled) {
@@ -366,6 +366,27 @@ export default function NeedleCheckPanelV4Multi({
         {/* 니들 설정 탭 내용 */}
         {activeTab === 'needle' && (
           <>
+        {/* M1, M2 라벨 */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5dvw', marginBottom: '0.5dvh' }}>
+          <div style={{ width: '35%' }}></div>
+          
+          {/* M1 라벨 - 인풋 박스 위 중앙 */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.3dvw', flex: 1 }}>
+            <div style={{ width: '60%', display: 'flex', justifyContent: 'center' }}>
+              <label style={{ fontSize: '1.3dvh', color: '#BFB2E4', fontWeight: 'bold' }}>니들 모터</label>
+            </div>
+            <div style={{ width: '30%' }}></div>
+          </div>
+          
+          {/* M2 라벨 - 인풋 박스 위 중앙 */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.3dvw', flex: 1 }}>
+            <div style={{ width: '60%', display: 'flex', justifyContent: 'center' }}>
+              <label style={{ fontSize: '1.3dvh', color: '#E6C2D9', fontWeight: 'bold' }}>저항 모터</label>
+            </div>
+            <div style={{ width: '30%' }}></div>
+          </div>
+        </div>
+
         {/* 니들 오프셋 (mm) - 듀얼 모터 */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5dvw' }}>
           <label style={{ width: '35%', fontSize: '1.3dvh', color: '#D1D5DB' }}>니들 초기 위치 (mm)</label>
@@ -576,7 +597,7 @@ export default function NeedleCheckPanelV4Multi({
 
         {/* 니들 소음 확인 - 듀얼 모터 */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5dvw' }}>
-          <label style={{ width: '35%', fontSize: '1.3dvh', color: '#D1D5DB' }}>니들 소음 확인</label>
+          <label style={{ width: '35%', fontSize: '1.3dvh', color: '#D1D5DB' }}>모터 동작 확인</label>
           
           {/* 모터 1 */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.3dvw', flex: 1 }}>
@@ -655,12 +676,9 @@ export default function NeedleCheckPanelV4Multi({
 
         {/* 니들 속도 */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5dvw' }}>
-          <label style={{ width: '35%', fontSize: '1.3dvh', color: '#D1D5DB' }}>니들 속도</label>
+          <label style={{ width: '67.5%', fontSize: '1.3dvh', color: '#D1D5DB' }}>저항 모터 기본 속도 </label>
           
-          {/* 모터 1 - 빈 공간 */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.3dvw', flex: 1 }}>
-            <div style={{ width: '90%' }}></div>
-          </div>
+
           
           {/* 모터 2 */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.3dvw', flex: 1 }}>
@@ -686,7 +704,7 @@ export default function NeedleCheckPanelV4Multi({
 
         {/* 감속 기능 체크박스 */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5dvw' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.3dvw', width: '35%' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.3dvw', width: '60%' }}>
             <input 
               type="checkbox"
               checked={isDecelerationEnabled}
@@ -698,28 +716,14 @@ export default function NeedleCheckPanelV4Multi({
                 opacity: !isNeedleCheckEnabled ? 0.6 : 1
               }}
             />
-            <label style={{ fontSize: '1.3dvh', color: '#D1D5DB', marginLeft: '0.3dvw' }}>감속 기능</label>
+            <label style={{ fontSize: '1.3dvh', color: '#D1D5DB', marginLeft: '0.3dvw' }}>저항 모터 감속 기능</label>
           </div>
           
-          {/* 모터 1 - 빈 공간 */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.3dvw', flex: 1 }}>
-            <div style={{ width: '90%' }}></div>
-          </div>
-          
-          {/* 모터 2 - 빈 공간 */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.3dvw', flex: 1 }}>
-            <div style={{ width: '95%' }}></div>
-          </div>
         </div>
 
         {/* 감속 위치 */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5dvw' }}>
-          <label style={{ width: '35%', fontSize: '1.3dvh', color: '#D1D5DB' }}>감속 위치</label>
-          
-          {/* 모터 1 - 빈 공간 */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.3dvw', flex: 1 }}>
-            <div style={{ width: '90%' }}></div>
-          </div>
+          <label style={{ width: '67.5%', fontSize: '1.3dvh', color: '#D1D5DB' }}>목표 위치로부터 감속 시작 지점 (mm)</label>
           
           {/* 모터 2 */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.3dvw', flex: 1 }}>
@@ -745,12 +749,8 @@ export default function NeedleCheckPanelV4Multi({
 
         {/* 감속 스피드 */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5dvw' }}>
-          <label style={{ width: '35%', fontSize: '1.3dvh', color: '#D1D5DB' }}>감속 스피드</label>
-          
-          {/* 모터 1 - 빈 공간 */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.3dvw', flex: 1 }}>
-            <div style={{ width: '90%' }}></div>
-          </div>
+          <label style={{ width: '67.5%', fontSize: '1.3dvh', color: '#D1D5DB' }}>감속 속도</label>
+        
           
           {/* 모터 2 */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.3dvw', flex: 1 }}>

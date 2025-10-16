@@ -141,6 +141,14 @@ export default function NeedleInspectorUI() {
   const [isDrawing2, setIsDrawing2] = useState(false)
   const [startPoint1, setStartPoint1] = useState(null)
   const [startPoint2, setStartPoint2] = useState(null)
+  
+  // 라벨 드래그 관련 상태
+  const [isDraggingLabel1, setIsDraggingLabel1] = useState(false)
+  const [isDraggingLabel2, setIsDraggingLabel2] = useState(false)
+  const [draggingLabelIndex1, setDraggingLabelIndex1] = useState(-1)
+  const [draggingLabelIndex2, setDraggingLabelIndex2] = useState(-1)
+  const [labelDragOffset1, setLabelDragOffset1] = useState({ x: 0, y: 0 })
+  const [labelDragOffset2, setLabelDragOffset2] = useState({ x: 0, y: 0 })
 
   // 두 카메라 이미지를 가로로 합쳐서 캡처하는 함수
   const captureMergedImage = async (judgeResult = null, eepromData = null) => {
@@ -303,12 +311,14 @@ export default function NeedleInspectorUI() {
   }
 
   // H 형태 선 그리기 및 정보 표시 함수 (캘리브레이션 값 적용)
-  const drawLineWithInfo = (ctx, line, color, showText, calibrationValue = 19.8) => {
-    const { x1, y1, x2, y2 } = line
+  const drawLineWithInfo = (ctx, line, color, showText, calibrationValue = 19.8, isSelected = false) => {
+    const { x1, y1, x2, y2, labelX, labelY } = line
     
     // ctx가 null이 아닐 때만 그리기 실행
     if (ctx) {
-      ctx.strokeStyle = color
+      // 선택된 선은 노란색으로 표시
+      const lineColor = isSelected ? '#ffff00' : color
+      ctx.strokeStyle = lineColor
       // lineWidth는 호출하는 쪽에서 설정하므로 여기서는 설정하지 않음
       
       // 메인 선 그리기
@@ -340,11 +350,34 @@ export default function NeedleInspectorUI() {
       ctx.stroke()
 
       if (showText) {
-        ctx.fillStyle = color
-        ctx.font = '14px Arial'
         const mm = length / calibrationValue // 올바른 공식: 픽셀거리 / (px/mm) = mm
         let angle = Math.atan2(dy, dx) * 180 / Math.PI
-        ctx.fillText(`${length.toFixed(1)}px / ${mm.toFixed(2)}mm (${angle.toFixed(1)}°)`, (x1 + x2) / 2 + 5, (y1 + y2) / 2 - 5)
+        const text = `${length.toFixed(1)}px / ${mm.toFixed(2)}mm (${angle.toFixed(1)}°)`
+        
+        // 라벨 위치 계산 (저장된 위치가 있으면 사용, 없으면 기본 위치)
+        const textX = labelX !== undefined ? labelX : (x1 + x2) / 2 + 5
+        const textY = labelY !== undefined ? labelY : (y1 + y2) / 2 - 5
+        
+        // 라벨 배경 그리기 (선택된 경우 테두리 추가)
+        ctx.font = '14px Arial'
+        const textMetrics = ctx.measureText(text)
+        const textWidth = textMetrics.width
+        const textHeight = 16 // 대략적인 텍스트 높이
+        
+        // 배경 박스
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.7)'
+        ctx.fillRect(textX - 2, textY - textHeight + 2, textWidth + 4, textHeight + 2)
+        
+        // 선택된 라벨은 테두리 추가
+        if (isSelected) {
+          ctx.strokeStyle = '#ffff00' // 노란색 테두리
+          ctx.lineWidth = 2
+          ctx.strokeRect(textX - 2, textY - textHeight + 2, textWidth + 4, textHeight + 2)
+        }
+        
+        // 텍스트 그리기
+        ctx.fillStyle = lineColor
+        ctx.fillText(text, textX, textY)
       }
     }
 
@@ -430,6 +463,36 @@ export default function NeedleInspectorUI() {
     return distance <= tolerance && isInRange
   }
 
+  // 라벨 클릭 감지 함수
+  const isPointOnLabel = (point, line, calibrationValue = 19.8) => {
+    const { x1, y1, x2, y2, labelX, labelY } = line
+    const { x, y } = point
+
+    // 라벨 위치 계산
+    const textX = labelX !== undefined ? labelX : (x1 + x2) / 2 + 5
+    const textY = labelY !== undefined ? labelY : (y1 + y2) / 2 - 5
+
+    // 라벨 텍스트 크기 계산 (대략적)
+    const dx = x2 - x1
+    const dy = y2 - y1
+    const length = Math.sqrt(dx * dx + dy * dy)
+    const mm = length / calibrationValue
+    let angle = Math.atan2(dy, dx) * 180 / Math.PI
+    const text = `${length.toFixed(1)}px / ${mm.toFixed(2)}mm (${angle.toFixed(1)}°)`
+    
+    // 대략적인 텍스트 크기 (14px Arial 기준)
+    const textWidth = text.length * 8 // 대략적인 계산
+    const textHeight = 16
+
+    // 라벨 영역 내에 있는지 확인
+    return (
+      x >= textX - 2 &&
+      x <= textX + textWidth + 2 &&
+      y >= textY - textHeight + 2 &&
+      y <= textY + 4
+    )
+  }
+
   // Camera 1 핸들러들
   const handlers1 = {
     handleMouseDown: (e) => {
@@ -439,6 +502,26 @@ export default function NeedleInspectorUI() {
         setStartPoint1(pos)
         setIsDrawing1(true)
         return
+      }
+
+      // 라벨 클릭 감지 (우선순위: 라벨 > 선)
+      for (let i = lines1.length - 1; i >= 0; i--) {
+        if (isPointOnLabel(pos, lines1[i], calibrationValue1)) {
+          setSelectedIndex1(i)
+          setIsDraggingLabel1(true)
+          setDraggingLabelIndex1(i)
+          
+          // 라벨 드래그 오프셋 계산
+          const line = lines1[i]
+          const textX = line.labelX !== undefined ? line.labelX : (line.x1 + line.x2) / 2 + 5
+          const textY = line.labelY !== undefined ? line.labelY : (line.y1 + line.y2) / 2 - 5
+          setLabelDragOffset1({ x: pos.x - textX, y: pos.y - textY })
+          
+          const lineData = drawLineWithInfo(null, lines1[i], lines1[i].color || 'red', false, calibrationValue1)
+          setLineInfo1(`선 ${i + 1}: ${lineData.mm}mm (${lineData.angle}°)`)
+          redrawCanvas1()
+          return
+        }
       }
 
       // 선 클릭 감지
@@ -456,9 +539,28 @@ export default function NeedleInspectorUI() {
       redrawCanvas1()
     },
     handleMouseMove: (e) => {
+      const currentPos = getMousePos(canvasRef1.current, e)
+      
+      // 라벨 드래그 중인 경우
+      if (isDraggingLabel1 && draggingLabelIndex1 >= 0) {
+        const newLines = [...lines1]
+        const newLabelX = currentPos.x - labelDragOffset1.x
+        const newLabelY = currentPos.y - labelDragOffset1.y
+        
+        newLines[draggingLabelIndex1] = {
+          ...newLines[draggingLabelIndex1],
+          labelX: newLabelX,
+          labelY: newLabelY
+        }
+        
+        setLines1(newLines)
+        redrawCanvas1()
+        return
+      }
+      
+      // 선 그리기 모드
       if (!drawMode1 || !isDrawing1 || !startPoint1) return
       
-      const currentPos = getMousePos(canvasRef1.current, e)
       // 먼저 기존 선에 스냅, 그 다음 각도 스냅 적용
       const lineSnappedPos = snapToExistingLines(currentPos, lines1)
       const snappedPos = snapAngle(startPoint1, lineSnappedPos)
@@ -487,6 +589,18 @@ export default function NeedleInspectorUI() {
       }
     },
     handleMouseUp: (e) => {
+      // 라벨 드래그 종료
+      if (isDraggingLabel1) {
+        setIsDraggingLabel1(false)
+        setDraggingLabelIndex1(-1)
+        
+        // 라벨 위치 변경 후 자동 저장
+        setTimeout(() => {
+          saveCameraLinesData(1, lines1, calibrationValue1, selectedLineColor1);
+        }, 100);
+        return
+      }
+      
       if (!drawMode1 || !isDrawing1 || !startPoint1) return
       
       const currentPos = getMousePos(canvasRef1.current, e)
@@ -570,6 +684,26 @@ export default function NeedleInspectorUI() {
         return
       }
 
+      // 라벨 클릭 감지 (우선순위: 라벨 > 선)
+      for (let i = lines2.length - 1; i >= 0; i--) {
+        if (isPointOnLabel(pos, lines2[i], calibrationValue2)) {
+          setSelectedIndex2(i)
+          setIsDraggingLabel2(true)
+          setDraggingLabelIndex2(i)
+          
+          // 라벨 드래그 오프셋 계산
+          const line = lines2[i]
+          const textX = line.labelX !== undefined ? line.labelX : (line.x1 + line.x2) / 2 + 5
+          const textY = line.labelY !== undefined ? line.labelY : (line.y1 + line.y2) / 2 - 5
+          setLabelDragOffset2({ x: pos.x - textX, y: pos.y - textY })
+          
+          const lineData = drawLineWithInfo(null, lines2[i], lines2[i].color || 'red', false, calibrationValue2)
+          setLineInfo2(`선 ${i + 1}: ${lineData.mm}mm (${lineData.angle}°)`)
+          redrawCanvas2()
+          return
+        }
+      }
+
       // 선 클릭 감지
       for (let i = lines2.length - 1; i >= 0; i--) {
         if (isPointOnLine(pos, lines2[i])) {
@@ -585,9 +719,28 @@ export default function NeedleInspectorUI() {
       redrawCanvas2()
     },
     handleMouseMove: (e) => {
+      const currentPos = getMousePos(canvasRef2.current, e)
+      
+      // 라벨 드래그 중인 경우
+      if (isDraggingLabel2 && draggingLabelIndex2 >= 0) {
+        const newLines = [...lines2]
+        const newLabelX = currentPos.x - labelDragOffset2.x
+        const newLabelY = currentPos.y - labelDragOffset2.y
+        
+        newLines[draggingLabelIndex2] = {
+          ...newLines[draggingLabelIndex2],
+          labelX: newLabelX,
+          labelY: newLabelY
+        }
+        
+        setLines2(newLines)
+        redrawCanvas2()
+        return
+      }
+      
+      // 선 그리기 모드
       if (!drawMode2 || !isDrawing2 || !startPoint2) return
       
-      const currentPos = getMousePos(canvasRef2.current, e)
       // 먼저 기존 선에 스냅, 그 다음 각도 스냅 적용
       const lineSnappedPos = snapToExistingLines(currentPos, lines2)
       const snappedPos = snapAngle(startPoint2, lineSnappedPos)
@@ -616,6 +769,18 @@ export default function NeedleInspectorUI() {
       }
     },
     handleMouseUp: (e) => {
+      // 라벨 드래그 종료
+      if (isDraggingLabel2) {
+        setIsDraggingLabel2(false)
+        setDraggingLabelIndex2(-1)
+        
+        // 라벨 위치 변경 후 자동 저장
+        setTimeout(() => {
+          saveCameraLinesData(2, lines2, calibrationValue2, selectedLineColor2);
+        }, 100);
+        return
+      }
+      
       if (!drawMode2 || !isDrawing2 || !startPoint2) return
       
       const currentPos = getMousePos(canvasRef2.current, e)
@@ -695,7 +860,7 @@ export default function NeedleInspectorUI() {
       const lineColor = line.color || 'red' // 저장된 색상 사용, 기본값은 빨간색
       // 선택된 선은 약간 더 굵게 표시
       ctx.lineWidth = isSelected ? 3 : 2
-      drawLineWithInfo(ctx, line, lineColor, true, calibrationValue)
+      drawLineWithInfo(ctx, line, lineColor, true, calibrationValue, isSelected)
     })
   }
 
@@ -971,7 +1136,7 @@ export default function NeedleInspectorUI() {
                 camera1Data.lines.forEach((line, index) => {
                   const lineColor = line.color || 'red';
                   ctx1.lineWidth = 2;
-                  drawLineWithInfo(ctx1, line, lineColor, true, camera1Data.calibrationValue || 19.8);
+                  drawLineWithInfo(ctx1, line, lineColor, true, camera1Data.calibrationValue || 19.8, false);
                 });
                 
                 // 외부 선 정보도 업데이트
@@ -990,7 +1155,7 @@ export default function NeedleInspectorUI() {
                 camera2Data.lines.forEach((line, index) => {
                   const lineColor = line.color || 'cyan';
                   ctx2.lineWidth = 2;
-                  drawLineWithInfo(ctx2, line, lineColor, true, camera2Data.calibrationValue || 19.8);
+                  drawLineWithInfo(ctx2, line, lineColor, true, camera2Data.calibrationValue || 19.8, false);
                 });
                 
                 // 외부 선 정보도 업데이트

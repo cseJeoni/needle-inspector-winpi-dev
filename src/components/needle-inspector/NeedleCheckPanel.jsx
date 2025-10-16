@@ -256,7 +256,7 @@ export default function NeedleCheckPanel({ mode, isMotorConnected, needlePositio
         {/* 니들 소음 확인 */}
         <div style={{ display: 'flex', gap: '0.5dvw' }}>
           <div style={{ display: 'flex', alignItems: 'center', flex: 1, gap: '0.5dvw' }}>
-            <label style={{ width: '40%', fontSize: '1.3dvh', color: '#D1D5DB' }}>니들 소음 확인</label>
+            <label style={{ width: '40%', fontSize: '1.3dvh', color: '#D1D5DB' }}>니들 동작 확인</label>
             <Input 
               type="number"
               value={repeatCount}

@@ -221,10 +221,10 @@ export default function JudgePanel({ onJudge, isStarted, onReset, camera1Ref, ca
   // 관리자 패널 렌더링
   const renderAdminPanel = () => {
     const adminItems = [
-      { key: 'users', label: 'users', isFile: true },
-      { key: 'mtr2', label: 'mtr2', isFile: true },
-      { key: 'mtr4', label: 'mtr4', isFile: true },
-      { key: 'savePath', label: '저장 경로', isFile: false }
+      { key: 'users', label: '작업자 데이터 파일', isFile: true },
+      { key: 'mtr2', label: 'mtr2 eprom 파일', isFile: true },
+      { key: 'mtr4', label: 'mtr4 eprom 파일', isFile: true },
+      { key: 'savePath', label: '결과 이미지 저장 경로', isFile: false }
     ]
 
     return (
@@ -247,7 +247,7 @@ export default function JudgePanel({ onJudge, isStarted, onReset, camera1Ref, ca
               }}>
                 {/* 라벨 */}
                 <div style={{
-                  minWidth: '6dvw',
+                  minWidth: '7dvw',
                   fontSize: '1.2dvh',
                   fontWeight: '500',
                   color: '#D1D5DB'
