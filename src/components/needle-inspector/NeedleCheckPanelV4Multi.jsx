@@ -77,7 +77,7 @@ export default function NeedleCheckPanelV4Multi({
   const [normalRangeMin, setNormalRangeMin] = useState(0)
   const [normalRangeMax, setNormalRangeMax] = useState(100)
 
-  // WebSocket을 통한 모터 위치 명령 전송 함수 (모터 ID 포함)
+  // WebSocket을 통한 모터 위치 명령 전송 함수 (모터 ID 포함) - 스타트 버튼용 (감속 적용)
   const sendMotorCommand = (targetPosition, motorId = 1) => {
     if (!websocket || !isWsConnected) {
       console.log('WebSocket 연결되지 않음. 모터 명령 전송 실패:', targetPosition, 'Motor ID:', motorId);
@@ -89,9 +89,9 @@ export default function NeedleCheckPanelV4Multi({
       position: targetPosition,
       mode: "position",
       motor_id: motorId
-    }
+    };
 
-    // 모터2일 때 니들 속도 및 감속 값 추가
+    // 모터2일 때 니들 속도 및 감속 값 추가 (스타트 버튼에서만 감속 적용)
     if (motorId === 2) {
       msg.needle_speed = needleSpeed2 || 5000; // 기본값 1000
 
@@ -102,14 +102,35 @@ export default function NeedleCheckPanelV4Multi({
         msg.deceleration_speed = decelerationSpeed;
       }
 
-      console.log(`모터 ${motorId} 속도/위치 명령 전송:`, msg);
-    } else {
-      console.log(`모터 ${motorId} 위치 명령 전송:`, msg);
+      console.log(`모터 ${motorId} 속도/위치 명령 전송 (감속 적용):`, msg);
     }
 
     websocket.send(JSON.stringify(msg));
   }
-  
+
+  // WebSocket을 통한 모터 위치 명령 전송 함수 - 업다운 버튼용 (감속 미적용)
+  const sendMotorCommandBasic = (targetPosition, motorId = 1) => {
+    if (!websocket || !isWsConnected) {
+      console.log('WebSocket 연결되지 않음. 모터 명령 전송 실패:', targetPosition, 'Motor ID:', motorId);
+      return;
+    }
+
+    const msg = {
+      cmd: "move",
+      position: targetPosition,
+      mode: "position",
+      motor_id: motorId
+    };
+
+    // 모터2일 때 기본 속도만 적용 (감속 미적용)
+    if (motorId === 2) {
+      msg.needle_speed = needleSpeed2 || 5000; // 기본값만 사용
+      console.log(`모터 ${motorId} 기본 속도 명령 전송 (감속 미적용):`, msg);
+    }
+
+    websocket.send(JSON.stringify(msg));
+  }
+
   // 모터 1 니들 오프셋과 돌출 부분의 UP/DOWN 상태 (기본값: UP)
   const [needleOffsetState1, setNeedleOffsetState1] = useState('UP')
   const [needleProtrusionState1, setNeedleProtrusionState1] = useState('UP')
@@ -325,7 +346,13 @@ export default function NeedleCheckPanelV4Multi({
       Math.round((needleOffset1 + needleProtrusion1) * 100) : 
       Math.round((needleOffset2 - needleProtrusion2) * 40);
     console.log(`🎯 모터${motorId} UP 명령 실행 (${upPosition})`)
-    sendMotorCommand(upPosition, motorId)
+    
+    // M2는 기본 속도만 사용 (감속 미적용)
+    if (motorId === 2) {
+      sendMotorCommandBasic(upPosition, motorId)
+    } else {
+      sendMotorCommand(upPosition, motorId)
+    }
   }
 
   // 모터 DOWN 명령 함수
@@ -338,7 +365,13 @@ export default function NeedleCheckPanelV4Multi({
     // DOWN 명령 (모터별 다른 로직)
     const downPosition = motorId === 1 ? 0 : 2000;
     console.log(`🎯 모터${motorId} DOWN 명령 실행 (${downPosition})`)
-    sendMotorCommand(downPosition, motorId)
+    
+    // M2는 기본 속도만 사용 (감속 미적용)
+    if (motorId === 2) {
+      sendMotorCommandBasic(downPosition, motorId)
+    } else {
+      sendMotorCommand(downPosition, motorId)
+    }
   }
 
   // 저항 측정 함수
@@ -555,11 +588,11 @@ export default function NeedleCheckPanelV4Multi({
                 if (needleOffsetState2 === 'UP') {
                   const motorPosition = Math.round(needleOffset2 * 40);
                   console.log('모터2 니들 초기 위치 UP:', needleOffset2, '모터 위치:', motorPosition);
-                  sendMotorCommand(motorPosition, 2);
+                  sendMotorCommandBasic(motorPosition, 2);
                   setNeedleOffsetState2('DOWN');
                 } else {
                   console.log('모터2 니들 초기 위치 DOWN: 모터 위치 0');
-                  sendMotorCommand(0, 2);
+                  sendMotorCommandBasic(0, 2);
                   setNeedleOffsetState2('UP');
                 }
               }}
@@ -659,12 +692,12 @@ export default function NeedleCheckPanelV4Multi({
                 if (needleProtrusionState2 === 'UP') {
                   const motorPosition = Math.round((needleOffset2 - needleProtrusion2) * 40);
                   console.log('모터2 니들 돌출 부분 UP:', needleOffset2, '-', needleProtrusion2, '=', needleOffset2 - needleProtrusion2, '모터 위치:', motorPosition);
-                  sendMotorCommand(motorPosition, 2);
+                  sendMotorCommandBasic(motorPosition, 2);
                   setNeedleProtrusionState2('DOWN');
                 } else {
                   const motorPosition = Math.round(needleOffset2 * 40);
                   console.log('모터2 니들 돌출 부분 DOWN: 니들 초기 위치로', needleOffset2, '모터 위치:', motorPosition);
-                  sendMotorCommand(motorPosition, 2);
+                  sendMotorCommandBasic(motorPosition, 2);
                   setNeedleProtrusionState2('UP');
                 }
               }}
