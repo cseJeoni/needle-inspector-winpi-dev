@@ -375,11 +375,11 @@ export default function JudgePanel({ onJudge, isStarted, onReset, camera1Ref, ca
                   }
                   
                   if (hasChanges) {
-                    alert('설정이 적용되었습니다. 콤보박스가 업데이트됩니다.');
+                    alert('설정이 적용되었습니다.');
                     // 페이지 새로고침으로 변경사항 반영
                     window.location.reload();
                   } else {
-                    alert('적용할 설정이 없습니다. 파일이나 경로를 선택해주세요.');
+                    alert('적용할 설정이 없습니다.');
                   }
                 } catch (error) {
                   console.error('설정 적용 오류:', error);
