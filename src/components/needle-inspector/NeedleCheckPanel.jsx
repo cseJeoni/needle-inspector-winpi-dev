@@ -61,6 +61,62 @@ export default function NeedleCheckPanel({ mode, isMotorConnected, needlePositio
     }
   }, [needlePosition])
 
+  // 파라미터 로드
+  useEffect(() => {
+    const loadParameters = async () => {
+      try {
+        const result = await window.electronAPI.getParameters();
+        if (result.success && result.data.needleCheckPanel) {
+          const params = result.data.needleCheckPanel;
+          
+          // 저장된 값이 있으면 상위 컴포넌트에 알림
+          if (onNeedleOffsetChange && params.needleOffset !== undefined) {
+            onNeedleOffsetChange(params.needleOffset);
+          }
+          if (onNeedleProtrusionChange && params.needleProtrusion !== undefined) {
+            onNeedleProtrusionChange(params.needleProtrusion);
+          }
+          
+          console.log('📋 NeedleCheckPanel 파라미터 로드 완료:', params);
+        }
+      } catch (error) {
+        console.error('NeedleCheckPanel 파라미터 로드 실패:', error);
+      }
+    };
+    
+    loadParameters();
+  }, []);
+
+  // 파라미터 저장 함수
+  const saveParameters = async () => {
+    try {
+      const result = await window.electronAPI.getParameters();
+      const currentParams = result.success ? result.data : {};
+      
+      const updatedParams = {
+        ...currentParams,
+        needleCheckPanel: {
+          needleOffset,
+          needleProtrusion
+        }
+      };
+      
+      await window.electronAPI.saveParameters(updatedParams);
+      console.log('💾 NeedleCheckPanel 파라미터 저장 완료');
+    } catch (error) {
+      console.error('NeedleCheckPanel 파라미터 저장 실패:', error);
+    }
+  };
+
+  // 파라미터 변경시 자동 저장 (디바운스 적용)
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      saveParameters();
+    }, 500); // 500ms 지연
+
+    return () => clearTimeout(timeoutId);
+  }, [needleOffset, needleProtrusion]);
+
   // 니들 오프셋과 돌출 부분 값이 변경될 때마다 계산된 모터 위치를 상위로 전달
   useEffect(() => {
     const calculatedPosition = Math.round((needleOffset + needleProtrusion) * 100);

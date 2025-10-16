@@ -139,6 +139,116 @@ export default function NeedleCheckPanelV4Multi({
     }
   }, [needlePosition])
 
+  // 파라미터 로드
+  useEffect(() => {
+    const loadParameters = async () => {
+      try {
+        const result = await window.electronAPI.getParameters();
+        if (result.success && result.data.needleCheckPanelV4Multi) {
+          const params = result.data.needleCheckPanelV4Multi;
+          
+          // 모터 1 설정
+          if (params.motor1) {
+            if (onNeedleOffset1Change && params.motor1.needleOffset !== undefined) {
+              onNeedleOffset1Change(params.motor1.needleOffset);
+            }
+            if (onNeedleProtrusion1Change && params.motor1.needleProtrusion !== undefined) {
+              onNeedleProtrusion1Change(params.motor1.needleProtrusion);
+            }
+          }
+          
+          // 모터 2 설정
+          if (params.motor2) {
+            if (onNeedleOffset2Change && params.motor2.needleOffset !== undefined) {
+              onNeedleOffset2Change(params.motor2.needleOffset);
+            }
+            if (onNeedleProtrusion2Change && params.motor2.needleProtrusion !== undefined) {
+              onNeedleProtrusion2Change(params.motor2.needleProtrusion);
+            }
+            if (onNeedleSpeed2Change && params.motor2.needleSpeed !== undefined) {
+              onNeedleSpeed2Change(params.motor2.needleSpeed);
+            }
+          }
+          
+          // 감속 설정
+          if (params.deceleration) {
+            if (onDecelerationEnabledChange && params.deceleration.enabled !== undefined) {
+              onDecelerationEnabledChange(params.deceleration.enabled);
+            }
+            if (onDecelerationPositionChange && params.deceleration.position !== undefined) {
+              onDecelerationPositionChange(params.deceleration.position);
+            }
+            if (onDecelerationSpeedChange && params.deceleration.speed !== undefined) {
+              onDecelerationSpeedChange(params.deceleration.speed);
+            }
+          }
+          
+          // 저항 설정 (임계값만 저장)
+          if (params.resistance) {
+            if (onResistanceThresholdChange && params.resistance.threshold !== undefined) {
+              onResistanceThresholdChange(params.resistance.threshold);
+            }
+            // 정상 값은 저장하지 않음 (기본값 사용)
+          }
+          
+          console.log('📋 NeedleCheckPanelV4Multi 파라미터 로드 완료:', params);
+        }
+      } catch (error) {
+        console.error('NeedleCheckPanelV4Multi 파라미터 로드 실패:', error);
+      }
+    };
+    
+    loadParameters();
+  }, []);
+
+  // 파라미터 저장 함수
+  const saveParameters = async () => {
+    try {
+      const result = await window.electronAPI.getParameters();
+      const currentParams = result.success ? result.data : {};
+      
+      const updatedParams = {
+        ...currentParams,
+        needleCheckPanelV4Multi: {
+          motor1: {
+            needleOffset: needleOffset1,
+            needleProtrusion: needleProtrusion1
+          },
+          motor2: {
+            needleOffset: needleOffset2,
+            needleProtrusion: needleProtrusion2,
+            needleSpeed: needleSpeed2
+          },
+          deceleration: {
+            enabled: isDecelerationEnabled,
+            position: decelerationPosition,
+            speed: decelerationSpeed
+          },
+          resistance: {
+            threshold: resistanceThreshold
+            // 정상 값은 저장하지 않음
+          }
+        }
+      };
+      
+      await window.electronAPI.saveParameters(updatedParams);
+      console.log('💾 NeedleCheckPanelV4Multi 파라미터 저장 완료');
+    } catch (error) {
+      console.error('NeedleCheckPanelV4Multi 파라미터 저장 실패:', error);
+    }
+  };
+
+  // 파라미터 변경시 자동 저장 (디바운스 적용)
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      saveParameters();
+    }, 500); // 500ms 지연
+
+    return () => clearTimeout(timeoutId);
+  }, [needleOffset1, needleProtrusion1, needleOffset2, needleProtrusion2, needleSpeed2, 
+      isDecelerationEnabled, decelerationPosition, decelerationSpeed, 
+      resistanceThreshold]); // 정상 값 제외
+
   // 모터 1 니들 오프셋과 돌출 부분 값이 변경될 때마다 계산된 모터 위치를 상위로 전달
   useEffect(() => {
     const calculatedPosition = Math.round((needleOffset1 + needleProtrusion1) * 100);

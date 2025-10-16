@@ -5,7 +5,7 @@ import { useState, useRef, useEffect } from "react"
 
 export default function JudgePanel({ onJudge, isStarted, onReset, camera1Ref, camera2Ref, hasNeedleTip = true, websocket, isWsConnected, onCaptureMergedImage, eepromData, generateUserBasedPath, isWaitingEepromRead = false, onWaitingEepromReadChange, isResistanceAbnormal = false, needleOffset1, needleOffset2, workStatus = 'waiting', onDebugModeChange }) {
   // 사용자 정보 가져오기
-  const { user } = useAuth()
+  const { user, resetUsersCache } = useAuth()
   
   // 관리자 패널 상태
   const [isAdminMode, setIsAdminMode] = useState(false)
@@ -338,7 +338,21 @@ export default function JudgePanel({ onJudge, isStarted, onReset, camera1Ref, ca
                     hasChanges = true;
                   }
                   
-                  // 2. MTR2, MTR4 CSV 파일 설정 및 캐시 업데이트
+                  // 2. 작업자 데이터 파일(users) 설정 및 캐시 업데이트
+                  if (adminPaths.users) {
+                    console.log('작업자 데이터 파일 업데이트 시작:', adminPaths.users);
+                    
+                    // 사용자 캐시 강제 리셋 (새로운 users 파일 반영)
+                    const resetSuccess = await resetUsersCache();
+                    if (resetSuccess) {
+                      console.log('✅ 작업자 데이터 파일 업데이트 완료');
+                    } else {
+                      console.error('❌ 작업자 데이터 파일 업데이트 실패');
+                    }
+                    hasChanges = true;
+                  }
+                  
+                  // 3. MTR2, MTR4 CSV 파일 설정 및 캐시 업데이트
                   if (adminPaths.mtr2 || adminPaths.mtr4) {
                     const csvData = { '2.0': [], '4.0': [] };
                     
@@ -367,11 +381,13 @@ export default function JudgePanel({ onJudge, isStarted, onReset, camera1Ref, ca
                     // CSV 캐시 강제 업데이트
                     const { resetAndInitializeCache } = await import('../../utils/csvCache.js');
                     resetAndInitializeCache(csvData);
-                    
-                    // 관리자 설정 저장
+                    hasChanges = true;
+                  }
+                  
+                  // 4. 관리자 설정 저장 (모든 변경사항)
+                  if (hasChanges) {
                     await window.electronAPI.saveAdminSettings(adminPaths);
                     console.log('관리자 설정 저장 완료:', adminPaths);
-                    hasChanges = true;
                   }
                   
                   if (hasChanges) {

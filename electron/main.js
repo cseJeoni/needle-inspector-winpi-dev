@@ -447,6 +447,62 @@ ipcMain.handle('get-admin-settings', async (event) => {
   }
 });
 
+// 파라미터 설정 저장 IPC 핸들러
+ipcMain.handle('save-parameters', async (event, parameters) => {
+  try {
+    console.log('[INFO] 파라미터 설정 저장:', parameters);
+    store.set('parameters', parameters);
+    return { success: true };
+  } catch (error) {
+    console.error('[ERROR] 파라미터 설정 저장 실패:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+// 파라미터 설정 로드 IPC 핸들러
+ipcMain.handle('get-parameters', async (event) => {
+  try {
+    const parameters = store.get('parameters', {
+      // DataSettingsPanel 기본값 (날짜와 MTR 버전 제외)
+      dataSettings: {
+        selectedCountry: '',
+        selectedNeedleType: '',
+        manufacturer: '4'
+      },
+      // NeedleCheckPanel 기본값
+      needleCheckPanel: {
+        needleOffset: 0.1,
+        needleProtrusion: 1.0
+      },
+      // NeedleCheckPanelV4Multi 기본값
+      needleCheckPanelV4Multi: {
+        motor1: {
+          needleOffset: 0.1,
+          needleProtrusion: 1.0
+        },
+        motor2: {
+          needleOffset: 0.1,
+          needleProtrusion: 1.0,
+          needleSpeed: 50
+        },
+        deceleration: {
+          enabled: false,
+          position: 0.5,
+          speed: 10
+        },
+        resistance: {
+          threshold: 100
+        }
+      }
+    });
+    console.log('[INFO] 파라미터 설정 로드:', parameters);
+    return { success: true, data: parameters };
+  } catch (error) {
+    console.error('[ERROR] 파라미터 설정 로드 실패:', error);
+    return { success: false, error: error.message, data: {} };
+  }
+});
+
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
 if (require('electron-squirrel-startup')) {
   app.quit();

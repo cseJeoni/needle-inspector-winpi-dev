@@ -101,6 +101,16 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // 관리자 설정 로드 API
   getAdminSettings: () => {
     return ipcRenderer.invoke('get-admin-settings');
+  },
+  
+  // 파라미터 설정 저장 API
+  saveParameters: (parameters) => {
+    return ipcRenderer.invoke('save-parameters', parameters);
+  },
+  
+  // 파라미터 설정 로드 API
+  getParameters: () => {
+    return ipcRenderer.invoke('get-parameters');
   }
 });
 

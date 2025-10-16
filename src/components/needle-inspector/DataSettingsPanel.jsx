@@ -261,11 +261,54 @@ const DataSettingsPanel = forwardRef(({
     loadCsvDataAsync();
   }, []); // 빈 배열을 전달하여 컴포넌트 마운트 시 1회만 실행
 
-  // 초기값 설정
+  // 파라미터 로드 및 초기값 설정
   useEffect(() => {
-    setSelectedYear(String(currentYear))
-    setSelectedMonth(currentMonth)
-    setSelectedDay(currentDay)
+    const loadParameters = async () => {
+      try {
+        const result = await window.electronAPI.getParameters();
+        if (result.success && result.data.dataSettings) {
+          const params = result.data.dataSettings;
+          
+          // 저장된 값이 있으면 사용, 없으면 기본값 사용
+          setSelectedCountry(params.selectedCountry || '');
+          setManufacturer(params.manufacturer || '4');
+          
+          // 날짜는 항상 오늘 날짜로 설정 (저장하지 않음)
+          setSelectedYear(String(currentYear));
+          setSelectedMonth(currentMonth);
+          setSelectedDay(currentDay);
+          
+          // MTR 버전은 항상 기본값 2.0으로 설정 (저장하지 않음)
+          setMtrVersion('2.0');
+          if (onMtrVersionChange) {
+            onMtrVersionChange('2.0');
+          }
+          
+          // 상위 컴포넌트에 니들 타입 변경 알림 (캐시 로드 후 처리)
+          if (params.selectedNeedleType && onSelectedNeedleTypeChange) {
+            // 캐시가 준비된 후에 설정하도록 지연
+            setTimeout(() => {
+              onSelectedNeedleTypeChange(params.selectedNeedleType);
+            }, 100);
+          }
+          
+          console.log('📋 DataSettingsPanel 파라미터 로드 완료:', params);
+        } else {
+          // 기본값 설정
+          setSelectedYear(String(currentYear));
+          setSelectedMonth(currentMonth);
+          setSelectedDay(currentDay);
+        }
+      } catch (error) {
+        console.error('DataSettingsPanel 파라미터 로드 실패:', error);
+        // 기본값 설정
+        setSelectedYear(String(currentYear));
+        setSelectedMonth(currentMonth);
+        setSelectedDay(currentDay);
+      }
+    };
+    
+    loadParameters();
   }, [])
 
   // MTR 버전이 변경될 때 국가와 니들 옵션 초기화
@@ -321,6 +364,38 @@ const DataSettingsPanel = forwardRef(({
       }
     }
   }, [selectedYear, selectedMonth])
+
+  // 파라미터 저장 함수
+  const saveParameters = async () => {
+    try {
+      const result = await window.electronAPI.getParameters();
+      const currentParams = result.success ? result.data : {};
+      
+      const updatedParams = {
+        ...currentParams,
+        dataSettings: {
+          selectedCountry,
+          selectedNeedleType,
+          manufacturer
+          // 날짜와 MTR 버전은 저장하지 않음
+        }
+      };
+      
+      await window.electronAPI.saveParameters(updatedParams);
+      console.log('💾 DataSettingsPanel 파라미터 저장 완료');
+    } catch (error) {
+      console.error('DataSettingsPanel 파라미터 저장 실패:', error);
+    }
+  };
+
+  // 파라미터 변경시 자동 저장 (디바운스 적용)
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      saveParameters();
+    }, 500); // 500ms 지연
+
+    return () => clearTimeout(timeoutId);
+  }, [selectedCountry, selectedNeedleType, manufacturer]) // 날짜와 MTR 버전 제외
 
   // EEPROM 읽기 함수 (Promise 기반 동기화)
   const readFromEEPROM = () => {

@@ -52,12 +52,40 @@ export const AuthProvider = ({ children }) => {
   }, [user])
 
   // CSV 파일에서 사용자 정보 로드 (IPC 사용)
-  const loadUsersFromCSV = async () => {
-    if (cacheLoaded) return true
+  const loadUsersFromCSV = async (forceReload = false) => {
+    if (cacheLoaded && !forceReload) return true
 
     try {
-      // Electron IPC를 통해 메인 프로세스에서 CSV 파일 읽기
-      const result = await window.electronAPI.loadUsersCSV()
+      // 관리자 설정에서 users 파일 경로 확인
+      let result = null;
+      try {
+        const adminSettings = await window.electronAPI.getAdminSettings();
+        if (adminSettings.success && adminSettings.data && adminSettings.data.users) {
+          console.log('🔧 관리자 설정에서 users 파일 로드:', adminSettings.data.users);
+          const usersResult = await window.electronAPI.loadCsvFile(adminSettings.data.users);
+          if (usersResult.success) {
+            // CSV 데이터를 사용자 캐시 형식으로 변환
+            const usersData = {};
+            usersResult.data.forEach(row => {
+              if (row.id && row.pw) {
+                usersData[row.id] = {
+                  pw: row.pw,
+                  birth: row.birth || ''
+                };
+              }
+            });
+            result = { success: true, users: usersData };
+          }
+        }
+      } catch (error) {
+        console.warn('⚠️ 관리자 설정 users 파일 로드 실패, 기본 경로 사용:', error);
+      }
+      
+      // 관리자 설정이 없으면 기본 IPC 사용
+      if (!result) {
+        console.log('📁 기본 경로에서 users 파일 로드');
+        result = await window.electronAPI.loadUsersCSV();
+      }
       
       if (result.success) {
         usersCache = result.users
@@ -72,6 +100,22 @@ export const AuthProvider = ({ children }) => {
       console.error('[ERROR] 사용자 정보 로드 실패:', error)
       return false
     }
+  }
+
+  // 사용자 캐시 강제 리셋 함수
+  const resetUsersCache = async () => {
+    console.log('🔄 사용자 캐시 강제 리셋 시작');
+    usersCache = {};
+    cacheLoaded = false;
+    
+    // 새로운 데이터로 다시 로드
+    const success = await loadUsersFromCSV(true);
+    if (success) {
+      console.log('✅ 사용자 캐시 강제 리셋 완료');
+    } else {
+      console.error('❌ 사용자 캐시 강제 리셋 실패');
+    }
+    return success;
   }
 
   const login = async (id, password) => {
@@ -146,6 +190,7 @@ export const AuthProvider = ({ children }) => {
     error,
     login,
     logout,
+    resetUsersCache,
     isAuthenticated: !!user
   }
 
