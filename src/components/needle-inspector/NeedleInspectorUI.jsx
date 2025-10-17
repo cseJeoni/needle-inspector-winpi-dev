@@ -1959,7 +1959,7 @@ export default function NeedleInspectorUI() {
           />
           </div>
           <div className="w-[26.5%]">
-            {selectedNeedleType.startsWith('MULTI') ? (
+            {selectedNeedleType.startsWith('MULTI') && mtrVersion === '4.0' ? (
             <NeedleCheckPanelV4Multi 
               mode={mode} 
               isMotorConnected={isMotorConnected}

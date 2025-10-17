@@ -285,11 +285,27 @@ const DataSettingsPanel = forwardRef(({
             onMtrVersionChange(savedMtrVersion);
           }
           
-          // 상위 컴포넌트에 니들 타입 변경 알림 (캐시 로드 후 처리)
-          if (params.selectedNeedleType && onSelectedNeedleTypeChange) {
-            // 캐시가 준비된 후에 설정하도록 지연
+          // MTR 버전과 니들 타입 호환성 체크 후 로드 (캐시 로드 후 처리)
+          if (onSelectedNeedleTypeChange) {
             setTimeout(() => {
-              onSelectedNeedleTypeChange(params.selectedNeedleType);
+              // MTR 버전과 호환되는 니들 타입인지 확인
+              const countryOptions = getCountryOptions(savedMtrVersion);
+              const savedCountry = params.selectedCountry || '';
+              
+              if (countryOptions.length > 0 && savedCountry) {
+                const needleOptions = getNeedleOptions(savedMtrVersion, savedCountry);
+                const isCompatible = needleOptions.some(option => option.value === params.selectedNeedleType);
+                
+                if (isCompatible && params.selectedNeedleType) {
+                  // 호환되는 니들 타입이면 저장된 값 사용
+                  onSelectedNeedleTypeChange(params.selectedNeedleType);
+                } else {
+                  // 호환되지 않으면 첫 번째 옵션으로 초기화
+                  onSelectedNeedleTypeChange(needleOptions.length > 0 ? needleOptions[0].value : "");
+                }
+              } else {
+                onSelectedNeedleTypeChange("");
+              }
             }, 100);
           }
           
