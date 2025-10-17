@@ -278,10 +278,11 @@ const DataSettingsPanel = forwardRef(({
           setSelectedMonth(currentMonth);
           setSelectedDay(currentDay);
           
-          // MTR 버전은 항상 기본값 2.0으로 설정 (저장하지 않음)
-          setMtrVersion('2.0');
+          // MTR 버전도 저장된 값 사용, 없으면 기본값 2.0
+          const savedMtrVersion = params.mtrVersion || '2.0';
+          setMtrVersion(savedMtrVersion);
           if (onMtrVersionChange) {
-            onMtrVersionChange('2.0');
+            onMtrVersionChange(savedMtrVersion);
           }
           
           // 상위 컴포넌트에 니들 타입 변경 알림 (캐시 로드 후 처리)
@@ -376,8 +377,9 @@ const DataSettingsPanel = forwardRef(({
         dataSettings: {
           selectedCountry,
           selectedNeedleType,
-          manufacturer
-          // 날짜와 MTR 버전은 저장하지 않음
+          manufacturer,
+          mtrVersion
+          // 날짜는 저장하지 않음 (항상 오늘 날짜 사용)
         }
       };
       
@@ -395,7 +397,7 @@ const DataSettingsPanel = forwardRef(({
     }, 500); // 500ms 지연
 
     return () => clearTimeout(timeoutId);
-  }, [selectedCountry, selectedNeedleType, manufacturer]) // 날짜와 MTR 버전 제외
+  }, [selectedCountry, selectedNeedleType, manufacturer, mtrVersion]) // 날짜만 제외
 
   // EEPROM 읽기 함수 (Promise 기반 동기화)
   const readFromEEPROM = () => {

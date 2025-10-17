@@ -551,11 +551,12 @@ ipcMain.handle('save-parameters', async (event, parameters) => {
 ipcMain.handle('get-parameters', async (event) => {
   try {
     const parameters = store.get('parameters', {
-      // DataSettingsPanel 기본값 (날짜와 MTR 버전 제외)
+      // DataSettingsPanel 기본값 (날짜만 제외)
       dataSettings: {
         selectedCountry: '',
         selectedNeedleType: '',
-        manufacturer: '4'
+        manufacturer: '4',
+        mtrVersion: '2.0'
       },
       // NeedleCheckPanel 기본값
       needleCheckPanel: {
