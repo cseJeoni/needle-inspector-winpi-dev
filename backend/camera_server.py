@@ -47,17 +47,17 @@ def initialize_cameras():
     # 잠시 대기 (리소스 해제 시간)
     time.sleep(1)
 
-    available_cameras = find_available_cameras()
+    # available_cameras = find_available_cameras()
 
-    if len(available_cameras) < 1:
-        print("[ERROR] 사용 가능한 카메라를 찾을 수 없습니다.")
-        cap = None
-        cap2 = None
-        return
+    # if len(available_cameras) < 1:
+    #     print("[ERROR] 사용 가능한 카메라를 찾을 수 없습니다.")
+    #     cap = None
+    #     cap2 = None
+    #     return
     
     try:
-        # 첫 번째 카메라 초기화
-        cam_idx1 = available_cameras[0]
+        # 첫 번째 카메라 초기화 (인덱스 0 고정)
+        cam_idx1 = 0
         print(f"[INFO] 첫 번째 카메라 (인덱스: {cam_idx1}) 초기화 중...")
         cap = cv2.VideoCapture(cam_idx1, cv2.CAP_DSHOW)
         if cap.isOpened():
@@ -70,22 +70,18 @@ def initialize_cameras():
             print(f"[ERROR] 카메라 (인덱스: {cam_idx1}) 초기화 실패")
             cap = None
 
-        # 두 번째 카메라 초기화 (사용 가능한 경우)
-        if len(available_cameras) > 1:
-            cam_idx2 = available_cameras[1]
-            print(f"[INFO] 두 번째 카메라 (인덱스: {cam_idx2}) 초기화 중...")
-            cap2 = cv2.VideoCapture(cam_idx2, cv2.CAP_DSHOW)
-            if cap2.isOpened():
-                cap2.set(cv2.CAP_PROP_FRAME_WIDTH, 960)
-                cap2.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
-                cap2.set(cv2.CAP_PROP_BUFFERSIZE, 1)
-                time.sleep(0.5)  # 카메라 안정화 대기
-                print(f"[OK] 카메라 (인덱스: {cam_idx2}) 초기화 완료")
-            else:
-                print(f"[ERROR] 카메라 (인덱스: {cam_idx2}) 초기화 실패")
-                cap2 = None
+        # 두 번째 카메라 초기화 (인덱스 1 고정)
+        cam_idx2 = 1
+        print(f"[INFO] 두 번째 카메라 (인덱스: {cam_idx2}) 초기화 중...")
+        cap2 = cv2.VideoCapture(cam_idx2, cv2.CAP_DSHOW)
+        if cap2.isOpened():
+            cap2.set(cv2.CAP_PROP_FRAME_WIDTH, 960)
+            cap2.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
+            cap2.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+            time.sleep(0.5)  # 카메라 안정화 대기
+            print(f"[OK] 카메라 (인덱스: {cam_idx2}) 초기화 완료")
         else:
-            print("[INFO] 두 번째 카메라를 찾을 수 없습니다.")
+            print(f"[ERROR] 카메라 (인덱스: {cam_idx2}) 초기화 실패")
             cap2 = None
             
     except Exception as e:
