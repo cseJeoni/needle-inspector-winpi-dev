@@ -64,6 +64,7 @@ def initialize_cameras():
             cap.set(cv2.CAP_PROP_FRAME_WIDTH, 960)
             cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
             cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+            time.sleep(0.5)  # 카메라 안정화 대기
             print(f"[OK] 카메라 (인덱스: {cam_idx1}) 초기화 완료")
         else:
             print(f"[ERROR] 카메라 (인덱스: {cam_idx1}) 초기화 실패")
@@ -78,6 +79,7 @@ def initialize_cameras():
                 cap2.set(cv2.CAP_PROP_FRAME_WIDTH, 960)
                 cap2.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
                 cap2.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+                time.sleep(0.5)  # 카메라 안정화 대기
                 print(f"[OK] 카메라 (인덱스: {cam_idx2}) 초기화 완료")
             else:
                 print(f"[ERROR] 카메라 (인덱스: {cam_idx2}) 초기화 실패")
