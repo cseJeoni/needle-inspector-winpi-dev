@@ -19,6 +19,22 @@ cap2 = None
 # 종료 플래그
 shutdown_flag = False
 
+def find_available_cameras(limit=10):
+    """사용 가능한 카메라 인덱스를 검색합니다."""
+    available_cameras = []
+    print(f"[INFO] 최대 {limit}개의 인덱스에서 사용 가능한 카메라를 검색합니다...")
+    for i in range(limit):
+        try:
+            cap_test = cv2.VideoCapture(i, cv2.CAP_DSHOW)
+            if cap_test.isOpened():
+                available_cameras.append(i)
+                cap_test.release()
+                print(f"[DEBUG] 카메라 인덱스 {i}번 사용 가능 확인")
+        except Exception as e:
+            print(f"[WARN] 카메라 인덱스 {i}번 테스트 중 오류: {e}")
+    print(f"[INFO] 사용 가능한 카메라: {available_cameras}")
+    return available_cameras
+
 def initialize_cameras():
     """카메라 초기화 함수"""
     global cap, cap2
@@ -30,30 +46,44 @@ def initialize_cameras():
     
     # 잠시 대기 (리소스 해제 시간)
     time.sleep(1)
+
+    available_cameras = find_available_cameras()
+
+    if len(available_cameras) < 1:
+        print("[ERROR] 사용 가능한 카메라를 찾을 수 없습니다.")
+        cap = None
+        cap2 = None
+        return
     
     try:
-        # 카메라 0번 초기화
-        print("[INFO] 카메라 0번 초기화 중...")
-        cap = cv2.VideoCapture(0)
+        # 첫 번째 카메라 초기화
+        cam_idx1 = available_cameras[0]
+        print(f"[INFO] 첫 번째 카메라 (인덱스: {cam_idx1}) 초기화 중...")
+        cap = cv2.VideoCapture(cam_idx1, cv2.CAP_DSHOW)
         if cap.isOpened():
             cap.set(cv2.CAP_PROP_FRAME_WIDTH, 960)
             cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
-            cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)  # 버퍼 크기 최소화
-            print("[OK] 카메라 0번 초기화 완료")
+            cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+            print(f"[OK] 카메라 (인덱스: {cam_idx1}) 초기화 완료")
         else:
-            print("[ERROR] 카메라 0번 초기화 실패")
+            print(f"[ERROR] 카메라 (인덱스: {cam_idx1}) 초기화 실패")
             cap = None
-            
-        # 카메라 2번 초기화
-        print("[INFO] 카메라 2번 초기화 중...")
-        cap2 = cv2.VideoCapture(2)
-        if cap2.isOpened():
-            cap2.set(cv2.CAP_PROP_FRAME_WIDTH, 960)
-            cap2.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
-            cap2.set(cv2.CAP_PROP_BUFFERSIZE, 1)  # 버퍼 크기 최소화
-            print("[OK] 카메라 2번 초기화 완료")
+
+        # 두 번째 카메라 초기화 (사용 가능한 경우)
+        if len(available_cameras) > 1:
+            cam_idx2 = available_cameras[1]
+            print(f"[INFO] 두 번째 카메라 (인덱스: {cam_idx2}) 초기화 중...")
+            cap2 = cv2.VideoCapture(cam_idx2, cv2.CAP_DSHOW)
+            if cap2.isOpened():
+                cap2.set(cv2.CAP_PROP_FRAME_WIDTH, 960)
+                cap2.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
+                cap2.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+                print(f"[OK] 카메라 (인덱스: {cam_idx2}) 초기화 완료")
+            else:
+                print(f"[ERROR] 카메라 (인덱스: {cam_idx2}) 초기화 실패")
+                cap2 = None
         else:
-            print("[ERROR] 카메라 2번 초기화 실패")
+            print("[INFO] 두 번째 카메라를 찾을 수 없습니다.")
             cap2 = None
             
     except Exception as e:
