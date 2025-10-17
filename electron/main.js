@@ -681,6 +681,24 @@ app.on('window-all-closed', () => {
                 spawn('taskkill', ['/f', '/im', 'usbvideo.exe'], { stdio: 'ignore' });
                 spawn('taskkill', ['/f', '/im', 'camera.exe'], { stdio: 'ignore' });
                 
+                // USB 카메라 디바이스 강제 재설정
+                console.log('[INFO] USB 카메라 디바이스 재설정 중...');
+                const powershellCmd = `
+                Get-PnpDevice | Where-Object {
+                  $_.FriendlyName -like "*camera*" -or 
+                  $_.FriendlyName -like "*webcam*" -or 
+                  $_.FriendlyName -like "*video*" -or
+                  $_.FriendlyName -like "*imaging*" -or
+                  $_.FriendlyName -like "*dino*"
+                } | ForEach-Object {
+                  Write-Host "디바이스 재설정: $($_.FriendlyName)"
+                  Disable-PnpDevice -InstanceId $_.InstanceId -Confirm:$false -ErrorAction SilentlyContinue
+                  Start-Sleep -Milliseconds 500
+                  Enable-PnpDevice -InstanceId $_.InstanceId -Confirm:$false -ErrorAction SilentlyContinue
+                }
+                `;
+                spawn('powershell', ['-Command', powershellCmd], { stdio: 'ignore' });
+                
                 // 4단계: 포트 점유 프로세스 정리
                 setTimeout(() => {
                   console.log('[INFO] 포트 5000 점유 프로세스 정리 중...');
@@ -767,6 +785,24 @@ function forceCleanupAndExit() {
       spawn('taskkill', ['/f', '/im', 'pythonw.exe'], { stdio: 'ignore' });
       spawn('taskkill', ['/f', '/im', 'usbvideo.exe'], { stdio: 'ignore' });
       spawn('taskkill', ['/f', '/im', 'camera.exe'], { stdio: 'ignore' });
+      
+      // USB 카메라 디바이스 강제 재설정
+      console.log('[INFO] 강제 종료 - USB 카메라 디바이스 재설정 중...');
+      const powershellCmd = `
+      Get-PnpDevice | Where-Object {
+        $_.FriendlyName -like "*camera*" -or 
+        $_.FriendlyName -like "*webcam*" -or 
+        $_.FriendlyName -like "*video*" -or
+        $_.FriendlyName -like "*imaging*" -or
+        $_.FriendlyName -like "*dino*"
+      } | ForEach-Object {
+        Write-Host "강제 종료 - 디바이스 재설정: $($_.FriendlyName)"
+        Disable-PnpDevice -InstanceId $_.InstanceId -Confirm:$false -ErrorAction SilentlyContinue
+        Start-Sleep -Milliseconds 500
+        Enable-PnpDevice -InstanceId $_.InstanceId -Confirm:$false -ErrorAction SilentlyContinue
+      }
+      `;
+      spawn('powershell', ['-Command', powershellCmd], { stdio: 'ignore' });
       
       // 포트 5000 점유 프로세스 정리
       const netstatProcess = spawn('netstat', ['-ano'], { stdio: 'pipe' });

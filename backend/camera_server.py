@@ -292,16 +292,48 @@ def cleanup_cameras():
         if platform.system() == "Windows":
             try:
                 print("[DEBUG] Windows 카메라 프로세스 강제 정리 중...")
-                # USB 카메라 관련 프로세스 종료
+                
+                # 1단계: USB 카메라 관련 프로세스 종료
                 subprocess.run(['taskkill', '/f', '/im', 'usbvideo.exe'], 
                              capture_output=True, check=False)
                 subprocess.run(['taskkill', '/f', '/im', 'camera.exe'], 
                              capture_output=True, check=False)
-                # DirectShow 필터 정리
+                
+                # 2단계: 모든 Python 프로세스 중 카메라 관련 종료
+                subprocess.run(['taskkill', '/f', '/fi', 'IMAGENAME eq python.exe', '/fi', 'WINDOWTITLE eq *camera*'], 
+                             capture_output=True, check=False)
+                
+                # 3단계: USB 디바이스 강제 재설정
+                print("[DEBUG] USB 카메라 디바이스 강제 재설정 중...")
+                # devcon을 사용할 수 없으므로 PowerShell로 USB 디바이스 재설정
+                powershell_cmd = '''
+                Get-PnpDevice | Where-Object {
+                    $_.FriendlyName -like "*camera*" -or 
+                    $_.FriendlyName -like "*webcam*" -or 
+                    $_.FriendlyName -like "*video*" -or
+                    $_.FriendlyName -like "*imaging*" -or
+                    $_.FriendlyName -like "*dino*"
+                } | ForEach-Object {
+                    Write-Host "디바이스 재설정: $($_.FriendlyName)"
+                    Disable-PnpDevice -InstanceId $_.InstanceId -Confirm:$false -ErrorAction SilentlyContinue
+                    Start-Sleep -Milliseconds 500
+                    Enable-PnpDevice -InstanceId $_.InstanceId -Confirm:$false -ErrorAction SilentlyContinue
+                }
+                '''
+                subprocess.run(['powershell', '-Command', powershell_cmd], 
+                             capture_output=True, check=False, timeout=10)
+                
+                # 4단계: DirectShow 필터 정리
                 subprocess.run(['rundll32.exe', 'quartz.dll,DllUnregisterServer'], 
                              capture_output=True, check=False)
+                time.sleep(0.5)
                 subprocess.run(['rundll32.exe', 'quartz.dll,DllRegisterServer'], 
                              capture_output=True, check=False)
+                
+                # 5단계: 추가 대기 시간
+                print("[DEBUG] 카메라 디바이스 안정화 대기 중...")
+                time.sleep(3.0)  # 3초 대기로 증가
+                
                 print("[OK] Windows 카메라 프로세스 정리 완료")
             except Exception as e:
                 print(f"[WARN] Windows 카메라 프로세스 정리 실패: {e}")
