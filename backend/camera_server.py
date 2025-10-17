@@ -261,24 +261,40 @@ def cleanup_cameras():
     
     print("[INFO] 카메라 리소스 정리 중...")
     try:
-        if cap is not None and cap.isOpened():
-            cap.release()
-            print("[OK] 카메라 0번 해제 완료")
-        cap = None
+        # 첫 번째 카메라 해제
+        if cap is not None:
+            if cap.isOpened():
+                print("[DEBUG] 첫 번째 카메라 해제 시도...")
+                cap.release()
+                print("[OK] 첫 번째 카메라 해제 완료")
+            cap = None
         
-        if cap2 is not None and cap2.isOpened():
-            cap2.release()
-            print("[OK] 카메라 2번 해제 완료")
-        cap2 = None
+        # 두 번째 카메라 해제
+        if cap2 is not None:
+            if cap2.isOpened():
+                print("[DEBUG] 두 번째 카메라 해제 시도...")
+                cap2.release()
+                print("[OK] 두 번째 카메라 해제 완료")
+            cap2 = None
         
+        # OpenCV 윈도우 정리
         cv2.destroyAllWindows()
-        print("[OK] 카메라 리소스 정리 완료")
         
-        # 추가 대기 시간 (Windows에서 리소스 완전 해제)
-        time.sleep(0.5)
+        # 리소스 완전 해제를 위한 대기 시간 증가
+        print("[DEBUG] 카메라 리소스 완전 해제 대기 중...")
+        time.sleep(2.0)  # 2초로 증가
+        
+        # 강제 가비지 컬렉션
+        import gc
+        gc.collect()
+        
+        print("[OK] 카메라 리소스 정리 완료")
         
     except Exception as e:
         print(f"[ERROR] 카메라 정리 오류: {e}")
+        # 오류가 발생해도 강제로 None 할당
+        cap = None
+        cap2 = None
 
 def signal_handler(sig, frame):
     """시그널 핸들러 - 프로그램 종료 시 카메라 정리"""
@@ -486,8 +502,15 @@ def capture2():
 
 if __name__ == '__main__':
     try:
+        print("[INFO] 카메라 서버 시작...")
         # 프로덕션 모드로 실행 (디버그 모드 해제, 자동 재로더 해제)
         # 이렇게 하면 SIGTERM 신호가 제대로 전달되어 정상 종료됩니다
         app.run(host='0.0.0.0', port=5000, debug=False, use_reloader=False, threaded=True)
+    except KeyboardInterrupt:
+        print("[INFO] Ctrl+C 감지됨, 카메라 서버 종료 중...")
+    except Exception as e:
+        print(f"[ERROR] 카메라 서버 오류: {e}")
     finally:
+        print("[INFO] 최종 카메라 리소스 정리 중...")
         cleanup_cameras()
+        print("[INFO] 카메라 서버 완전 종료")
