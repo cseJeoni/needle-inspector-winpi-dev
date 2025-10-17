@@ -7,6 +7,8 @@ import signal
 import sys
 import time
 import atexit
+import subprocess
+import json
 
 app = Flask(__name__)
 CORS(app)
@@ -18,6 +20,120 @@ cap2 = None
 
 # 종료 플래그
 shutdown_flag = False
+
+def get_camera_devices():
+    """Windows WMI를 사용하여 카메라 장치 정보를 조회합니다."""
+    try:
+        # 더 포괄적인 PowerShell 명령어로 카메라 장치 정보 조회
+        cmd = [
+            'powershell', '-Command',
+            '''Get-WmiObject -Class Win32_PnPEntity | Where-Object {
+                $_.Name -like "*camera*" -or 
+                $_.Name -like "*webcam*" -or 
+                $_.Name -like "*video*" -or 
+                $_.Name -like "*imaging*" -or
+                $_.Name -like "*dino*" -or
+                $_.ClassGuid -eq "{ca3e7ab9-b4c3-4ae6-8251-579ef933890f}" -or
+                $_.Service -eq "usbvideo"
+            } | Select-Object Name, DeviceID, Manufacturer, Service, ClassGuid, Status | ConvertTo-Json'''
+        ]
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=15)
+        
+        if result.returncode == 0 and result.stdout.strip():
+            devices = json.loads(result.stdout)
+            if not isinstance(devices, list):
+                devices = [devices]  # 단일 객체인 경우 리스트로 변환
+            
+            print("[INFO] 발견된 카메라 장치:")
+            for i, device in enumerate(devices):
+                name = device.get('Name', 'Unknown')
+                manufacturer = device.get('Manufacturer', 'Unknown')
+                device_id = device.get('DeviceID', 'Unknown')
+                service = device.get('Service', 'Unknown')
+                class_guid = device.get('ClassGuid', 'Unknown')
+                status = device.get('Status', 'Unknown')
+                print(f"  [{i}] {name}")
+                print(f"      제조사: {manufacturer}")
+                print(f"      DeviceID: {device_id}")
+                print(f"      Service: {service}")
+                print(f"      ClassGuid: {class_guid}")
+                print(f"      Status: {status}")
+                print(f"      ---")
+            
+            return devices
+        else:
+            print("[WARN] 카메라 장치 정보를 조회할 수 없습니다.")
+            return []
+    except Exception as e:
+        print(f"[ERROR] 카메라 장치 정보 조회 오류: {e}")
+        return []
+
+def filter_cameras_by_manufacturer(target_vids=None):
+    """특정 Vendor ID의 카메라만 필터링합니다."""
+    if target_vids is None:
+        # Dino-Lite 카메라의 Vendor ID
+        target_vids = ['A168']  # Dino-Lite VID
+    
+    devices = get_camera_devices()
+    available_cameras = []
+    
+    print(f"[INFO] 카메라 필터링 중... (대상 VID: {target_vids})")
+    
+    # 실제 OpenCV로 테스트 가능한 카메라 인덱스 찾기
+    for i in range(10):  # 최대 10개까지 테스트
+        try:
+            cap_test = cv2.VideoCapture(i, cv2.CAP_DSHOW)
+            if cap_test.isOpened():
+                # 실제 프레임을 읽을 수 있는지 확인
+                ret, frame = cap_test.read()
+                cap_test.release()
+                
+                if ret and frame is not None:
+                    print(f"[DEBUG] 카메라 인덱스 {i}: 프레임 읽기 성공, 장치 매칭 시도 중...")
+                    
+                    # 모든 장치에서 VID 매칭 시도 (인덱스 순서와 무관하게)
+                    matched_device = None
+                    for device in devices:
+                        device_id = device.get('DeviceID', '')
+                        name = device.get('Name', '')
+                        
+                        # DeviceID에서 VID 추출 및 매칭
+                        for target_vid in target_vids:
+                            if f'VID_{target_vid}' in device_id.upper():
+                                matched_device = device
+                                print(f"[DEBUG] 카메라 인덱스 {i}: VID_{target_vid} 매칭됨 - {name}")
+                                break
+                        if matched_device:
+                            break
+                    
+                    if matched_device:
+                        available_cameras.append({
+                            'index': i,
+                            'name': matched_device.get('Name', f'Camera {i}'),
+                            'manufacturer': matched_device.get('Manufacturer', 'Unknown'),
+                            'device_id': matched_device.get('DeviceID', '')
+                        })
+                        print(f"[OK] 카메라 인덱스 {i}: {matched_device.get('Name')} - VID 매칭으로 사용 가능")
+                    else:
+                        # VID가 매칭되지 않는 경우
+                        print(f"[SKIP] 카메라 인덱스 {i}: VID 매칭 실패 - 필터링됨")
+                        # 디버깅을 위해 모든 장치의 VID 출력
+                        print(f"[DEBUG] 사용 가능한 VID들:")
+                        for device in devices:
+                            device_id = device.get('DeviceID', '')
+                            if 'VID_' in device_id.upper():
+                                vid_part = device_id.upper().split('VID_')[1].split('&')[0] if 'VID_' in device_id.upper() else 'None'
+                                print(f"[DEBUG]   - {device.get('Name', 'Unknown')}: VID_{vid_part}")
+                        print(f"[DEBUG] 찾고 있는 VID: {target_vids}")
+                else:
+                    print(f"[SKIP] 카메라 인덱스 {i}: 프레임 읽기 실패")
+            else:
+                print(f"[SKIP] 카메라 인덱스 {i}: 열기 실패")
+        except Exception as e:
+            print(f"[ERROR] 카메라 인덱스 {i} 테스트 중 오류: {e}")
+    
+    print(f"[INFO] 필터링된 사용 가능한 카메라: {[cam['index'] for cam in available_cameras]}")
+    return available_cameras
 
 def find_available_cameras(limit=10):
     """사용 가능한 카메라 인덱스를 검색합니다."""
@@ -47,38 +163,90 @@ def initialize_cameras():
     # 잠시 대기 (리소스 해제 시간)
     time.sleep(1)
 
-    # available_cameras = find_available_cameras()
-
-    # if len(available_cameras) < 1:
-    #     print("[ERROR] 사용 가능한 카메라를 찾을 수 없습니다.")
-    #     cap = None
-    #     cap2 = None
-    #     return
+    # 디버깅: 모든 카메라 정보 출력
+    print("[DEBUG] 모든 카메라 장치 정보 조회 중...")
+    devices = get_camera_devices()
+    
+    # 디버깅: VID 필터링 테스트
+    print("[DEBUG] VID 필터링 테스트 중...")
+    filtered_cameras = filter_cameras_by_manufacturer()
+    
+    # 필터링된 카메라가 없으면 임시로 모든 카메라 사용
+    if len(filtered_cameras) < 1:
+        print("[WARN] VID 필터링된 카메라가 없습니다. 모든 사용 가능한 카메라를 사용합니다.")
+        available_cameras = find_available_cameras()
+        if len(available_cameras) < 1:
+            print("[ERROR] 사용 가능한 카메라를 찾을 수 없습니다.")
+            cap = None
+            cap2 = None
+            return
+        # 임시로 인덱스만 사용
+        filtered_cameras = [{'index': idx, 'name': f'Camera {idx}', 'manufacturer': 'Unknown'} for idx in available_cameras]
     
     try:
-        # 첫 번째 카메라 초기화 (인덱스 0 고정)
-        cam_idx1 = 0
-        print(f"[INFO] 첫 번째 카메라 (인덱스: {cam_idx1}) 초기화 중...")
+        # 첫 번째 카메라 초기화 (1번 인덱스 사용 - 0번은 내장 웹캠일 가능성)
+        if len(filtered_cameras) > 1:
+            cam_idx1 = filtered_cameras[1]['index']
+            cam_name1 = filtered_cameras[1]['name']
+        else:
+            cam_idx1 = filtered_cameras[0]['index']
+            cam_name1 = filtered_cameras[0]['name']
+        print(f"[INFO] 첫 번째 카메라 (인덱스: {cam_idx1}, 이름: {cam_name1}) 초기화 중...")
         cap = cv2.VideoCapture(cam_idx1, cv2.CAP_DSHOW)
         if cap.isOpened():
+            # 카메라 설정 적용
             cap.set(cv2.CAP_PROP_FRAME_WIDTH, 960)
             cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
             cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
-            time.sleep(0.5)  # 카메라 안정화 대기
+            cap.set(cv2.CAP_PROP_FPS, 30)  # FPS 설정
+            cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'))  # MJPEG 코덱
+            
+            time.sleep(1.0)  # 카메라 안정화 대기 시간 증가
+            
+            # 워밍업: 몇 개의 더미 프레임 읽기
+            print(f"[INFO] 카메라 {cam_idx1} 워밍업 중...")
+            for i in range(5):
+                ret, _ = cap.read()
+                if ret:
+                    print(f"[DEBUG] 카메라 {cam_idx1} 워밍업 프레임 {i+1}/5 성공")
+                else:
+                    print(f"[WARN] 카메라 {cam_idx1} 워밍업 프레임 {i+1}/5 실패")
+                time.sleep(0.1)
+            
             print(f"[OK] 카메라 (인덱스: {cam_idx1}) 초기화 완료")
         else:
             print(f"[ERROR] 카메라 (인덱스: {cam_idx1}) 초기화 실패")
             cap = None
 
-        # 두 번째 카메라 초기화 (인덱스 1 고정)
-        cam_idx2 = 1
-        print(f"[INFO] 두 번째 카메라 (인덱스: {cam_idx2}) 초기화 중...")
-        cap2 = cv2.VideoCapture(cam_idx2, cv2.CAP_DSHOW)
-        if cap2.isOpened():
+        # 두 번째 카메라 초기화 (2번 인덱스 사용)
+        if len(filtered_cameras) > 2:
+            cam_idx2 = filtered_cameras[2]['index']
+            cam_name2 = filtered_cameras[2]['name']
+            print(f"[INFO] 두 번째 카메라 (인덱스: {cam_idx2}, 이름: {cam_name2}) 초기화 중...")
+            cap2 = cv2.VideoCapture(cam_idx2, cv2.CAP_DSHOW)
+        else:
+            print("[INFO] 두 번째 카메라를 찾을 수 없습니다. 첫 번째 카메라만 사용합니다.")
+            cap2 = None
+        if cap2 is not None and cap2.isOpened():
+            # 카메라 설정 적용
             cap2.set(cv2.CAP_PROP_FRAME_WIDTH, 960)
             cap2.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
             cap2.set(cv2.CAP_PROP_BUFFERSIZE, 1)
-            time.sleep(0.5)  # 카메라 안정화 대기
+            cap2.set(cv2.CAP_PROP_FPS, 30)  # FPS 설정
+            cap2.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'))  # MJPEG 코덱
+            
+            time.sleep(1.0)  # 카메라 안정화 대기 시간 증가
+            
+            # 워밍업: 몇 개의 더미 프레임 읽기
+            print(f"[INFO] 카메라 {cam_idx2} 워밍업 중...")
+            for i in range(5):
+                ret, _ = cap2.read()
+                if ret:
+                    print(f"[DEBUG] 카메라 {cam_idx2} 워밍업 프레임 {i+1}/5 성공")
+                else:
+                    print(f"[WARN] 카메라 {cam_idx2} 워밍업 프레임 {i+1}/5 실패")
+                time.sleep(0.1)
+            
             print(f"[OK] 카메라 (인덱스: {cam_idx2}) 초기화 완료")
         else:
             print(f"[ERROR] 카메라 (인덱스: {cam_idx2}) 초기화 실패")
