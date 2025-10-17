@@ -1,11 +1,12 @@
 /* eslint-disable no-undef */
 
-const { app, BrowserWindow, dialog, ipcMain } = require("electron");
-const path = require("path");
-const { spawn } = require("child_process");
-const fs = require("fs");
-const Store = require("electron-store");
-const XLSX = require("xlsx");
+const { app, BrowserWindow, ipcMain, dialog } = require('electron');
+const path = require('path');
+const { spawn } = require('child_process');
+const fs = require('fs');
+const { promisify } = require('util');
+const exec = promisify(require('child_process').exec);
+const axios = require('axios');
 
 let win = null;
 let serverProcess = null;
@@ -647,115 +648,38 @@ async function createWindow() {
 
 app.whenReady().then(createWindow);
 
-app.on('window-all-closed', () => {
+app.on('window-all-closed', async () => {
   if (process.platform !== 'darwin') {
-    // 백엔드 서버 종료
     if (serverProcess) {
-      console.log('[INFO] 카메라 서버 종료 중...');
-      console.log(`[DEBUG] 현재 플랫폼: ${process.platform}`);
-      console.log(`[DEBUG] 서버 프로세스 PID: ${serverProcess.pid}`);
-      
+      console.log('[INFO] 카메라 서버에 안전 종료 요청 시도...');
       try {
-        // Windows에서는 프로세스 트리 전체 종료 (더 확실한 조건 검사)
-        const isWindows = process.platform === 'win32' || process.platform.startsWith('win') || process.env.OS === 'Windows_NT';
+        // 1. Python 서버에 HTTP POST 요청을 보내 스스로 종료하도록 함
+        await axios.post('http://localhost:5000/shutdown', {}, { timeout: 3000 });
+        console.log('[OK] 카메라 서버에 종료 요청 성공.');
         
-        if (isWindows) {
-          console.log('[INFO] Windows 환경 - 강력한 프로세스 종료 시퀀스 시작');
-          const { spawn } = require('child_process');
-          
-          // 1단계: 카메라 서버 프로세스 종료
-          const killProcess = spawn('taskkill', ['/pid', serverProcess.pid, '/T', '/F'], { stdio: 'ignore' });
-          
-          killProcess.on('close', (code) => {
-            console.log(`[INFO] 카메라 서버 taskkill 완료 (코드: ${code})`);
-            
-            // 2단계: Python 프로세스 전체 정리
-            setTimeout(() => {
-              console.log('[INFO] Python 프로세스 전체 정리 중...');
-              spawn('taskkill', ['/f', '/im', 'python.exe'], { stdio: 'ignore' });
-              spawn('taskkill', ['/f', '/im', 'pythonw.exe'], { stdio: 'ignore' });
-              
-              // 3단계: 카메라 관련 프로세스 정리
-              setTimeout(() => {
-                console.log('[INFO] 카메라 관련 프로세스 정리 중...');
-                spawn('taskkill', ['/f', '/im', 'usbvideo.exe'], { stdio: 'ignore' });
-                spawn('taskkill', ['/f', '/im', 'camera.exe'], { stdio: 'ignore' });
-                
-                // USB 카메라 디바이스 강제 재설정
-                console.log('[INFO] USB 카메라 디바이스 재설정 중...');
-                const powershellCmd = `
-                Get-PnpDevice | Where-Object {
-                  $_.FriendlyName -like "*camera*" -or 
-                  $_.FriendlyName -like "*webcam*" -or 
-                  $_.FriendlyName -like "*video*" -or
-                  $_.FriendlyName -like "*imaging*" -or
-                  $_.FriendlyName -like "*dino*"
-                } | ForEach-Object {
-                  Write-Host "디바이스 재설정: $($_.FriendlyName)"
-                  Disable-PnpDevice -InstanceId $_.InstanceId -Confirm:$false -ErrorAction SilentlyContinue
-                  Start-Sleep -Milliseconds 500
-                  Enable-PnpDevice -InstanceId $_.InstanceId -Confirm:$false -ErrorAction SilentlyContinue
-                }
-                `;
-                spawn('powershell', ['-Command', powershellCmd], { stdio: 'ignore' });
-                
-                // 4단계: 포트 점유 프로세스 정리
-                setTimeout(() => {
-                  console.log('[INFO] 포트 5000 점유 프로세스 정리 중...');
-                  const netstatProcess = spawn('netstat', ['-ano'], { stdio: 'pipe' });
-                  let netstatOutput = '';
-                  
-                  netstatProcess.stdout.on('data', (data) => {
-                    netstatOutput += data.toString();
-                  });
-                  
-                  netstatProcess.on('close', () => {
-                    const lines = netstatOutput.split('\n');
-                    for (const line of lines) {
-                      if (line.includes(':5000') && line.includes('LISTENING')) {
-                        const parts = line.trim().split(/\s+/);
-                        const pid = parts[parts.length - 1];
-                        if (pid && !isNaN(pid)) {
-                          console.log(`[INFO] 포트 5000 점유 프로세스 종료: PID ${pid}`);
-                          spawn('taskkill', ['/f', '/pid', pid], { stdio: 'ignore' });
-                        }
-                      }
-                    }
-                  });
-                }, 500);
-              }, 500);
-            }, 500);
-          });
-          
-          killProcess.on('error', (error) => {
-            console.error('[ERROR] taskkill 실패:', error);
-            // taskkill 실패 시 fallback으로 SIGTERM 사용
-            serverProcess.kill('SIGTERM');
-          });
-        } else {
-          console.log('[INFO] Unix 환경 - SIGTERM 사용');
-          // Linux/Mac에서는 SIGTERM 후 SIGKILL
-          serverProcess.kill('SIGTERM');
-          setTimeout(() => {
-            if (serverProcess && !serverProcess.killed) {
-              console.log('[WARN] 카메라 서버 강제 종료');
-              serverProcess.kill('SIGKILL');
-            }
-          }, 1000); // 1초로 단축
-        }
+        // 서버가 완전히 종료될 시간을 잠시 기다림 (500ms)
+        await new Promise(resolve => setTimeout(resolve, 500));
+
       } catch (error) {
-        console.error('[ERROR] 서버 종료 중 오류:', error);
+        // 서버가 이미 꺼져있거나 응답이 없는 경우 오류가 발생할 수 있음
+        console.warn('[WARN] 카메라 서버 종료 요청 실패:', error.message);
+        console.log('[INFO] 서버가 응답하지 않아 강제 종료(taskkill)를 시도합니다.');
+
+        // 2. (Fallback) 만약 요청이 실패하면, 기존의 taskkill 방식으로 강제 종료
+        try {
+          if (process.platform === 'win32') {
+            const { spawn } = require('child_process');
+            spawn('taskkill', ['/pid', serverProcess.pid, '/T', '/F'], { stdio: 'ignore' });
+          } else {
+            serverProcess.kill('SIGKILL');
+          }
+        } catch (killError) {
+          console.error('[ERROR] taskkill 실패:', killError);
+        }
+      } finally {
+        serverProcess = null;
       }
-      
-      serverProcess = null;
     }
-    
-    // 강제 종료 타이머 설정 (3초 후 무조건 종료)
-    setTimeout(() => {
-      console.log('[WARN] 강제 앱 종료 (타임아웃)');
-      process.exit(0);
-    }, 3000);
-    
     app.quit();
   }
 });
@@ -772,61 +696,29 @@ process.on('SIGTERM', () => {
 });
 
 // 강제 정리 및 종료 함수
-function forceCleanupAndExit() {
+async function forceCleanupAndExit() {
   console.log('[INFO] 강제 정리 및 종료 시작');
   
-  if (serverProcess && process.platform === 'win32') {
+  if (serverProcess) {
     try {
-      const { spawn } = require('child_process');
-      console.log('[INFO] 강제 종료 - Python 및 카메라 프로세스 정리');
-      
-      // 모든 관련 프로세스 강제 종료
-      spawn('taskkill', ['/f', '/im', 'python.exe'], { stdio: 'ignore' });
-      spawn('taskkill', ['/f', '/im', 'pythonw.exe'], { stdio: 'ignore' });
-      spawn('taskkill', ['/f', '/im', 'usbvideo.exe'], { stdio: 'ignore' });
-      spawn('taskkill', ['/f', '/im', 'camera.exe'], { stdio: 'ignore' });
-      
-      // USB 카메라 디바이스 강제 재설정
-      console.log('[INFO] 강제 종료 - USB 카메라 디바이스 재설정 중...');
-      const powershellCmd = `
-      Get-PnpDevice | Where-Object {
-        $_.FriendlyName -like "*camera*" -or 
-        $_.FriendlyName -like "*webcam*" -or 
-        $_.FriendlyName -like "*video*" -or
-        $_.FriendlyName -like "*imaging*" -or
-        $_.FriendlyName -like "*dino*"
-      } | ForEach-Object {
-        Write-Host "강제 종료 - 디바이스 재설정: $($_.FriendlyName)"
-        Disable-PnpDevice -InstanceId $_.InstanceId -Confirm:$false -ErrorAction SilentlyContinue
-        Start-Sleep -Milliseconds 500
-        Enable-PnpDevice -InstanceId $_.InstanceId -Confirm:$false -ErrorAction SilentlyContinue
-      }
-      `;
-      spawn('powershell', ['-Command', powershellCmd], { stdio: 'ignore' });
-      
-      // 포트 5000 점유 프로세스 정리
-      const netstatProcess = spawn('netstat', ['-ano'], { stdio: 'pipe' });
-      let netstatOutput = '';
-      
-      netstatProcess.stdout.on('data', (data) => {
-        netstatOutput += data.toString();
-      });
-      
-      netstatProcess.on('close', () => {
-        const lines = netstatOutput.split('\n');
-        for (const line of lines) {
-          if (line.includes(':5000') && line.includes('LISTENING')) {
-            const parts = line.trim().split(/\s+/);
-            const pid = parts[parts.length - 1];
-            if (pid && !isNaN(pid)) {
-              console.log(`[INFO] 강제 종료 - 포트 5000 점유 프로세스 종료: PID ${pid}`);
-              spawn('taskkill', ['/f', '/pid', pid], { stdio: 'ignore' });
-            }
-          }
-        }
-      });
+      // HTTP 요청으로 안전한 종료 시도
+      console.log('[INFO] 강제 종료 - HTTP 안전 종료 요청 시도...');
+      await axios.post('http://localhost:5000/shutdown', {}, { timeout: 2000 });
+      console.log('[OK] 강제 종료 - HTTP 종료 요청 성공');
     } catch (error) {
-      console.error('[ERROR] 강제 정리 중 오류:', error);
+      console.warn('[WARN] 강제 종료 - HTTP 요청 실패, taskkill 사용:', error.message);
+      
+      // HTTP 요청 실패 시 fallback으로 taskkill 사용
+      try {
+        const { spawn } = require('child_process');
+        if (process.platform === 'win32') {
+          spawn('taskkill', ['/f', '/pid', serverProcess.pid], { stdio: 'ignore' });
+        } else {
+          serverProcess.kill('SIGKILL');
+        }
+      } catch (killError) {
+        console.error('[ERROR] 강제 종료 실패:', killError);
+      }
     }
   }
   

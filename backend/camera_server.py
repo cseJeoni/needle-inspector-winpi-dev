@@ -1,18 +1,17 @@
-from flask import Flask, Response, request, jsonify
+from flask import Flask, Response, jsonify, request
 from flask_cors import CORS
 import cv2
-from flask_cors import CORS
-import platform
-import signal
-import sys
+import json
+import threading
 import time
 import atexit
+import signal
+import platform
 import subprocess
-import json
+import os
 
 app = Flask(__name__)
 CORS(app)
-CORS(app) # CORS 지원 추가
 
 # 전역 카메라 객체
 cap = None
@@ -288,55 +287,9 @@ def cleanup_cameras():
         import gc
         gc.collect()
         
-        # Windows에서 카메라 프로세스 강제 종료
-        if platform.system() == "Windows":
-            try:
-                print("[DEBUG] Windows 카메라 프로세스 강제 정리 중...")
-                
-                # 1단계: USB 카메라 관련 프로세스 종료
-                subprocess.run(['taskkill', '/f', '/im', 'usbvideo.exe'], 
-                             capture_output=True, check=False)
-                subprocess.run(['taskkill', '/f', '/im', 'camera.exe'], 
-                             capture_output=True, check=False)
-                
-                # 2단계: 모든 Python 프로세스 중 카메라 관련 종료
-                subprocess.run(['taskkill', '/f', '/fi', 'IMAGENAME eq python.exe', '/fi', 'WINDOWTITLE eq *camera*'], 
-                             capture_output=True, check=False)
-                
-                # 3단계: USB 디바이스 강제 재설정
-                print("[DEBUG] USB 카메라 디바이스 강제 재설정 중...")
-                # devcon을 사용할 수 없으므로 PowerShell로 USB 디바이스 재설정
-                powershell_cmd = '''
-                Get-PnpDevice | Where-Object {
-                    $_.FriendlyName -like "*camera*" -or 
-                    $_.FriendlyName -like "*webcam*" -or 
-                    $_.FriendlyName -like "*video*" -or
-                    $_.FriendlyName -like "*imaging*" -or
-                    $_.FriendlyName -like "*dino*"
-                } | ForEach-Object {
-                    Write-Host "디바이스 재설정: $($_.FriendlyName)"
-                    Disable-PnpDevice -InstanceId $_.InstanceId -Confirm:$false -ErrorAction SilentlyContinue
-                    Start-Sleep -Milliseconds 500
-                    Enable-PnpDevice -InstanceId $_.InstanceId -Confirm:$false -ErrorAction SilentlyContinue
-                }
-                '''
-                subprocess.run(['powershell', '-Command', powershell_cmd], 
-                             capture_output=True, check=False, timeout=10)
-                
-                # 4단계: DirectShow 필터 정리
-                subprocess.run(['rundll32.exe', 'quartz.dll,DllUnregisterServer'], 
-                             capture_output=True, check=False)
-                time.sleep(0.5)
-                subprocess.run(['rundll32.exe', 'quartz.dll,DllRegisterServer'], 
-                             capture_output=True, check=False)
-                
-                # 5단계: 추가 대기 시간
-                print("[DEBUG] 카메라 디바이스 안정화 대기 중...")
-                time.sleep(3.0)  # 3초 대기로 증가
-                
-                print("[OK] Windows 카메라 프로세스 정리 완료")
-            except Exception as e:
-                print(f"[WARN] Windows 카메라 프로세스 정리 실패: {e}")
+        # 추가 대기 시간으로 완전한 리소스 해제 보장
+        print("[DEBUG] 카메라 리소스 완전 해제 대기 중...")
+        time.sleep(1.0)  # 1초 대기로 충분
         
         print("[OK] 카메라 리소스 정리 완료")
         
@@ -495,6 +448,19 @@ def generate_frames2():
 def health():
     """서버 상태 확인용 헬스체크 엔드포인트"""
     return jsonify({'status': 'ok', 'message': 'Camera server is running'}), 200
+
+@app.route('/shutdown', methods=['POST'])
+def shutdown():
+    """서버를 안전하게 종료하는 엔드포인트"""
+    print("[INFO] /shutdown 요청 수신, 서버를 안전하게 종료합니다.")
+    
+    # 가장 중요한 카메라 리소스 정리 함수 호출
+    cleanup_cameras()
+    
+    # 서버 프로세스 자체를 종료
+    # os._exit(0)는 가장 확실하게 프로세스를 종료시킵니다.
+    print("[INFO] 카메라 정리 완료, 프로세스를 종료합니다.")
+    os._exit(0)
 
 @app.route('/video')
 def video():
