@@ -7,6 +7,8 @@ const fs = require('fs');
 const { promisify } = require('util');
 const exec = promisify(require('child_process').exec);
 const axios = require('axios');
+const Store = require('electron-store');
+const XLSX = require('xlsx');
 
 let win = null;
 let serverProcess = null;
