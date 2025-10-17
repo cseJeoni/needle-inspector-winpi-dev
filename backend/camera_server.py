@@ -454,13 +454,27 @@ def shutdown():
     """서버를 안전하게 종료하는 엔드포인트"""
     print("[INFO] /shutdown 요청 수신, 서버를 안전하게 종료합니다.")
     
-    # 가장 중요한 카메라 리소스 정리 함수 호출
-    cleanup_cameras()
+    # 응답을 먼저 보내고 종료 작업 수행
+    def delayed_shutdown():
+        import threading
+        import time
+        
+        def shutdown_worker():
+            time.sleep(0.1)  # 응답 전송 시간 확보
+            print("[INFO] 카메라 리소스 정리 시작...")
+            cleanup_cameras()
+            print("[INFO] 카메라 정리 완료, 프로세스를 종료합니다.")
+            os._exit(0)
+        
+        thread = threading.Thread(target=shutdown_worker)
+        thread.daemon = True
+        thread.start()
     
-    # 서버 프로세스 자체를 종료
-    # os._exit(0)는 가장 확실하게 프로세스를 종료시킵니다.
-    print("[INFO] 카메라 정리 완료, 프로세스를 종료합니다.")
-    os._exit(0)
+    # 지연된 종료 시작
+    delayed_shutdown()
+    
+    # 클라이언트에 성공 응답 반환
+    return jsonify({'status': 'shutting down', 'message': 'Server is shutting down safely'}), 200
 
 @app.route('/video')
 def video():

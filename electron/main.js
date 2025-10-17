@@ -656,7 +656,7 @@ app.on('window-all-closed', async () => {
       console.log('[INFO] 카메라 서버에 안전 종료 요청 시도...');
       try {
         // 1. Python 서버에 HTTP POST 요청을 보내 스스로 종료하도록 함
-        await axios.post('http://localhost:5000/shutdown', {}, { timeout: 3000 });
+        await axios.post('http://127.0.0.1:5000/shutdown', {}, { timeout: 3000 });
         console.log('[OK] 카메라 서버에 종료 요청 성공.');
         
         // 서버가 완전히 종료될 시간을 잠시 기다림 (500ms)
@@ -705,7 +705,7 @@ async function forceCleanupAndExit() {
     try {
       // HTTP 요청으로 안전한 종료 시도
       console.log('[INFO] 강제 종료 - HTTP 안전 종료 요청 시도...');
-      await axios.post('http://localhost:5000/shutdown', {}, { timeout: 2000 });
+      await axios.post('http://127.0.0.1:5000/shutdown', {}, { timeout: 2000 });
       console.log('[OK] 강제 종료 - HTTP 종료 요청 성공');
     } catch (error) {
       console.warn('[WARN] 강제 종료 - HTTP 요청 실패, taskkill 사용:', error.message);
