@@ -58,6 +58,11 @@ export default function NeedleInspectorUI() {
   const [gpio5State, setGpio5State] = useState('LOW') // HIGH, LOW (초기값 LOW로 설정)
   const prevGpio5Ref = useRef('LOW') // 이전 GPIO 상태 추적용 (useRef로 즉시 업데이트)
   
+  // GPIO 6번, 13번, 19번 상태 (디버깅용)
+  const [gpio6State, setGpio6State] = useState('UNKNOWN') // START 버튼
+  const [gpio13State, setGpio13State] = useState('UNKNOWN') // PASS 버튼
+  const [gpio19State, setGpio19State] = useState('UNKNOWN') // NG 버튼
+  
   // StatusPanel 상태 관리
   const [workStatus, setWorkStatus] = useState('waiting') // waiting, connected, disconnected, write_success, write_failed, needle_short
   
@@ -1284,6 +1289,11 @@ export default function NeedleInspectorUI() {
 
     socket.onmessage = (e) => {
       try {
+        // 빈 메시지나 잘못된 형식 체크
+        if (!e.data || typeof e.data !== 'string' || e.data.trim() === '') {
+          return;
+        }
+        
         const res = JSON.parse(e.data)
 
         if (res.type === "serial") {
@@ -1323,6 +1333,9 @@ export default function NeedleInspectorUI() {
           const { 
             position, 
             gpio5, 
+            gpio6,
+            gpio13,
+            gpio19,
             gpio23, 
             needle_tip_connected, 
             eeprom,
@@ -1392,6 +1405,17 @@ export default function NeedleInspectorUI() {
             prevGpio5Ref.current = gpio5
             setGpio5State(gpio5)
           }
+          
+          // GPIO 6, 13, 19번 상태 업데이트 (디버깅 패널용)
+          if (gpio6 && gpio6 !== "UNKNOWN") {
+            setGpio6State(gpio6)
+          }
+          if (gpio13 && gpio13 !== "UNKNOWN") {
+            setGpio13State(gpio13)
+          }
+          if (gpio19 && gpio19 !== "UNKNOWN") {
+            setGpio19State(gpio19)
+          }
         } else if (res.type === "resistance") {
           // 저항 측정 결과 처리
           console.log('📊 저항 측정 결과 수신:', res.data)
@@ -1456,6 +1480,9 @@ export default function NeedleInspectorUI() {
         }
       } catch (err) {
         console.error("❌ 모터 메시지 파싱 오류:", err)
+        console.error("❌ 문제가 된 원본 데이터:", e.data)
+        console.error("❌ 데이터 타입:", typeof e.data)
+        console.error("❌ 데이터 길이:", e.data?.length)
       }
     }
 
@@ -1761,6 +1788,37 @@ export default function NeedleInspectorUI() {
               fontWeight: 'bold'
             }}>
               {needleTipConnected ? '✅ 니들팁 연결됨 (GPIO23 LOW)' : '🚫 니들팁 없음 (GPIO23 HIGH)'}
+            </div>
+            <div style={{ 
+              fontSize: '9px', 
+              marginTop: '4px',
+              color: '#9CA3AF',
+              fontWeight: 'bold'
+            }}>
+              🔘 물리 버튼 상태:
+            </div>
+            <div style={{ 
+              fontSize: '9px', 
+              marginBottom: '1px',
+              color: gpio6State === 'HIGH' ? '#F59E0B' : '#6B7280',
+              fontWeight: 'bold'
+            }}>
+              START (GPIO6): {gpio6State === 'HIGH' ? '🟡 눌림' : '⚫ 안눌림'}
+            </div>
+            <div style={{ 
+              fontSize: '9px', 
+              marginBottom: '1px',
+              color: gpio13State === 'HIGH' ? '#10B981' : '#6B7280',
+              fontWeight: 'bold'
+            }}>
+              PASS (GPIO13): {gpio13State === 'HIGH' ? '🟢 눌림' : '⚫ 안눌림'}
+            </div>
+            <div style={{ 
+              fontSize: '9px', 
+              color: gpio19State === 'HIGH' ? '#EF4444' : '#6B7280',
+              fontWeight: 'bold'
+            }}>
+              NG (GPIO19): {gpio19State === 'HIGH' ? '🔴 눌림' : '⚫ 안눌림'}
             </div>
           </div>
 
