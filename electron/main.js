@@ -5,6 +5,7 @@ const path = require("path");
 const { spawn } = require("child_process");
 const fs = require("fs");
 const Store = require("electron-store");
+const XLSX = require("xlsx");
 
 let win = null;
 let serverProcess = null;
@@ -47,41 +48,123 @@ function getBackendPath() {
 }
 
 /**
- * CSV 파일을 파싱하여 객체 배열로 변환
+ * 파일을 파싱하여 객체 배열로 변환 (CSV, XLSX, TXT 지원)
+ * @param {string} filePath - 파일 경로
+ * @returns {Array} 파싱된 데이터 배열
+ */
+function parseDataFile(filePath) {
+  try {
+    if (!fs.existsSync(filePath)) {
+      console.warn(`파일이 존재하지 않습니다: ${filePath}`);
+      return [];
+    }
+
+    const ext = path.extname(filePath).toLowerCase();
+    console.log(`[INFO] 파일 파싱 시작: ${filePath} (확장자: ${ext})`);
+
+    switch (ext) {
+      case '.csv':
+        return parseCSVContent(filePath);
+      case '.xlsx':
+      case '.xls':
+        return parseXLSXContent(filePath);
+      case '.txt':
+        return parseTextContent(filePath);
+      default:
+        console.warn(`지원하지 않는 파일 형식: ${ext}`);
+        return [];
+    }
+  } catch (error) {
+    console.error(`파일 파싱 오류 (${filePath}):`, error);
+    return [];
+  }
+}
+
+/**
+ * CSV 파일 내용을 파싱
+ * @param {string} filePath - CSV 파일 경로
+ * @returns {Array} 파싱된 데이터 배열
+ */
+function parseCSVContent(filePath) {
+  const content = fs.readFileSync(filePath, 'utf-8');
+  const lines = content.split(/\r?\n/).filter(line => line.trim());
+  
+  if (lines.length < 2) return [];
+  
+  const headers = lines[0].split(',').map(h => h.trim());
+  const rows = [];
+
+  for (let i = 1; i < lines.length; i++) {
+    const values = lines[i].split(',').map(v => v.trim());
+    if (values.length === headers.length) {
+      const row = {};
+      headers.forEach((header, index) => {
+        row[header] = values[index];
+      });
+      rows.push(row);
+    }
+  }
+
+  return rows;
+}
+
+/**
+ * XLSX 파일 내용을 파싱
+ * @param {string} filePath - XLSX 파일 경로
+ * @returns {Array} 파싱된 데이터 배열
+ */
+function parseXLSXContent(filePath) {
+  const workbook = XLSX.readFile(filePath);
+  const sheetName = workbook.SheetNames[0]; // 첫 번째 시트 사용
+  const worksheet = workbook.Sheets[sheetName];
+  
+  // 시트를 JSON으로 변환 (헤더를 키로 사용)
+  const jsonData = XLSX.utils.sheet_to_json(worksheet);
+  
+  console.log(`[INFO] XLSX 파일 파싱 완료: ${jsonData.length}개 레코드`);
+  return jsonData;
+}
+
+/**
+ * 텍스트 파일 내용을 파싱 (탭 또는 쉼표 구분)
+ * @param {string} filePath - 텍스트 파일 경로
+ * @returns {Array} 파싱된 데이터 배열
+ */
+function parseTextContent(filePath) {
+  const content = fs.readFileSync(filePath, 'utf-8');
+  const lines = content.split(/\r?\n/).filter(line => line.trim());
+  
+  if (lines.length < 2) return [];
+  
+  // 첫 번째 줄에서 구분자 감지 (탭이 있으면 탭, 없으면 쉼표)
+  const delimiter = lines[0].includes('\t') ? '\t' : ',';
+  console.log(`[INFO] 텍스트 파일 구분자 감지: ${delimiter === '\t' ? 'TAB' : 'COMMA'}`);
+  
+  const headers = lines[0].split(delimiter).map(h => h.trim());
+  const rows = [];
+
+  for (let i = 1; i < lines.length; i++) {
+    const values = lines[i].split(delimiter).map(v => v.trim());
+    if (values.length === headers.length) {
+      const row = {};
+      headers.forEach((header, index) => {
+        row[header] = values[index];
+      });
+      rows.push(row);
+    }
+  }
+
+  return rows;
+}
+
+/**
+ * 기존 호환성을 위한 parseCSV 함수 (deprecated)
  * @param {string} filePath - CSV 파일 경로
  * @returns {Array} 파싱된 데이터 배열
  */
 function parseCSV(filePath) {
-  try {
-    if (!fs.existsSync(filePath)) {
-      console.warn(`CSV 파일이 존재하지 않습니다: ${filePath}`);
-      return [];
-    }
-
-    const content = fs.readFileSync(filePath, 'utf-8');
-    const lines = content.split(/\r?\n/).filter(line => line.trim());
-    
-    if (lines.length < 2) return [];
-    
-    const headers = lines[0].split(',').map(h => h.trim());
-    const rows = [];
-
-    for (let i = 1; i < lines.length; i++) {
-      const values = lines[i].split(',').map(v => v.trim());
-      if (values.length === headers.length) {
-        const row = {};
-        headers.forEach((header, index) => {
-          row[header] = values[index];
-        });
-        rows.push(row);
-      }
-    }
-
-    return rows;
-  } catch (error) {
-    console.error(`CSV 파일 파싱 오류 (${filePath}):`, error);
-    return [];
-  }
+  console.warn('[DEPRECATED] parseCSV 함수는 deprecated입니다. parseDataFile을 사용하세요.');
+  return parseCSVContent(filePath);
 }
 
 // 파이썬 서버 시작
@@ -171,8 +254,8 @@ ipcMain.handle('load-csv-data', async (event, configDir = 'C:\\inspector_config_
     console.log(`  - MTR 2.0: ${mtr2Path}`);
     console.log(`  - MTR 4.0: ${mtr4Path}`);
     
-    const mtr2Data = parseCSV(mtr2Path);
-    const mtr4Data = parseCSV(mtr4Path);
+    const mtr2Data = parseDataFile(mtr2Path);
+    const mtr4Data = parseDataFile(mtr4Path);
     
     console.log(`[INFO] CSV 데이터 로드 완료:`);
     console.log(`  - MTR 2.0: ${mtr2Data.length}개 레코드`);
@@ -280,7 +363,10 @@ ipcMain.handle('select-file', async (event, options = {}) => {
       title: '파일 선택',
       properties: ['openFile'],
       filters: [
+        { name: '데이터 파일', extensions: ['csv', 'xlsx', 'xls', 'txt'] },
         { name: 'CSV 파일', extensions: ['csv'] },
+        { name: 'Excel 파일', extensions: ['xlsx', 'xls'] },
+        { name: '텍스트 파일', extensions: ['txt'] },
         { name: '모든 파일', extensions: ['*'] }
       ],
       ...options
@@ -404,21 +490,23 @@ ipcMain.handle('get-image-save-path', async (event) => {
   }
 });
 
-// 동적 CSV 파일 로드 IPC 핸들러
+// 동적 데이터 파일 로드 IPC 핸들러 (CSV, XLSX, TXT 지원)
 ipcMain.handle('load-csv-file', async (event, filePath) => {
   try {
-    console.log(`[INFO] 동적 CSV 파일 로드: ${filePath}`);
+    const ext = path.extname(filePath).toLowerCase();
+    console.log(`[INFO] 동적 데이터 파일 로드: ${filePath} (${ext})`);
     
     if (!fs.existsSync(filePath)) {
       throw new Error(`파일이 존재하지 않습니다: ${filePath}`);
     }
     
-    const csvData = parseCSV(filePath);
-    console.log(`[INFO] CSV 파일 로드 완료: ${csvData.length}개 레코드`);
+    // 새로운 범용 파일 파서 사용
+    const fileData = parseDataFile(filePath);
+    console.log(`[INFO] 데이터 파일 로드 완료: ${fileData.length}개 레코드 (${ext})`);
     
-    return { success: true, data: csvData };
+    return { success: true, data: fileData };
   } catch (error) {
-    console.error(`[ERROR] CSV 파일 로드 실패 (${filePath}):`, error);
+    console.error(`[ERROR] 데이터 파일 로드 실패 (${filePath}):`, error);
     return { success: false, error: error.message, data: [] };
   }
 });
