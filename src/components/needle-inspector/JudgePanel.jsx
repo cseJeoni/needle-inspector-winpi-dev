@@ -1,9 +1,9 @@
 import Panel from "./Panel"
 import { Button } from "./Button"
 import { useAuth } from "../../hooks/useAuth.jsx"
-import { useState, useRef, useEffect } from "react"
+import { useState, useRef, useEffect, forwardRef, useImperativeHandle } from "react"
 
-export default function JudgePanel({ onJudge, isStarted, onReset, camera1Ref, camera2Ref, hasNeedleTip = true, websocket, isWsConnected, onCaptureMergedImage, eepromData, generateUserBasedPath, isWaitingEepromRead = false, onWaitingEepromReadChange, isResistanceAbnormal = false, needleOffset1, needleOffset2, workStatus = 'waiting', onDebugModeChange }) {
+const JudgePanel = forwardRef(function JudgePanel({ onJudge, isStarted, onReset, camera1Ref, camera2Ref, hasNeedleTip = true, websocket, isWsConnected, onCaptureMergedImage, eepromData, generateUserBasedPath, isWaitingEepromRead = false, onWaitingEepromReadChange, isResistanceAbnormal = false, needleOffset1, needleOffset2, workStatus = 'waiting', onDebugModeChange }, ref) {
   // 사용자 정보 가져오기
   const { user, resetUsersCache } = useAuth()
   
@@ -200,6 +200,12 @@ export default function JudgePanel({ onJudge, isStarted, onReset, camera1Ref, ca
     console.log("PASS 판정");
     handleJudge('PASS');
   };
+
+  // 외부에서 접근 가능한 함수들을 노출
+  useImperativeHandle(ref, () => ({
+    handlePASSClick: handlePassClick,
+    handleNGClick: handleNGClick
+  }));
 
   // 3초간 누르기 핸들러
   const handleMouseDown = (mode) => {
@@ -469,28 +475,7 @@ export default function JudgePanel({ onJudge, isStarted, onReset, camera1Ref, ca
     >
       <div style={{ display: 'flex', gap: '1dvw', height: '100%' }}>
         
-        {/* NG 버튼 */}
-        <Button
-          onClick={handleNGClick}
-          disabled={!isStarted || !hasNeedleTip || isWaitingEepromRead}
-          style={{
-            flex: 1,
-            backgroundColor: (isStarted && hasNeedleTip && !isWaitingEepromRead) ? '#C22727' : '#6B7280',
-            color: 'white',
-            fontSize: '1.8dvh',
-            fontWeight: 'bold',
-            border: 'none',
-            borderRadius: '0.375rem',
-            cursor: (isStarted && hasNeedleTip && !isWaitingEepromRead) ? 'pointer' : 'not-allowed',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            height: '29.5dvh',
-            opacity: (isStarted && hasNeedleTip && !isWaitingEepromRead) ? 1 : 0.6
-          }}
-        >
-          NG
-        </Button>
+
         
         {/* PASS 버튼 */}
         <Button
@@ -514,7 +499,32 @@ export default function JudgePanel({ onJudge, isStarted, onReset, camera1Ref, ca
         >
           PASS
         </Button>
+
+                {/* NG 버튼 */}
+        <Button
+          onClick={handleNGClick}
+          disabled={!isStarted || !hasNeedleTip || isWaitingEepromRead}
+          style={{
+            flex: 1,
+            backgroundColor: (isStarted && hasNeedleTip && !isWaitingEepromRead) ? '#C22727' : '#6B7280',
+            color: 'white',
+            fontSize: '1.8dvh',
+            fontWeight: 'bold',
+            border: 'none',
+            borderRadius: '0.375rem',
+            cursor: (isStarted && hasNeedleTip && !isWaitingEepromRead) ? 'pointer' : 'not-allowed',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            height: '29.5dvh',
+            opacity: (isStarted && hasNeedleTip && !isWaitingEepromRead) ? 1 : 0.6
+          }}
+        >
+          NG
+        </Button>
       </div>
     </Panel>
   )
-}
+});
+
+export default JudgePanel;

@@ -30,6 +30,8 @@ gpio_available = False
 pin5 = None   # GPIO5 객체 (Short 체크용)
 pin11 = None  # GPIO11 객체 (니들팁 연결 감지용)
 pin6 = None   # GPIO6 객체 (START 버튼 스위치용)
+pin13 = None  # GPIO13 객체 (PASS 버튼 스위치용)
+pin19 = None  # GPIO19 객체 (NG 버튼 스위치용)
 needle_tip_connected = False  # 니들팁 연결 상태 (전역 변수)
 last_eeprom_data = {"success": False, "error": "니들팁이 연결되지 않음"}  # 마지막 EEPROM 상태
 
@@ -45,8 +47,14 @@ try:
     # GPIO6: Button 클래스로 START 버튼 스위치 (내부 풀업, 바운스 타임 지원)
     pin6 = Button(6, pull_up=True, bounce_time=0.2)
     
+    # GPIO13: Button 클래스로 PASS 버튼 스위치 (내부 풀업, 바운스 타임 지원)
+    pin13 = Button(13, pull_up=True, bounce_time=0.2)
+    
+    # GPIO19: Button 클래스로 NG 버튼 스위치 (내부 풀업, 바운스 타임 지원)
+    pin19 = Button(19, pull_up=True, bounce_time=0.2)
+    
     gpio_available = True
-    print("[OK] GPIO 5번, 11번, 6번 핀 초기화 완료 (gpiozero 라이브러리)")
+    print("[OK] GPIO 5번, 11번, 6번, 13번, 19번 핀 초기화 완료 (gpiozero 라이브러리)")
 except ImportError as ie:
     print(f"[ERROR] GPIO 모듈을 찾을 수 없습니다: {ie}. GPIO 기능이 비활성화됩니다.")
 except Exception as e:
@@ -110,6 +118,64 @@ def _on_start_button_pressed_sync():
         # 실행 중인 루프가 없으면 새로 생성
         asyncio.run(_on_start_button_pressed())
 
+# GPIO13 이벤트 핸들러 (PASS 버튼 스위치)
+async def _on_pass_button_pressed():
+    """GPIO13 PASS 버튼 스위치가 눌렸을 때 호출되는 이벤트 핸들러"""
+    print("[GPIO13] PASS 버튼 스위치 눌림 - 프론트엔드로 PASS 신호 전송")
+    
+    # 모든 연결된 클라이언트에게 PASS 신호 전송
+    pass_message = {
+        "type": "gpio_pass_button",
+        "data": {
+            "triggered": True,
+            "timestamp": time.time()
+        }
+    }
+    
+    for ws in connected_clients.copy():
+        try:
+            await ws.send(json.dumps(pass_message))
+        except Exception as e:
+            print(f"[WARN] GPIO13 PASS 신호 전송 실패: {e}")
+            connected_clients.discard(ws)
+
+def _on_pass_button_pressed_sync():
+    """GPIO13 PASS 버튼 스위치 동기 래퍼 함수"""
+    try:
+        loop = asyncio.get_running_loop()
+        asyncio.create_task(_on_pass_button_pressed())
+    except RuntimeError:
+        asyncio.run(_on_pass_button_pressed())
+
+# GPIO19 이벤트 핸들러 (NG 버튼 스위치)
+async def _on_ng_button_pressed():
+    """GPIO19 NG 버튼 스위치가 눌렸을 때 호출되는 이벤트 핸들러"""
+    print("[GPIO19] NG 버튼 스위치 눌림 - 프론트엔드로 NG 신호 전송")
+    
+    # 모든 연결된 클라이언트에게 NG 신호 전송
+    ng_message = {
+        "type": "gpio_ng_button",
+        "data": {
+            "triggered": True,
+            "timestamp": time.time()
+        }
+    }
+    
+    for ws in connected_clients.copy():
+        try:
+            await ws.send(json.dumps(ng_message))
+        except Exception as e:
+            print(f"[WARN] GPIO19 NG 신호 전송 실패: {e}")
+            connected_clients.discard(ws)
+
+def _on_ng_button_pressed_sync():
+    """GPIO19 NG 버튼 스위치 동기 래퍼 함수"""
+    try:
+        loop = asyncio.get_running_loop()
+        asyncio.create_task(_on_ng_button_pressed())
+    except RuntimeError:
+        asyncio.run(_on_ng_button_pressed())
+
 # GPIO5 이벤트 핸들러 설정 (Short 체크)
 if gpio_available and pin5:
     try:
@@ -152,6 +218,32 @@ if gpio_available and pin6:
         print("[OK] GPIO6 이벤트 핸들러 등록 완료 (gpiozero) - START 버튼 스위치")
     except Exception as e:
         print(f"[ERROR] GPIO6 이벤트 설정 오류: {e}")
+
+# GPIO13 이벤트 핸들러 설정 (PASS 버튼 스위치)
+if gpio_available and pin13:
+    try:
+        # GPIO13 초기 상태 확인
+        print(f"[GPIO13] 초기 PASS 버튼 상태: {'눌림' if pin13.is_active else '안눌림'}")
+        
+        # 이벤트 핸들러 할당 (버튼 눌림: HIGH -> LOW 전환 시 트리거)
+        pin13.when_activated = _on_pass_button_pressed_sync
+        
+        print("[OK] GPIO13 이벤트 핸들러 등록 완료 (gpiozero) - PASS 버튼 스위치")
+    except Exception as e:
+        print(f"[ERROR] GPIO13 이벤트 설정 오류: {e}")
+
+# GPIO19 이벤트 핸들러 설정 (NG 버튼 스위치)
+if gpio_available and pin19:
+    try:
+        # GPIO19 초기 상태 확인
+        print(f"[GPIO19] 초기 NG 버튼 상태: {'눌림' if pin19.is_active else '안눌림'}")
+        
+        # 이벤트 핸들러 할당 (버튼 눌림: HIGH -> LOW 전환 시 트리거)
+        pin19.when_activated = _on_ng_button_pressed_sync
+        
+        print("[OK] GPIO19 이벤트 핸들러 등록 완료 (gpiozero) - NG 버튼 스위치")
+    except Exception as e:
+        print(f"[ERROR] GPIO19 이벤트 설정 오류: {e}")
 
 
 # EEPROM 관련 함수들 - 간소화된 API
@@ -650,6 +742,8 @@ async def push_motor_status():
             gpio5_state = "UNKNOWN"
             gpio11_state = "UNKNOWN"
             gpio6_state = "UNKNOWN"
+            gpio13_state = "UNKNOWN"
+            gpio19_state = "UNKNOWN"
             
             if gpio_available and pin5:
                 # gpiozero Button 객체에서 상태 읽기 (is_active가 True이면 HIGH 상태)
@@ -662,6 +756,14 @@ async def push_motor_status():
             if gpio_available and pin6:
                 # GPIO6 START 버튼 스위치 상태 읽기
                 gpio6_state = "HIGH" if pin6.is_active else "LOW"
+            
+            if gpio_available and pin13:
+                # GPIO13 PASS 버튼 스위치 상태 읽기
+                gpio13_state = "HIGH" if pin13.is_active else "LOW"
+            
+            if gpio_available and pin19:
+                # GPIO19 NG 버튼 스위치 상태 읽기
+                gpio19_state = "HIGH" if pin19.is_active else "LOW"
             # EEPROM 데이터는 GPIO11 인터럽트에서 관리되므로 전역 변수 사용
             # 모터 2 상태 가져오기
             motor2_status = motor.get_motor2_status()
@@ -685,6 +787,8 @@ async def push_motor_status():
                     "gpio5": gpio5_state,    # GPIO5 Short 체크 상태
                     "gpio11": gpio11_state,  # GPIO11 니들팁 연결 상태
                     "gpio6": gpio6_state,    # GPIO6 START 버튼 스위치 상태
+                    "gpio13": gpio13_state,  # GPIO13 PASS 버튼 스위치 상태
+                    "gpio19": gpio19_state,  # GPIO19 NG 버튼 스위치 상태
                     "needle_tip_connected": needle_tip_connected,  # 니들팁 연결 상태
                 }
             }
@@ -708,6 +812,10 @@ def cleanup_gpio():
                 pin11.close()
             if pin6:
                 pin6.close()
+            if pin13:
+                pin13.close()
+            if pin19:
+                pin19.close()
             print("[OK] GPIO 리소스 정리 완료 (gpiozero)")
         except Exception as e:
             print(f"[ERROR] GPIO 정리 오류: {e}")

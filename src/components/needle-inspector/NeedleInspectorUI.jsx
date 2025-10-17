@@ -123,6 +123,9 @@ export default function NeedleInspectorUI() {
 
   // DataSettingsPanel ref 추가 (GPIO 6번 START 버튼용)
   const dataSettingsPanelRef = useRef(null)
+  
+  // JudgePanel ref 추가 (GPIO 13번 PASS, 19번 NG 버튼용)
+  const judgePanelRef = useRef(null)
 
   // Camera 2 상태
   const [drawMode2, setDrawMode2] = useState(false)
@@ -1417,6 +1420,34 @@ export default function NeedleInspectorUI() {
               handleStartStopClick()
             }
           }
+        } else if (res.type === "gpio_pass_button") {
+          // GPIO 13번 PASS 버튼 스위치 신호 처리
+          console.log('🔘 GPIO13 PASS 버튼 스위치 신호 수신:', res.data)
+          
+          if (res.data && res.data.triggered) {
+            // JudgePanel의 실제 PASS 버튼과 동일한 동작 수행
+            console.log('✅ GPIO13 PASS 버튼 스위치로 실제 PASS 워크플로우 실행')
+            // JudgePanel의 handlePASSClick 함수를 직접 호출하기 위해 ref를 통해 접근
+            if (judgePanelRef.current && judgePanelRef.current.handlePASSClick) {
+              judgePanelRef.current.handlePASSClick()
+            } else {
+              console.warn('JudgePanel handlePASSClick 함수에 접근할 수 없음')
+            }
+          }
+        } else if (res.type === "gpio_ng_button") {
+          // GPIO 19번 NG 버튼 스위치 신호 처리
+          console.log('🔘 GPIO19 NG 버튼 스위치 신호 수신:', res.data)
+          
+          if (res.data && res.data.triggered) {
+            // JudgePanel의 실제 NG 버튼과 동일한 동작 수행
+            console.log('❌ GPIO19 NG 버튼 스위치로 실제 NG 워크플로우 실행')
+            // JudgePanel의 handleNGClick 함수를 직접 호출하기 위해 ref를 통해 접근
+            if (judgePanelRef.current && judgePanelRef.current.handleNGClick) {
+              judgePanelRef.current.handleNGClick()
+            } else {
+              console.warn('JudgePanel handleNGClick 함수에 접근할 수 없음')
+            }
+          }
         // EEPROM 관련 메시지는 DataSettingsPanel에서 Promise 기반으로 직접 처리
         // 중복 처리 방지를 위해 메인 UI에서는 제거
         } else if (res.type === "error") {
@@ -1924,6 +1955,7 @@ export default function NeedleInspectorUI() {
           </div>
           <div className="w-[22.5%]">
             <JudgePanel 
+            ref={judgePanelRef} // GPIO 13번 PASS, 19번 NG 버튼용 ref 추가
             onJudge={(result) => console.log(`판정 결과: ${result}`)}
             isStarted={isStarted}
             onReset={handleJudgeReset}
