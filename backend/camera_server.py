@@ -143,11 +143,15 @@ def generate_frames():
             break
             
         try:
-            # 주기적으로 버퍼 클리어 (100프레임마다)
-            if frame_count % 100 == 0 and frame_count > 0:
-                cap.grab()  # 버퍼 클리어
-                
-            success, frame = cap.read()
+            # 항상 최신 프레임을 가져오기 위해 grab() 후 retrieve() 사용
+            grab_success = cap.grab()
+            if not grab_success:
+                error_count += 1
+                print(f"[ERROR] 카메라 0번에서 프레임 grab 실패 ({error_count}/{max_errors})")
+                time.sleep(0.5)
+                continue
+
+            success, frame = cap.retrieve()
             if not success:
                 error_count += 1
                 print(f"[ERROR] 카메라 0번에서 프레임 읽기 실패 ({error_count}/{max_errors})")
@@ -202,11 +206,15 @@ def generate_frames2():
             break
             
         try:
-            # 주기적으로 버퍼 클리어 (100프레임마다)
-            if frame_count % 100 == 0 and frame_count > 0:
-                cap2.grab()  # 버퍼 클리어
-                
-            success, frame = cap2.read()
+            # 항상 최신 프레임을 가져오기 위해 grab() 후 retrieve() 사용
+            grab_success = cap2.grab()
+            if not grab_success:
+                error_count += 1
+                print(f"[ERROR] 카메라 2번에서 프레임 grab 실패 ({error_count}/{max_errors})")
+                time.sleep(0.5)
+                continue
+
+            success, frame = cap2.retrieve()
             if not success:
                 error_count += 1
                 print(f"[ERROR] 카메라 2번에서 프레임 읽기 실패 ({error_count}/{max_errors})")
