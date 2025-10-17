@@ -797,7 +797,9 @@ async def push_motor_status():
 
             for ws in connected_clients.copy():
                 try:
-                    await ws.send(json.dumps(data))
+                    # 메시지 프레이밍: JSON 끝에 줄바꿈 구분자 추가
+                    message = json.dumps(data) + '\n'
+                    await ws.send(message)
                 except Exception as e:
                     print(f"[WARN] 상태 전송 실패: {e}")
                     connected_clients.discard(ws)
