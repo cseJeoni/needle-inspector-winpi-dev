@@ -660,12 +660,53 @@ app.on('window-all-closed', () => {
         const isWindows = process.platform === 'win32' || process.platform.startsWith('win') || process.env.OS === 'Windows_NT';
         
         if (isWindows) {
-          console.log('[INFO] Windows 환경 - taskkill 사용');
+          console.log('[INFO] Windows 환경 - 강력한 프로세스 종료 시퀀스 시작');
           const { spawn } = require('child_process');
+          
+          // 1단계: 카메라 서버 프로세스 종료
           const killProcess = spawn('taskkill', ['/pid', serverProcess.pid, '/T', '/F'], { stdio: 'ignore' });
           
           killProcess.on('close', (code) => {
-            console.log(`[INFO] taskkill 완료 (코드: ${code})`);
+            console.log(`[INFO] 카메라 서버 taskkill 완료 (코드: ${code})`);
+            
+            // 2단계: Python 프로세스 전체 정리
+            setTimeout(() => {
+              console.log('[INFO] Python 프로세스 전체 정리 중...');
+              spawn('taskkill', ['/f', '/im', 'python.exe'], { stdio: 'ignore' });
+              spawn('taskkill', ['/f', '/im', 'pythonw.exe'], { stdio: 'ignore' });
+              
+              // 3단계: 카메라 관련 프로세스 정리
+              setTimeout(() => {
+                console.log('[INFO] 카메라 관련 프로세스 정리 중...');
+                spawn('taskkill', ['/f', '/im', 'usbvideo.exe'], { stdio: 'ignore' });
+                spawn('taskkill', ['/f', '/im', 'camera.exe'], { stdio: 'ignore' });
+                
+                // 4단계: 포트 점유 프로세스 정리
+                setTimeout(() => {
+                  console.log('[INFO] 포트 5000 점유 프로세스 정리 중...');
+                  const netstatProcess = spawn('netstat', ['-ano'], { stdio: 'pipe' });
+                  let netstatOutput = '';
+                  
+                  netstatProcess.stdout.on('data', (data) => {
+                    netstatOutput += data.toString();
+                  });
+                  
+                  netstatProcess.on('close', () => {
+                    const lines = netstatOutput.split('\n');
+                    for (const line of lines) {
+                      if (line.includes(':5000') && line.includes('LISTENING')) {
+                        const parts = line.trim().split(/\s+/);
+                        const pid = parts[parts.length - 1];
+                        if (pid && !isNaN(pid)) {
+                          console.log(`[INFO] 포트 5000 점유 프로세스 종료: PID ${pid}`);
+                          spawn('taskkill', ['/f', '/pid', pid], { stdio: 'ignore' });
+                        }
+                      }
+                    }
+                  });
+                }, 500);
+              }, 500);
+            }, 500);
           });
           
           killProcess.on('error', (error) => {
@@ -690,9 +731,75 @@ app.on('window-all-closed', () => {
       
       serverProcess = null;
     }
+    
+    // 강제 종료 타이머 설정 (3초 후 무조건 종료)
+    setTimeout(() => {
+      console.log('[WARN] 강제 앱 종료 (타임아웃)');
+      process.exit(0);
+    }, 3000);
+    
     app.quit();
   }
 });
+
+// 강제 종료 시그널 핸들러 추가
+process.on('SIGINT', () => {
+  console.log('[INFO] SIGINT 수신 - 강제 종료 시퀀스 시작');
+  forceCleanupAndExit();
+});
+
+process.on('SIGTERM', () => {
+  console.log('[INFO] SIGTERM 수신 - 강제 종료 시퀀스 시작');
+  forceCleanupAndExit();
+});
+
+// 강제 정리 및 종료 함수
+function forceCleanupAndExit() {
+  console.log('[INFO] 강제 정리 및 종료 시작');
+  
+  if (serverProcess && process.platform === 'win32') {
+    try {
+      const { spawn } = require('child_process');
+      console.log('[INFO] 강제 종료 - Python 및 카메라 프로세스 정리');
+      
+      // 모든 관련 프로세스 강제 종료
+      spawn('taskkill', ['/f', '/im', 'python.exe'], { stdio: 'ignore' });
+      spawn('taskkill', ['/f', '/im', 'pythonw.exe'], { stdio: 'ignore' });
+      spawn('taskkill', ['/f', '/im', 'usbvideo.exe'], { stdio: 'ignore' });
+      spawn('taskkill', ['/f', '/im', 'camera.exe'], { stdio: 'ignore' });
+      
+      // 포트 5000 점유 프로세스 정리
+      const netstatProcess = spawn('netstat', ['-ano'], { stdio: 'pipe' });
+      let netstatOutput = '';
+      
+      netstatProcess.stdout.on('data', (data) => {
+        netstatOutput += data.toString();
+      });
+      
+      netstatProcess.on('close', () => {
+        const lines = netstatOutput.split('\n');
+        for (const line of lines) {
+          if (line.includes(':5000') && line.includes('LISTENING')) {
+            const parts = line.trim().split(/\s+/);
+            const pid = parts[parts.length - 1];
+            if (pid && !isNaN(pid)) {
+              console.log(`[INFO] 강제 종료 - 포트 5000 점유 프로세스 종료: PID ${pid}`);
+              spawn('taskkill', ['/f', '/pid', pid], { stdio: 'ignore' });
+            }
+          }
+        }
+      });
+    } catch (error) {
+      console.error('[ERROR] 강제 정리 중 오류:', error);
+    }
+  }
+  
+  // 1초 후 강제 종료
+  setTimeout(() => {
+    console.log('[INFO] 강제 종료 완료');
+    process.exit(0);
+  }, 1000);
+}
 
 app.on('quit', () => {
   console.log('[INFO] Electron 앱 종료');

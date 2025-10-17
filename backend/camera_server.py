@@ -288,6 +288,24 @@ def cleanup_cameras():
         import gc
         gc.collect()
         
+        # Windows에서 카메라 프로세스 강제 종료
+        if platform.system() == "Windows":
+            try:
+                print("[DEBUG] Windows 카메라 프로세스 강제 정리 중...")
+                # USB 카메라 관련 프로세스 종료
+                subprocess.run(['taskkill', '/f', '/im', 'usbvideo.exe'], 
+                             capture_output=True, check=False)
+                subprocess.run(['taskkill', '/f', '/im', 'camera.exe'], 
+                             capture_output=True, check=False)
+                # DirectShow 필터 정리
+                subprocess.run(['rundll32.exe', 'quartz.dll,DllUnregisterServer'], 
+                             capture_output=True, check=False)
+                subprocess.run(['rundll32.exe', 'quartz.dll,DllRegisterServer'], 
+                             capture_output=True, check=False)
+                print("[OK] Windows 카메라 프로세스 정리 완료")
+            except Exception as e:
+                print(f"[WARN] Windows 카메라 프로세스 정리 실패: {e}")
+        
         print("[OK] 카메라 리소스 정리 완료")
         
     except Exception as e:
