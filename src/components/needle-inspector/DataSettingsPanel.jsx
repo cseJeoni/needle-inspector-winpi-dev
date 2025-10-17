@@ -852,7 +852,7 @@ const DataSettingsPanel = forwardRef(({
         })
         
         // 9단계: 모터 1 UP 명령 전송
-        const motor1UpPosition = Math.round((needleOffset1 + needleProtrusion1) * 100);
+        const motor1UpPosition = Math.round((needleOffset1 + needleProtrusion1) * 125);
         console.log('9️⃣ 모터 1 UP 명령 전송 - 위치:', motor1UpPosition, '(오프셋:', needleOffset1, '+ 돌출:', needleProtrusion1, ')')
         if (websocket && isWsConnected) {
           websocket.send(JSON.stringify({ 
@@ -919,7 +919,7 @@ const DataSettingsPanel = forwardRef(({
       }
       
       // 3단계: 모터 1 UP 명령 전송 (저항 측정 단계 제외)
-      const motor1UpPosition = Math.round((needleOffset1 + needleProtrusion1) * 100);
+      const motor1UpPosition = Math.round((needleOffset1 + needleProtrusion1) * 125);
       console.log('3️⃣ 모터 1 UP 명령 전송 - 위치:', motor1UpPosition, '(오프셋:', needleOffset1, '+ 돌출:', needleProtrusion1, ')')
       if (websocket && isWsConnected) {
         websocket.send(JSON.stringify({ 
@@ -963,7 +963,7 @@ const DataSettingsPanel = forwardRef(({
     
     // 모터1, 모터2 모두 DOWN 명령 전송 (초기 위치로) (메인 WebSocket 사용)
     if (websocket && isWsConnected) {
-      const motor1DownPosition = Math.round(needleOffset1 * 100);
+      const motor1DownPosition = Math.round(needleOffset1 * 125);
       const motor2DownPosition = Math.round(needleOffset2 * 40);
       console.log('모터1 DOWN 명령 전송 - 위치:', motor1DownPosition, '(초기 위치:', needleOffset1, ')')
       websocket.send(JSON.stringify({ cmd: "move", position: motor1DownPosition, mode: "position", motor_id: 1 }))

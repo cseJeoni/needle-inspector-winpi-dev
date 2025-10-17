@@ -119,7 +119,7 @@ export default function NeedleCheckPanel({ mode, isMotorConnected, needlePositio
 
   // 니들 오프셋과 돌출 부분 값이 변경될 때마다 계산된 모터 위치를 상위로 전달
   useEffect(() => {
-    const calculatedPosition = Math.round((needleOffset + needleProtrusion) * 100);
+    const calculatedPosition = Math.round((needleOffset + needleProtrusion) * 125);
     if (onMotorPositionChange) {
       onMotorPositionChange(calculatedPosition);
     }
@@ -149,7 +149,7 @@ export default function NeedleCheckPanel({ mode, isMotorConnected, needlePositio
     }
 
     // UP 명령 (초기 위치 + 돌출 부분)
-    const upPosition = Math.round((needleOffset + needleProtrusion) * 100);
+    const upPosition = Math.round((needleOffset + needleProtrusion) * 125);
     console.log(`🎯 모터 UP 명령 실행 (${upPosition})`);
     sendMotorCommand(upPosition);
   }
@@ -210,7 +210,7 @@ export default function NeedleCheckPanel({ mode, isMotorConnected, needlePositio
             <Button
               onClick={() => {
                 if (needleOffsetState === 'UP') {
-                  const motorPosition = Math.round(needleOffset * 100);
+                  const motorPosition = Math.round(needleOffset * 125);
                   console.log('니들 오프셋 UP:', needleOffset, '모터 위치:', motorPosition);
                   // WebSocket을 통한 모터 위치 명령 전송
                   sendMotorCommand(motorPosition);
@@ -264,14 +264,14 @@ export default function NeedleCheckPanel({ mode, isMotorConnected, needlePositio
             <Button
               onClick={() => {
                 if (needleProtrusionState === 'UP') {
-                  const motorPosition = Math.round((needleOffset + needleProtrusion) * 100);
+                  const motorPosition = Math.round((needleOffset + needleProtrusion) * 125);
                   console.log('니들 돌출 부분 UP:', needleOffset, '+', needleProtrusion, '=', needleOffset + needleProtrusion, '모터 위치:', motorPosition);
                   // WebSocket을 통한 모터 위치 명령 전송
                   sendMotorCommand(motorPosition);
                   setNeedleProtrusionState('DOWN');
                 } else {
-                  const motorPosition = Math.round(needleOffset * 100);
-                  console.log('니들 돌출 부분 DOWN: 니들 초기 위치로', needleOffset, '모터 위치:', motorPosition);
+                  const motorPosition = Math.round(needleOffset * 125);
+                  console.log('니들 돌출 부분 DOWN: 니듡 초기 위치로', needleOffset, '모터 위치:', motorPosition);
                   // WebSocket을 통한 모터 위치 명령 전송
                   sendMotorCommand(motorPosition);
                   setNeedleProtrusionState('UP');

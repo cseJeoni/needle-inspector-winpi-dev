@@ -39,7 +39,7 @@ export default function NeedleInspectorUI() {
   const [motorError, setMotorError] = useState(null)
   const [currentPosition, setCurrentPosition] = useState(0)
   const [needlePosition, setNeedlePosition] = useState('UNKNOWN') // UP, DOWN, UNKNOWN
-  const [calculatedMotorPosition, setCalculatedMotorPosition] = useState(310) // (니들 오프셋 + 돌출 부분) * 100 기본값: (0.1 + 3.0) * 100 = 310
+  const [calculatedMotorPosition, setCalculatedMotorPosition] = useState(387) // (니들 오프셋 + 돌출 부분) * 125 기본값: (0.1 + 3.0) * 125 = 387
   
   // 모터 2 상태 추가
   const [isMotor2Connected, setIsMotor2Connected] = useState(false)
@@ -1675,7 +1675,7 @@ export default function NeedleInspectorUI() {
               🔧 모터 1: {isMotorConnected ? '연결됨' : '연결 안됨'}
             </div>
             <div style={{ fontSize: '10px', marginBottom: '2px' }}>
-              위치: {currentPosition} ({(currentPosition / 100).toFixed(2)}mm)
+              위치: {currentPosition} ({(currentPosition / 125).toFixed(2)}mm)
             </div>
             {motorError && (
               <div style={{ fontSize: '9px', color: '#FCA5A5', marginTop: '2px' }}>

@@ -55,7 +55,7 @@ export default function JudgePanel({ onJudge, isStarted, onReset, camera1Ref, ca
   // 니듡 DOWN 명령 전송 함수 (메인 WebSocket 사용) - 모터 1, 2 모두 초기 위치로
   const sendNeedleDown = () => {
     if (websocket && isWsConnected) {
-      const motor1DownPosition = Math.round((needleOffset1 || 0.1) * 100);
+      const motor1DownPosition = Math.round((needleOffset1 || 0.1) * 125);
       const motor2DownPosition = Math.round((needleOffset2 || 0.1) * 100);
       
       console.log('판정 후 모터 1 DOWN 명령 전송 - 위치:', motor1DownPosition, '(초기 위치:', needleOffset1 || 0.1, ')')
