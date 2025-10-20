@@ -1,4 +1,4 @@
-import React, { useImperativeHandle, forwardRef } from 'react';
+import React, { useImperativeHandle, forwardRef, useState, useEffect } from 'react';
 import './CameraView.css';
 
 /**
@@ -39,6 +39,70 @@ const CameraView = forwardRef(({
   onLineColorChange,
   workStatus = 'waiting' // 작업 상태 (니들 쇼트, 저장 실패 등)
 }, ref) => {
+  // LED 상태 관리
+  const [ledState, setLedState] = useState(false); // false: OFF, true: ON
+  const [deviceIndex, setDeviceIndex] = useState(null); // 카메라 디바이스 인덱스
+  const [cameraDevices, setCameraDevices] = useState([]);
+
+  // 컴포넌트 마운트 시 카메라 디바이스 목록 가져오기
+  useEffect(() => {
+    const loadCameraDevices = async () => {
+      try {
+        if (window.electronAPI && window.electronAPI.getCameraDevices) {
+          console.log(`[${title}] 카메라 디바이스 목록 로드 중...`);
+          const result = await window.electronAPI.getCameraDevices();
+          
+          if (result.success) {
+            setCameraDevices(result.devices || []);
+            console.log(`[${title}] 카메라 디바이스 목록:`, result.devices);
+            
+            // cameraId에 따라 디바이스 인덱스 설정 (간단한 매핑)
+            // 실제 환경에서는 더 정교한 매핑이 필요할 수 있습니다
+            if (result.devices && result.devices.length > 0) {
+              const targetIndex = Math.min(cameraId - 1, result.devices.length - 1);
+              setDeviceIndex(targetIndex);
+              console.log(`[${title}] 디바이스 인덱스 설정: ${targetIndex}`);
+            }
+          } else {
+            console.warn(`[${title}] 카메라 디바이스 목록 로드 실패:`, result.error);
+          }
+        }
+      } catch (error) {
+        console.error(`[${title}] 카메라 디바이스 목록 로드 오류:`, error);
+      }
+    };
+
+    loadCameraDevices();
+  }, [cameraId, title]);
+
+  // LED 토글 핸들러
+  const handleLEDToggle = async () => {
+    if (deviceIndex === null) {
+      console.warn(`[${title}] 디바이스 인덱스가 설정되지 않음`);
+      alert('카메라 디바이스를 찾을 수 없습니다.');
+      return;
+    }
+
+    try {
+      const newLedState = !ledState;
+      console.log(`[${title}] LED 상태 변경 시도: ${ledState ? 'ON' : 'OFF'} -> ${newLedState ? 'ON' : 'OFF'}`);
+      
+      if (window.electronAPI && window.electronAPI.setCameraLED) {
+        const result = await window.electronAPI.setCameraLED(deviceIndex, newLedState ? 1 : 0);
+        
+        if (result.success) {
+          setLedState(newLedState);
+          console.log(`[${title}] LED 상태 변경 성공:`, result.message);
+        } else {
+          console.error(`[${title}] LED 상태 변경 실패:`, result.error);
+          alert(`LED 제어 실패: ${result.error}`);
+        }
+      }
+    } catch (error) {
+      console.error(`[${title}] LED 토글 오류:`, error);
+      alert(`LED 제어 오류: ${error.message}`);
+    }
+  };
 
   // 카메라 이미지 + 캔버스 오버레이 + 시간 텍스트를 포함한 이미지 캡처
   const captureImage = async (judgeResult = null, eepromData = null, resistanceData = null) => {
@@ -244,6 +308,19 @@ const CameraView = forwardRef(({
             style={{ color: '#000000' }}
           >
             전체 삭제
+          </button>
+          <button 
+            onClick={handleLEDToggle}
+            className={`control-button led-button ${ledState ? 'led-on' : 'led-off'}`}
+            style={{ 
+              color: '#000000',
+              backgroundColor: ledState ? '#4CAF50' : '#f44336',
+              border: `2px solid ${ledState ? '#45a049' : '#da190b'}`,
+              fontWeight: 'bold'
+            }}
+            title={`카메라 LED ${ledState ? 'OFF' : 'ON'}`}
+          >
+            LED {ledState ? 'OFF' : 'ON'}
           </button>
           <div className="calibration-container">
             <label className="calibration-label">스케일 (px/mm):</label>

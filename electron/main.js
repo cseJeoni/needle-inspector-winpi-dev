@@ -2,10 +2,11 @@
 
 const { app, BrowserWindow, ipcMain, dialog } = require('electron');
 const path = require('path');
-const { spawn } = require('child_process');
+const { spawn, execFile } = require('child_process');
 const fs = require('fs');
 const { promisify } = require('util');
 const exec = promisify(require('child_process').exec);
+const execFileAsync = promisify(execFile);
 const axios = require('axios');
 const Store = require('electron-store');
 const XLSX = require('xlsx');
@@ -592,6 +593,74 @@ ipcMain.handle('get-parameters', async (event) => {
   } catch (error) {
     console.error('[ERROR] 파라미터 설정 로드 실패:', error);
     return { success: false, error: error.message, data: {} };
+  }
+});
+
+// 카메라 LED 제어 IPC 핸들러
+ipcMain.handle('camera-led-list-devices', async (event) => {
+  try {
+    console.log('[INFO] 카메라 디바이스 목록 요청');
+    
+    const backendPath = getBackendPath();
+    const scriptPath = path.join(backendPath, 'camera_led_control.py');
+    
+    // Python 스크립트 실행하여 카메라 디바이스 목록 가져오기
+    const { stdout, stderr } = await execFileAsync('python', [scriptPath, 'list'], {
+      cwd: backendPath,
+      timeout: 10000 // 10초 타임아웃
+    });
+    
+    if (stderr) {
+      console.warn('[WARN] 카메라 디바이스 조회 경고:', stderr);
+    }
+    
+    const result = JSON.parse(stdout.trim());
+    console.log('[INFO] 카메라 디바이스 목록:', result);
+    
+    return result;
+  } catch (error) {
+    console.error('[ERROR] 카메라 디바이스 목록 조회 실패:', error);
+    return { 
+      success: false, 
+      error: `카메라 디바이스 목록 조회 실패: ${error.message}` 
+    };
+  }
+});
+
+ipcMain.handle('camera-led-set-state', async (event, deviceIndex, ledState) => {
+  try {
+    console.log(`[INFO] 카메라 LED 제어 요청: 디바이스 ${deviceIndex}, 상태 ${ledState}`);
+    
+    const backendPath = getBackendPath();
+    const scriptPath = path.join(backendPath, 'camera_led_control.py');
+    
+    // Python 스크립트 실행하여 LED 상태 설정
+    const { stdout, stderr } = await execFileAsync('python', [
+      scriptPath, 
+      'set', 
+      '--device-index', 
+      deviceIndex.toString(), 
+      '--led-state', 
+      ledState.toString()
+    ], {
+      cwd: backendPath,
+      timeout: 10000 // 10초 타임아웃
+    });
+    
+    if (stderr) {
+      console.warn('[WARN] 카메라 LED 제어 경고:', stderr);
+    }
+    
+    const result = JSON.parse(stdout.trim());
+    console.log('[INFO] 카메라 LED 제어 결과:', result);
+    
+    return result;
+  } catch (error) {
+    console.error('[ERROR] 카메라 LED 제어 실패:', error);
+    return { 
+      success: false, 
+      error: `카메라 LED 제어 실패: ${error.message}` 
+    };
   }
 });
 

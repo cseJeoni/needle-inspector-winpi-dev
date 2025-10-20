@@ -111,6 +111,15 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // 파라미터 설정 로드 API
   getParameters: () => {
     return ipcRenderer.invoke('get-parameters');
+  },
+  
+  // 카메라 LED 제어 API
+  getCameraDevices: () => {
+    return ipcRenderer.invoke('camera-led-list-devices');
+  },
+  
+  setCameraLED: (deviceIndex, ledState) => {
+    return ipcRenderer.invoke('camera-led-set-state', deviceIndex, ledState);
   }
 });
 

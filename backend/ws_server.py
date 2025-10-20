@@ -2,8 +2,21 @@ import asyncio
 import websockets
 import json
 import time
+import sys
+import os
 from dual_motor_controller import DualMotorController
 from resistance import measure_resistance_once  # 저항 측정 일회성 함수 import
+
+# DNX64 SDK import (LED 제어용)
+try:
+    sys.path.append(os.path.join(os.path.dirname(__file__), 'pyDnx64v2'))
+    from dnx64 import DNX64
+    dnx64_available = True
+    print("[OK] DNX64 SDK 사용 가능 (LED 제어 기능 활성화)")
+except ImportError as e:
+    dnx64_available = False
+    DNX64 = None
+    print(f"[WARN] DNX64 SDK import 실패: {e} (LED 제어 기능 비활성화)")
 
 # EEPROM 관련 import
 try:
