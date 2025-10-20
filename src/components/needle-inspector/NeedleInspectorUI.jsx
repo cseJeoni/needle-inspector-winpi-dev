@@ -1554,7 +1554,7 @@ export default function NeedleInspectorUI() {
     }
 
     setWs(socket)
-  }
+  }, [reconnectAttempts, isReconnecting])
 
   // 앱 종료 시 정리 (window beforeunload 이벤트)
   useEffect(() => {
