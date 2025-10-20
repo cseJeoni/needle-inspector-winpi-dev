@@ -142,13 +142,7 @@ export default function NeedleCheckPanelV4Multi({
     websocket.send(JSON.stringify(msg));
   }
 
-  // 모터 1 니들 오프셋과 돌출 부분의 UP/DOWN 상태 (기본값: UP)
-  const [needleOffsetState1, setNeedleOffsetState1] = useState('UP')
-  const [needleProtrusionState1, setNeedleProtrusionState1] = useState('UP')
-  
-  // 모터 2 니들 오프셋과 돌출 부분의 UP/DOWN 상태 (기본값: UP)
-  const [needleOffsetState2, setNeedleOffsetState2] = useState('UP')
-  const [needleProtrusionState2, setNeedleProtrusionState2] = useState('UP')
+  // 토글 상태 변수들 제거 (단일 버튼으로 변경됨)
   
   // 니들 설정 잠금/해제 토글 함수
   const handleNeedleCheckToggle = () => {
@@ -357,16 +351,16 @@ export default function NeedleCheckPanelV4Multi({
     }
 
     // UP 명령 (모터별 다른 로직)
-    const upPosition = motorId === 1 ? 
-      Math.round((needleOffset1 + needleProtrusion1) * 125) : 
-      Math.round((needleOffset2 - needleProtrusion2) * 40);
-    console.log(`🎯 모터${motorId} UP 명령 실행 (${upPosition})`)
-    
-    // M2는 기본 속도만 사용 (감속 미적용)
-    if (motorId === 2) {
-      sendMotorCommandBasic(upPosition, motorId)
+    if (motorId === 1) {
+      // 모터1: 니들 돌출 부분의 UP 버튼과 같은 기능 (needleOffset1 + needleProtrusion1)
+      const upPosition = Math.round((needleOffset1 + needleProtrusion1) * 125);
+      console.log(`🎯 모터1 UP 명령 실행 (니들 돌출): ${needleOffset1} + ${needleProtrusion1} = ${needleOffset1 + needleProtrusion1}mm, 모터 위치: ${upPosition}`);
+      sendMotorCommand(upPosition, motorId);
     } else {
-      sendMotorCommand(upPosition, motorId)
+      // 모터2: 니들 초기 위치 입력값으로 이동
+      const upPosition = Math.round(needleOffset2 * 40);
+      console.log(`🎯 모터2 UP 명령 실행 (니들 초기 위치): ${needleOffset2}mm, 모터 위치: ${upPosition}`);
+      sendMotorCommandBasic(upPosition, motorId);
     }
   }
 
@@ -378,14 +372,16 @@ export default function NeedleCheckPanelV4Multi({
     }
 
     // DOWN 명령 (모터별 다른 로직)
-    const downPosition = motorId === 1 ? 0 : 2000;
-    console.log(`🎯 모터${motorId} DOWN 명령 실행 (${downPosition})`)
-    
-    // M2는 기본 속도만 사용 (감속 미적용)
-    if (motorId === 2) {
-      sendMotorCommandBasic(downPosition, motorId)
+    if (motorId === 1) {
+      // 모터1: 니들 초기 위치 입력값으로 이동
+      const downPosition = Math.round(needleOffset1 * 125);
+      console.log(`🎯 모터1 DOWN 명령 실행 (니들 초기 위치): ${needleOffset1}mm, 모터 위치: ${downPosition}`);
+      sendMotorCommand(downPosition, motorId);
     } else {
-      sendMotorCommand(downPosition, motorId)
+      // 모터2: 니들 초기 위치 - 돌출 부분 뺀 위치로 이동
+      const downPosition = Math.round((needleOffset2 - needleProtrusion2) * 40);
+      console.log(`🎯 모터2 DOWN 명령 실행 (니들 초기 위치 - 돌출): ${needleOffset2} - ${needleProtrusion2} = ${needleOffset2 - needleProtrusion2}mm, 모터 위치: ${downPosition}`);
+      sendMotorCommandBasic(downPosition, motorId);
     }
   }
 
@@ -551,16 +547,9 @@ export default function NeedleCheckPanelV4Multi({
             />
             <Button
               onClick={() => {
-                if (needleOffsetState1 === 'UP') {
-                  const motorPosition = Math.round(needleOffset1 * 125);
-                  console.log('모터1 니들 초기 위치 UP:', needleOffset1, '모터 위치:', motorPosition);
-                  sendMotorCommand(motorPosition, 1);
-                  setNeedleOffsetState1('DOWN');
-                } else {
-                  console.log('모터1 니들 초기 위치 DOWN: 모터 위치 0');
-                  sendMotorCommand(0, 1);
-                  setNeedleOffsetState1('UP');
-                }
+                const motorPosition = Math.round(needleOffset1 * 125);
+                console.log('모터1 니들 초기 위치 UP:', needleOffset1, '모터 위치:', motorPosition);
+                sendMotorCommand(motorPosition, 1);
               }}
               disabled={!isNeedleCheckEnabled}
               style={{
@@ -575,7 +564,7 @@ export default function NeedleCheckPanelV4Multi({
                 opacity: (!isNeedleCheckEnabled) ? 0.6 : 1
               }}
             >
-              {needleOffsetState1 === 'UP' ? '↑' : '↓'}
+              ↑
             </Button>
           </div>
           
@@ -600,16 +589,9 @@ export default function NeedleCheckPanelV4Multi({
             />
             <Button
               onClick={() => {
-                if (needleOffsetState2 === 'UP') {
-                  const motorPosition = Math.round(needleOffset2 * 40);
-                  console.log('모터2 니들 초기 위치 UP:', needleOffset2, '모터 위치:', motorPosition);
-                  sendMotorCommandBasic(motorPosition, 2);
-                  setNeedleOffsetState2('DOWN');
-                } else {
-                  console.log('모터2 니들 초기 위치 DOWN: 모터 위치 0');
-                  sendMotorCommandBasic(0, 2);
-                  setNeedleOffsetState2('UP');
-                }
+                const motorPosition = Math.round(needleOffset2 * 40);
+                console.log('모터2 니들 초기 위치 UP:', needleOffset2, '모터 위치:', motorPosition);
+                sendMotorCommandBasic(motorPosition, 2);
               }}
               disabled={!isNeedleCheckEnabled}
               style={{
@@ -624,7 +606,7 @@ export default function NeedleCheckPanelV4Multi({
                 opacity: (!isNeedleCheckEnabled) ? 0.6 : 1
               }}
             >
-              {needleOffsetState2 === 'UP' ? '↑' : '↓'}
+              ↑
             </Button>
           </div>
         </div>
@@ -654,17 +636,9 @@ export default function NeedleCheckPanelV4Multi({
             />
             <Button
               onClick={() => {
-                if (needleProtrusionState1 === 'UP') {
-                  const motorPosition = Math.round((needleOffset1 + needleProtrusion1) * 125);
-                  console.log('모터1 니들 돌출 부분 UP:', needleOffset1, '+', needleProtrusion1, '=', needleOffset1 + needleProtrusion1, '모터 위치:', motorPosition);
-                  sendMotorCommand(motorPosition, 1);
-                  setNeedleProtrusionState1('DOWN');
-                } else {
-                  const motorPosition = Math.round(needleOffset1 * 125);
-                  console.log('모터1 니들 돌출 부분 DOWN: 니들 초기 위치로', needleOffset1, '모터 위치:', motorPosition);
-                  sendMotorCommand(motorPosition, 1);
-                  setNeedleProtrusionState1('UP');
-                }
+                const motorPosition = Math.round((needleOffset1 + needleProtrusion1) * 125);
+                console.log('모터1 니들 돌출 부분 UP:', needleOffset1, '+', needleProtrusion1, '=', needleOffset1 + needleProtrusion1, '모터 위치:', motorPosition);
+                sendMotorCommand(motorPosition, 1);
               }}
               disabled={!isNeedleCheckEnabled}
               style={{
@@ -679,7 +653,7 @@ export default function NeedleCheckPanelV4Multi({
                 opacity: (!isNeedleCheckEnabled) ? 0.6 : 1
               }}
             >
-              {needleProtrusionState1 === 'UP' ? '↑' : '↓'}
+              ↑
             </Button>
           </div>
           
@@ -704,17 +678,9 @@ export default function NeedleCheckPanelV4Multi({
             />
             <Button
               onClick={() => {
-                if (needleProtrusionState2 === 'UP') {
-                  const motorPosition = Math.round((needleOffset2 - needleProtrusion2) * 40);
-                  console.log('모터2 니들 돌출 부분 UP:', needleOffset2, '-', needleProtrusion2, '=', needleOffset2 - needleProtrusion2, '모터 위치:', motorPosition);
-                  sendMotorCommandBasic(motorPosition, 2);
-                  setNeedleProtrusionState2('DOWN');
-                } else {
-                  const motorPosition = Math.round(needleOffset2 * 40);
-                  console.log('모터2 니들 돌출 부분 DOWN: 니들 초기 위치로', needleOffset2, '모터 위치:', motorPosition);
-                  sendMotorCommandBasic(motorPosition, 2);
-                  setNeedleProtrusionState2('UP');
-                }
+                const motorPosition = Math.round((needleOffset2 - needleProtrusion2) * 40);
+                console.log('모터2 니들 돌출 부분 DOWN:', needleOffset2, '-', needleProtrusion2, '=', needleOffset2 - needleProtrusion2, '모터 위치:', motorPosition);
+                sendMotorCommandBasic(motorPosition, 2);
               }}
               disabled={!isNeedleCheckEnabled}
               style={{
@@ -729,7 +695,7 @@ export default function NeedleCheckPanelV4Multi({
                 opacity: (!isNeedleCheckEnabled) ? 0.6 : 1
               }}
             >
-              {needleProtrusionState2 === 'UP' ? '↑' : '↓'}
+              ↓
             </Button>
           </div>
         </div>
