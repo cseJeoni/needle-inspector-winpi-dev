@@ -39,8 +39,8 @@ const CameraView = forwardRef(({
   onLineColorChange,
   workStatus = 'waiting' // 작업 상태 (니들 쇼트, 저장 실패 등)
 }, ref) => {
-  // LED 상태 관리 (기본적으로 LED가 켜져 있으므로 초기 상태를 true로 설정)
-  const [ledState, setLedState] = useState(true); // false: OFF, true: ON
+  // LED 상태 관리 (작업 시 LED를 끄고 하므로 기본 OFF 상태)
+  const [ledState, setLedState] = useState(false); // false: OFF, true: ON
   const [deviceIndex, setDeviceIndex] = useState(null); // 카메라 디바이스 인덱스
   const [cameraDevices, setCameraDevices] = useState([]);
 
