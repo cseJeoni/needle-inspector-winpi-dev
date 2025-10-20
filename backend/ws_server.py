@@ -734,75 +734,128 @@ async def handler(websocket):
         print("[INFO] 클라이언트 연결 해제됨")
 
 async def push_motor_status():
+    """
+    모터 상태를 지속적으로 읽고 WebSocket으로 전송하는 메인 루프
+    예외 발생 시에도 루프가 중단되지 않도록 예외 처리 강화
+    """
+    consecutive_errors = 0
+    max_consecutive_errors = 10
     
     while True:
-        await asyncio.sleep(0.005)
-        if motor.is_connected():
-            # GPIO 상태 읽기
+        try:
+            await asyncio.sleep(0.005)
+            
+            if not motor.is_connected():
+                # 모터가 연결되지 않은 경우 대기
+                await asyncio.sleep(0.1)
+                continue
+            
+            # GPIO 상태 읽기 (예외 처리 추가)
             gpio5_state = "UNKNOWN"
             gpio11_state = "UNKNOWN"
             gpio6_state = "UNKNOWN"
             gpio13_state = "UNKNOWN"
             gpio19_state = "UNKNOWN"
             
-            if gpio_available and pin5:
-                # gpiozero Button 객체에서 상태 읽기 (is_active가 True이면 HIGH 상태)
-                gpio5_state = "HIGH" if pin5.is_active else "LOW"
+            try:
+                if gpio_available and pin5:
+                    gpio5_state = "HIGH" if pin5.is_active else "LOW"
+            except Exception as e:
+                print(f"[WARN] GPIO5 상태 읽기 실패: {e}")
             
-            if gpio_available and pin11:
-                # gpiozero Button 객체에서 상태 읽기 (is_active가 True이면 HIGH 상태)
-                gpio11_state = "HIGH" if pin11.is_active else "LOW"
+            try:
+                if gpio_available and pin11:
+                    gpio11_state = "HIGH" if pin11.is_active else "LOW"
+            except Exception as e:
+                print(f"[WARN] GPIO11 상태 읽기 실패: {e}")
             
-            if gpio_available and pin6:
-                # GPIO6 START 버튼 스위치 상태 읽기
-                gpio6_state = "HIGH" if pin6.is_active else "LOW"
+            try:
+                if gpio_available and pin6:
+                    gpio6_state = "HIGH" if pin6.is_active else "LOW"
+            except Exception as e:
+                print(f"[WARN] GPIO6 상태 읽기 실패: {e}")
             
-            if gpio_available and pin13:
-                # GPIO13 PASS 버튼 스위치 상태 읽기
-                gpio13_state = "HIGH" if pin13.is_active else "LOW"
+            try:
+                if gpio_available and pin13:
+                    gpio13_state = "HIGH" if pin13.is_active else "LOW"
+            except Exception as e:
+                print(f"[WARN] GPIO13 상태 읽기 실패: {e}")
             
-            if gpio_available and pin19:
-                # GPIO19 NG 버튼 스위치 상태 읽기
-                gpio19_state = "HIGH" if pin19.is_active else "LOW"
-            # EEPROM 데이터는 GPIO11 인터럽트에서 관리되므로 전역 변수 사용
-            # 모터 2 상태 가져오기
-            motor2_status = motor.get_motor2_status()
+            try:
+                if gpio_available and pin19:
+                    gpio19_state = "HIGH" if pin19.is_active else "LOW"
+            except Exception as e:
+                print(f"[WARN] GPIO19 상태 읽기 실패: {e}")
             
-            data = {
-                "type": "status",
-                "data": {
-                    # Motor 1 상태 (기존 호환성)
-                    "position": motor.position,
-                    "force": motor.force,
-                    "sensor": motor.sensor,
-                    "setPos": motor.setPos,
-                    # Motor 2 상태 추가
-                    "motor2_position": motor2_status["position"],
-                    "motor2_force": motor2_status["force"],
-                    "motor2_sensor": motor2_status["sensor"],
-                    "motor2_setPos": motor2_status["setPos"],
-                    # 명령어 큐 상태 (디버깅용)
-                    "command_queue_size": motor.get_queue_size(),
-                    # GPIO 상태
-                    "gpio5": gpio5_state,    # GPIO5 Short 체크 상태
-                    "gpio11": gpio11_state,  # GPIO11 니들팁 연결 상태
-                    "gpio6": gpio6_state,    # GPIO6 START 버튼 스위치 상태
-                    "gpio13": gpio13_state,  # GPIO13 PASS 버튼 스위치 상태
-                    "gpio19": gpio19_state,  # GPIO19 NG 버튼 스위치 상태
-                    "needle_tip_connected": needle_tip_connected,  # 니들팁 연결 상태
+            # 모터 상태 읽기 (예외 처리 추가)
+            try:
+                motor2_status = motor.get_motor2_status()
+            except Exception as e:
+                print(f"[ERROR] 모터 2 상태 읽기 실패: {e}")
+                motor2_status = {"position": 0, "force": 0, "sensor": 0, "setPos": 0}
+            
+            try:
+                data = {
+                    "type": "status",
+                    "data": {
+                        # Motor 1 상태 (기존 호환성)
+                        "position": motor.position,
+                        "force": motor.force,
+                        "sensor": motor.sensor,
+                        "setPos": motor.setPos,
+                        # Motor 2 상태 추가
+                        "motor2_position": motor2_status["position"],
+                        "motor2_force": motor2_status["force"],
+                        "motor2_sensor": motor2_status["sensor"],
+                        "motor2_setPos": motor2_status["setPos"],
+                        # 명령어 큐 상태 (디버깅용)
+                        "command_queue_size": motor.get_queue_size(),
+                        # GPIO 상태
+                        "gpio5": gpio5_state,
+                        "gpio11": gpio11_state,
+                        "gpio6": gpio6_state,
+                        "gpio13": gpio13_state,
+                        "gpio19": gpio19_state,
+                        "needle_tip_connected": needle_tip_connected,
+                    }
                 }
-            }
+            except Exception as e:
+                print(f"[ERROR] 상태 데이터 생성 실패: {e}")
+                continue
 
-            # 상태 데이터 전송 (로그 제거로 성능 개선)
-
-            for ws in connected_clients.copy():
-                try:
-                    # 메시지 프레이밍: JSON 끝에 줄바꿈 구분자 추가
-                    message = json.dumps(data) + '\n'
-                    await ws.send(message)
-                except Exception as e:
-                    print(f"[WARN] 상태 전송 실패: {e}")
-                    connected_clients.discard(ws)
+            # WebSocket 클라이언트에게 상태 전송
+            if connected_clients:
+                disconnected_clients = []
+                for ws in connected_clients.copy():
+                    try:
+                        message = json.dumps(data) + '\n'
+                        await ws.send(message)
+                    except websockets.exceptions.ConnectionClosed:
+                        print(f"[INFO] 클라이언트 연결 종료 감지")
+                        disconnected_clients.append(ws)
+                    except Exception as e:
+                        print(f"[WARN] 상태 전송 실패: {e}")
+                        disconnected_clients.append(ws)
+                
+                # 연결이 끈어진 클라이언트 제거
+                for ws in disconnected_clients:
+                    if ws in connected_clients:
+                        connected_clients.remove(ws)
+            
+            # 연속 오류 카운터 초기화
+            consecutive_errors = 0
+            
+        except Exception as e:
+            consecutive_errors += 1
+            print(f"[ERROR] push_motor_status 루프 예외 발생 ({consecutive_errors}/{max_consecutive_errors}): {e}")
+            
+            # 연속 오류가 너무 많으면 대기 시간 증가
+            if consecutive_errors >= max_consecutive_errors:
+                print(f"[ERROR] 연속 오류 {max_consecutive_errors}회 초과 - 5초 대기 후 재시도")
+                await asyncio.sleep(5)
+                consecutive_errors = 0
+            else:
+                await asyncio.sleep(0.1)
 
 def cleanup_gpio():
     """기존 GPIO 리소스 정리"""
