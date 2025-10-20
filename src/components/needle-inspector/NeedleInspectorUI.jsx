@@ -78,6 +78,9 @@ export default function NeedleInspectorUI() {
   const [needleOffset1, setNeedleOffset1] = useState(4.5) // 모터 1 니들 오프셋
   const [needleProtrusion1, setNeedleProtrusion1] = useState(3.0) // 모터 1 니들 돌출부분
   
+  // 모터 1 설정값 (NeedleCheckPanelV4Multi에서 사용)
+  const [needleSpeed1, setNeedleSpeed1] = useState(1000) // 모터 1 니들 속도
+  
   // 모터 2 설정값 (NeedleCheckPanelV4에서 사용)
   const [needleOffset2, setNeedleOffset2] = useState(50) // 모터 2 니들 오프셋
   const [needleProtrusion2, setNeedleProtrusion2] = useState(30) // 모터 2 니들 돌출부분
@@ -2040,6 +2043,8 @@ export default function NeedleInspectorUI() {
               onNeedleProtrusion2Change={setNeedleProtrusion2}
               resistanceThreshold={resistanceThreshold}
               onResistanceThresholdChange={setResistanceThreshold}
+              needleSpeed1={needleSpeed1}
+              onNeedleSpeed1Change={setNeedleSpeed1}
               needleSpeed2={needleSpeed2}
               onNeedleSpeed2Change={setNeedleSpeed2}
               isDecelerationEnabled={isDecelerationEnabled}

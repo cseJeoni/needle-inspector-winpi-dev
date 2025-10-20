@@ -37,6 +37,8 @@ export default function NeedleCheckPanelV4Multi({
   resistanceThreshold,
   onResistanceThresholdChange,
   // 니들 속도 및 힘 설정 props
+  needleSpeed1,
+  onNeedleSpeed1Change,
   needleSpeed2,
   onNeedleSpeed2Change,
   needleForce2,
@@ -87,24 +89,28 @@ export default function NeedleCheckPanelV4Multi({
     const msg = {
       cmd: "move",
       position: targetPosition,
-      mode: "position",
+      mode: "speed", // 스피드 모드로 변경
       motor_id: motorId
     };
 
-    // 모터2일 때 니들 속도 및 감속 값 추가 (스타트 버튼에서만 감속 적용)
-    if (motorId === 2) {
-      msg.needle_speed = needleSpeed2 || 5000; // 기본값 1000
+    // 모터별 니들 속도 설정 (모든 모터가 스피드 모드로 동작)
+    if (motorId === 1) {
+      console.log(`🔍 [DEBUG] 모터1 속도 설정: needleSpeed1=${needleSpeed1}, 기본값 적용 후=${needleSpeed1 || 1000}`);
+      msg.needle_speed = needleSpeed1 || 1000; // 모터1 기본값 1000
+      console.log(`모터 ${motorId} 스피드 모드 명령 전송: 속도=${msg.needle_speed}`);
+    } else if (motorId === 2) {
+      console.log(`🔍 [DEBUG] 모터2 속도 설정: needleSpeed2=${needleSpeed2}, 기본값 적용 후=${needleSpeed2 || 5000}`);
+      msg.needle_speed = needleSpeed2 || 5000; // 모터2 기본값 5000
 
       // 감속 기능이 활성화된 경우 관련 정보 추가
       if (isDecelerationEnabled) {
-        msg.deceleration_enabled = true;
-        msg.deceleration_position = decelerationPosition;
-        msg.deceleration_speed = decelerationSpeed;
+        msg.deceleration_position = decelerationPosition || 10;
+        msg.deceleration_speed = decelerationSpeed || 100;
+        console.log(`모터 ${motorId} 감속 설정 추가: 위치=${msg.deceleration_position}mm, 속도=${msg.deceleration_speed}`);
       }
-
-      console.log(`모터 ${motorId} 속도/위치 명령 전송 (감속 적용):`, msg);
     }
-
+    
+    console.log(`모터 ${motorId} 속도/위치 명령 전송 (감속 적용):`, msg);
     websocket.send(JSON.stringify(msg));
   }
 
@@ -118,13 +124,18 @@ export default function NeedleCheckPanelV4Multi({
     const msg = {
       cmd: "move",
       position: targetPosition,
-      mode: "position",
+      mode: "speed", // 모든 모터가 스피드 모드로 동작
       motor_id: motorId
     };
 
-    // 모터2일 때 기본 속도만 적용 (감속 미적용)
-    if (motorId === 2) {
-      msg.needle_speed = needleSpeed2 || 5000; // 기본값만 사용
+    // 모터별 기본 속도 적용 (감속 미적용)
+    if (motorId === 1) {
+      console.log(`🔍 [DEBUG BASIC] 모터1 속도 설정: needleSpeed1=${needleSpeed1}, 기본값 적용 후=${needleSpeed1 || 1000}`);
+      msg.needle_speed = needleSpeed1 || 1000; // 모터1 기본값 1000
+      console.log(`모터 ${motorId} 기본 속도 명령 전송 (감속 미적용):`, msg);
+    } else if (motorId === 2) {
+      console.log(`🔍 [DEBUG BASIC] 모터2 속도 설정: needleSpeed2=${needleSpeed2}, 기본값 적용 후=${needleSpeed2 || 5000}`);
+      msg.needle_speed = needleSpeed2 || 5000; // 모터2 기본값 5000
       console.log(`모터 ${motorId} 기본 속도 명령 전송 (감속 미적용):`, msg);
     }
 
@@ -175,6 +186,9 @@ export default function NeedleCheckPanelV4Multi({
             }
             if (onNeedleProtrusion1Change && params.motor1.needleProtrusion !== undefined) {
               onNeedleProtrusion1Change(params.motor1.needleProtrusion);
+            }
+            if (onNeedleSpeed1Change && params.motor1.needleSpeed !== undefined) {
+              onNeedleSpeed1Change(params.motor1.needleSpeed);
             }
           }
           
@@ -233,7 +247,8 @@ export default function NeedleCheckPanelV4Multi({
         needleCheckPanelV4Multi: {
           motor1: {
             needleOffset: needleOffset1,
-            needleProtrusion: needleProtrusion1
+            needleProtrusion: needleProtrusion1,
+            needleSpeed: needleSpeed1
           },
           motor2: {
             needleOffset: needleOffset2,
@@ -266,7 +281,7 @@ export default function NeedleCheckPanelV4Multi({
     }, 500); // 500ms 지연
 
     return () => clearTimeout(timeoutId);
-  }, [needleOffset1, needleProtrusion1, needleOffset2, needleProtrusion2, needleSpeed2, 
+  }, [needleOffset1, needleProtrusion1, needleSpeed1, needleOffset2, needleProtrusion2, needleSpeed2, 
       isDecelerationEnabled, decelerationPosition, decelerationSpeed, 
       resistanceThreshold]); // 정상 값 제외
 
@@ -802,9 +817,28 @@ export default function NeedleCheckPanelV4Multi({
 
         {/* 니들 속도 */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5dvw' }}>
-          <label style={{ width: '67.5%', fontSize: '1.3dvh', color: '#D1D5DB' }}>저항 모터 기본 속도 </label>
+          <label style={{ width: '35%', fontSize: '1.3dvh', color: '#D1D5DB' }}>모터 기본 속도</label>
           
-
+          {/* 모터 1 */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.3dvw', flex: 1 }}>
+            <Input 
+              type="number"
+              value={needleSpeed1 || 0}
+              onChange={(e) => onNeedleSpeed1Change && onNeedleSpeed1Change(Number(e.target.value))}
+              min="0"
+              disabled={!isNeedleCheckEnabled}
+              style={{ 
+                backgroundColor: '#171C26', 
+                color: !isNeedleCheckEnabled ? '#D1D5DB' : '#BFB2E4', 
+                textAlign: 'center',
+                width: '95%',
+                fontSize: '1.1dvh', 
+                height: '3dvh',
+                opacity: !isNeedleCheckEnabled ? 0.6 : 1,
+                border: `1px solid ${!isNeedleCheckEnabled ? '#6B7280' : '#BFB2E4'}`
+              }}
+            />
+          </div>
           
           {/* 모터 2 */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.3dvw', flex: 1 }}>
@@ -816,12 +850,13 @@ export default function NeedleCheckPanelV4Multi({
               disabled={!isNeedleCheckEnabled}
               style={{ 
                 backgroundColor: '#171C26', 
-                color: !isNeedleCheckEnabled ? '#D1D5DB' : 'white', 
+                color: !isNeedleCheckEnabled ? '#D1D5DB' : '#E6C2D9', 
                 textAlign: 'center',
                 width: '95%',
                 fontSize: '1.1dvh', 
                 height: '3dvh',
-                opacity: !isNeedleCheckEnabled ? 0.6 : 1
+                opacity: !isNeedleCheckEnabled ? 0.6 : 1,
+                border: `1px solid ${!isNeedleCheckEnabled ? '#6B7280' : '#E6C2D9'}`
               }}
             />
           </div>

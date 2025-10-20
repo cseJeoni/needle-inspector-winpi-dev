@@ -534,8 +534,13 @@ async def handler(websocket):
                     mode = data.get("mode", "servo")
                     position = data.get("position")
                     speed = data.get("speed")
+                    needle_speed = data.get("needle_speed")  # 프론트엔드에서 보내는 속도값
                     force = data.get("force")
                     motor_id = data.get("motor_id", 1)  # 기본값은 모터 1
+                    
+                    # needle_speed가 있으면 speed로 사용 (모터1, 모터2 통일)
+                    if needle_speed is not None:
+                        speed = needle_speed
                     
                     # 모터 이동 명령 처리
                     
