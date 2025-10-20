@@ -137,11 +137,34 @@ const CameraView = forwardRef(({
         return null;
       }
 
-      // 캡처용 캔버스 생성 (고정 크기로 설정)
+      // 캡처용 캔버스 생성 - 정밀한 크기 분석
       const captureCanvas = document.createElement("canvas");
-      // 고정 크기로 설정하여 일반 로직과 MTR4 MULTI에서 동일한 이미지 크기 보장
-      captureCanvas.width = 1093; // 일반 로직 기준 너비 (2186/2)
-      captureCanvas.height = 728; // 일반 로직 기준 높이
+      
+      // 모든 크기 정보를 정확히 측정
+      const displayWidth = imgElement.clientWidth;
+      const displayHeight = imgElement.clientHeight;
+      const naturalWidth = imgElement.naturalWidth;
+      const naturalHeight = imgElement.naturalHeight;
+      const offsetWidth = imgElement.offsetWidth;
+      const offsetHeight = imgElement.offsetHeight;
+      
+      // 컨테이너 크기도 확인
+      const containerWidth = videoContainerRef.current.clientWidth;
+      const containerHeight = videoContainerRef.current.clientHeight;
+      
+      console.log(`🔍 [CRITICAL DEBUG] 이미지 크기 분석:`);
+      console.log(`   - clientWidth/Height: ${displayWidth} x ${displayHeight}`);
+      console.log(`   - naturalWidth/Height: ${naturalWidth} x ${naturalHeight}`);
+      console.log(`   - offsetWidth/Height: ${offsetWidth} x ${offsetHeight}`);
+      console.log(`   - 컨테이너 크기: ${containerWidth} x ${containerHeight}`);
+      
+      // 오버레이 캔버스 크기도 확인
+      const overlayRect = overlayCanvas.getBoundingClientRect();
+      console.log(`   - 오버레이 캔버스: ${overlayCanvas.width} x ${overlayCanvas.height}`);
+      console.log(`   - 오버레이 실제 표시: ${overlayRect.width} x ${overlayRect.height}`);
+      
+      captureCanvas.width = displayWidth;
+      captureCanvas.height = displayHeight;
       const ctx = captureCanvas.getContext("2d");
 
       // 1. 카메라 이미지 그리기
@@ -171,8 +194,54 @@ const CameraView = forwardRef(({
         ctx.fillRect(0, 0, captureCanvas.width, captureCanvas.height);
       }
 
-      // 2. 캔버스 오버레이(선들) 그리기
-      ctx.drawImage(overlayCanvas, 0, 0);
+      // 2. 캔버스 오버레이(선들) 그리기 - object-fit: cover 보정
+      const overlayWidth = overlayCanvas.width;
+      const overlayHeight = overlayCanvas.height;
+      
+      console.log(`🔍 [CRITICAL DEBUG] 오버레이 매핑 분석:`);
+      console.log(`   - 오버레이 캔버스: ${overlayWidth} x ${overlayHeight}`);
+      console.log(`   - 캡처용 캔버스: ${captureCanvas.width} x ${captureCanvas.height}`);
+      
+      // object-fit: cover로 인한 실제 이미지 표시 영역 계산
+      const imgAspect = naturalWidth / naturalHeight;
+      const containerAspect = displayWidth / displayHeight;
+      
+      console.log(`   - 이미지 비율: ${imgAspect.toFixed(4)}`);
+      console.log(`   - 컨테이너 비율: ${containerAspect.toFixed(4)}`);
+      
+      // object-fit: cover 동작 분석
+      let actualImageWidth, actualImageHeight;
+      let imageOffsetX = 0, imageOffsetY = 0;
+      
+      if (imgAspect > containerAspect) {
+        // 이미지가 더 넓음 → 좌우가 잘림
+        actualImageHeight = displayHeight;
+        actualImageWidth = displayHeight * imgAspect;
+        imageOffsetX = (actualImageWidth - displayWidth) / 2;
+        console.log(`   - 좌우 잘림: 실제 너비 ${actualImageWidth}, 오프셋 X: ${imageOffsetX}`);
+      } else {
+        // 이미지가 더 높음 → 상하가 잘림
+        actualImageWidth = displayWidth;
+        actualImageHeight = displayWidth / imgAspect;
+        imageOffsetY = (actualImageHeight - displayHeight) / 2;
+        console.log(`   - 상하 잘림: 실제 높이 ${actualImageHeight}, 오프셋 Y: ${imageOffsetY}`);
+      }
+      
+      // 오버레이 캔버스가 컨테이너 크기와 일치하는지 확인
+      if (overlayWidth === displayWidth && overlayHeight === displayHeight) {
+        console.log(`✅ 오버레이와 컨테이너 크기 일치 - 직접 복사`);
+        ctx.drawImage(overlayCanvas, 0, 0);
+      } else {
+        console.log(`⚠️ 크기 불일치 - 비율 조정 필요`);
+        console.log(`   - 스케일 X: ${displayWidth / overlayWidth}`);
+        console.log(`   - 스케일 Y: ${displayHeight / overlayHeight}`);
+        
+        ctx.drawImage(
+          overlayCanvas, 
+          0, 0, overlayWidth, overlayHeight,
+          0, 0, displayWidth, displayHeight
+        );
+      }
 
       // 3. 텍스트 정보 추가
       const now = new Date();
