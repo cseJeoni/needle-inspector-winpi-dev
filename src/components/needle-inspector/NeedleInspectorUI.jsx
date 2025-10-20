@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useLayoutEffect } from "react"
+import { useState, useRef, useEffect, useLayoutEffect, useCallback } from "react"
 import CameraView from "./CameraView"
 import StatusPanel from "./StatusPanel"
 import DataSettingsPanel from "./DataSettingsPanel"
