@@ -38,6 +38,12 @@ class DualMotorController:
         self.last_command_motor2 = None
         self.motor1_status_mode = True  # True: 상태 읽기, False: 이동 명령
         self.motor2_status_mode = True  # True: 상태 읽기, False: 이동 명령
+        
+        # 스레드 상태 모니터링
+        self.sender_last_activity = time.time()
+        self.reader_last_activity = time.time()
+        self.thread_timeout = 10.0  # 10초 동안 활동 없으니 stuck 상태로 판단
+        self.recovery_in_progress = False  # 복구 진행 중 플래그
 
         # Motor 1 (기존 모터) 상태
         self.motor1_setPos = 0
@@ -104,6 +110,15 @@ class DualMotorController:
 
     def connect(self, port, baudrate, parity, databits, stopbits):
         if self.serial and self.serial.is_open:
+            # 이미 연결된 상태에서 스레드 상태 확인
+            is_stuck, stuck_threads = self.check_thread_health()
+            if is_stuck:
+                print(f"[CONNECT] 기존 연결에서 stuck 스레드 감지: {stuck_threads}")
+                print("[CONNECT] 강제 복구 수행...")
+                if self.force_recovery():
+                    return "✅ Stuck 상태 복구 완료 - 연결 유지"
+                else:
+                    return "❌ Stuck 상태 복구 실패 - 재연결 필요"
             return "이미 연결되어 있습니다."
 
         try:
@@ -405,10 +420,88 @@ class DualMotorController:
                 break
         print("[CMD_QUEUE] 명령어 큐 초기화 완료")
 
+    def check_thread_health(self):
+        """스레드 상태 확인 및 stuck 상태 감지"""
+        current_time = time.time()
+        sender_stuck = (current_time - self.sender_last_activity) > self.thread_timeout
+        reader_stuck = (current_time - self.reader_last_activity) > self.thread_timeout
+        
+        if sender_stuck or reader_stuck:
+            stuck_threads = []
+            if sender_stuck:
+                stuck_threads.append(f"sender({current_time - self.sender_last_activity:.1f}s)")
+            if reader_stuck:
+                stuck_threads.append(f"reader({current_time - self.reader_last_activity:.1f}s)")
+            
+            print(f"[THREAD_MONITOR] Stuck 스레드 감지: {', '.join(stuck_threads)}")
+            return True, stuck_threads
+        
+        return False, []
+    
+    def force_recovery(self):
+        """스레드 강제 복구 - stuck 상태에서 스레드 재시작"""
+        if self.recovery_in_progress:
+            print("[RECOVERY] 이미 복구 진행 중...")
+            return False
+        
+        try:
+            self.recovery_in_progress = True
+            print("[RECOVERY] 강제 복구 시작 - 스레드 재시작")
+            
+            # 1. 기존 스레드 종료
+            old_running = self.running
+            self.running = False
+            
+            # 스레드 종료 대기 (최대 3초)
+            if self.sender_thread and self.sender_thread.is_alive():
+                self.sender_thread.join(timeout=3)
+            if self.reader_thread and self.reader_thread.is_alive():
+                self.reader_thread.join(timeout=3)
+            
+            # 2. 큐 초기화
+            self.clear_queue()
+            
+            # 3. 시리얼 포트 재초기화
+            if self.serial and self.serial.is_open:
+                try:
+                    self.serial.close()
+                    time.sleep(0.5)
+                    self.serial.open()
+                    print("[RECOVERY] 시리얼 포트 재초기화 완료")
+                except Exception as e:
+                    print(f"[RECOVERY] 시리얼 포트 재초기화 실패: {e}")
+                    return False
+            
+            # 4. 스레드 재시작
+            if old_running and self.serial and self.serial.is_open:
+                self.running = True
+                self.sender_last_activity = time.time()
+                self.reader_last_activity = time.time()
+                
+                self.sender_thread = Thread(target=self.send_loop, daemon=True)
+                self.reader_thread = Thread(target=self.read_loop, daemon=True)
+                self.sender_thread.start()
+                self.reader_thread.start()
+                
+                print("[RECOVERY] 스레드 재시작 완료")
+                return True
+            
+            print("[RECOVERY] 복구 완료 (연결 상태 유지)")
+            return True
+            
+        except Exception as e:
+            print(f"[RECOVERY] 복구 실패: {e}")
+            return False
+        finally:
+            self.recovery_in_progress = False
+
     def send_loop(self):
         """큐 기반 명령어 전송 루프 - 모든 시리얼 쓰기 작업을 순차적으로 처리"""
+        print("[THREAD] send_loop 시작")
         while self.running:
             try:
+                # 스레드 활동 시간 업데이트
+                self.sender_last_activity = time.time()
                 # 1. 완료 대기 중이 아닐 때만 새 명령어 처리
                 if not (self.current_command and self.current_command.wait_for_completion):
                     try:
@@ -493,9 +586,12 @@ class DualMotorController:
                 time.sleep(0.1)
 
     def read_loop(self):
+        print("[THREAD] read_loop 시작")
         buffer = bytearray()
         while self.running:
             try:
+                # 스레드 활동 시간 업데이트
+                self.reader_last_activity = time.time()
                 time.sleep(0.01)
                 
                 # 시리얼 데이터 읽기

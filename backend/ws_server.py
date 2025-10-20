@@ -739,10 +739,26 @@ async def push_motor_status():
     예외 발생 시에도 루프가 중단되지 않도록 예외 처리 강화
     """
     consecutive_errors = 0
-    max_consecutive_errors = 10
+    max_consecutive_errors = 10  # 연속 10번 오류 시 복구 대기
+    thread_check_counter = 0
+    thread_check_interval = 50  # 5초마다 스레드 상태 확인 (100ms * 50)
     
     while True:
         try:
+            # 주기적으로 모터 스레드 상태 확인
+            thread_check_counter += 1
+            if thread_check_counter >= thread_check_interval:
+                thread_check_counter = 0
+                if motor and motor.is_connected():
+                    is_stuck, stuck_threads = motor.check_thread_health()
+                    if is_stuck:
+                        print(f"[SERVER_MONITOR] 모터 스레드 stuck 감지: {stuck_threads}")
+                        print("[SERVER_MONITOR] 모터 스레드 강제 복구 시도...")
+                        recovery_success = motor.force_recovery()
+                        if recovery_success:
+                            print("[SERVER_MONITOR] 모터 스레드 복구 성공")
+                        else:
+                            print("[SERVER_MONITOR] 모터 스레드 복구 실패")
             await asyncio.sleep(0.005)
             
             if not motor.is_connected():
