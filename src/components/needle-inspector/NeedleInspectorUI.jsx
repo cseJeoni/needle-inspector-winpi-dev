@@ -1204,6 +1204,31 @@ export default function NeedleInspectorUI() {
     loadAllSavedLines();
   }, []); // 컴포넌트 마운트시 한 번만 실행
 
+  // WebSocket 자동 연결 (컴포넌트 마운트 시)
+  useEffect(() => {
+    console.log("🚀 컴포넌트 마운트 - WebSocket 자동 연결 시작")
+    connectWebSocket()
+    
+    // 컴포넌트 언마운트 시 정리
+    return () => {
+      console.log("🔧 컴포넌트 언마운트 - WebSocket 연결 정리")
+      
+      // 재연결 타이머 정리
+      if (reconnectTimeoutRef.current) {
+        clearTimeout(reconnectTimeoutRef.current)
+        reconnectTimeoutRef.current = null
+      }
+      
+      // WebSocket 연결 정리
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ cmd: "disconnect" }))
+        setTimeout(() => {
+          ws.close()
+        }, 500)
+      }
+    }
+  }, []) // 컴포넌트 마운트시 한 번만 실행
+
   // DOM 렌더링 완료 후 캔버스 초기화 (중복 실행 방지)
   useLayoutEffect(() => {
     // 로드 중이면 실행하지 않음 (중복 방지)
@@ -1260,14 +1285,31 @@ export default function NeedleInspectorUI() {
     redrawCanvas2()
   }, [lines2, selectedIndex2, calibrationValue2])
 
-  // 모터 WebSocket 연결 및 자동 연결
-  useEffect(() => {
-    // mDNS 호스트명 사용 (IP 대신 호스트명.local 사용)
+  // WebSocket 자동 재연결 로직
+  const [reconnectAttempts, setReconnectAttempts] = useState(0)
+  const [isReconnecting, setIsReconnecting] = useState(false)
+  const reconnectTimeoutRef = useRef(null)
+  const maxReconnectAttempts = 10
+  const reconnectDelay = 3000 // 3초
+
+  // WebSocket 연결 함수
+  const connectWebSocket = useCallback(() => {
+    if (isReconnecting) {
+      console.log("🔄 이미 재연결 시도 중...")
+      return
+    }
+
+    console.log(`🔗 WebSocket 연결 시도... (시도 횟수: ${reconnectAttempts + 1}/${maxReconnectAttempts})`);
+    setIsReconnecting(true)
+    
     const socket = new WebSocket("ws://192.168.5.11:8765")
 
     socket.onopen = () => {
+      console.log("✅ WebSocket 연결 성공!")
       setIsWsConnected(true)
       setMotorError(null)
+      setReconnectAttempts(0) // 성공 시 재연결 횟수 초기화
+      setIsReconnecting(false)
       
       // WebSocket 연결 후 자동으로 모터 연결 시도
       setTimeout(() => {
@@ -1275,16 +1317,41 @@ export default function NeedleInspectorUI() {
       }, 1000)
     }
 
-    socket.onclose = () => {
-      console.log("❌ 모터 WebSocket 연결 끊김")
+    socket.onclose = (event) => {
+      console.log(`❌ WebSocket 연결 끊김 (코드: ${event.code}, 이유: ${event.reason})`);
       setIsWsConnected(false)
       setIsMotorConnected(false)
-      setMotorError("WebSocket 연결이 끊어졌습니다.")
+      setIsMotor2Connected(false)
+      setIsReconnecting(false)
+      
+      // 정상 종료가 아닌 경우에만 재연결 시도
+      if (event.code !== 1000 && reconnectAttempts < maxReconnectAttempts) {
+        const nextAttempt = reconnectAttempts + 1
+        setReconnectAttempts(nextAttempt)
+        setMotorError(`연결 끊김 - ${reconnectDelay/1000}초 후 재연결 시도 (${nextAttempt}/${maxReconnectAttempts})`)
+        
+        console.log(`🔄 ${reconnectDelay/1000}초 후 재연결 시도 (${nextAttempt}/${maxReconnectAttempts})`);
+        
+        reconnectTimeoutRef.current = setTimeout(() => {
+          connectWebSocket()
+        }, reconnectDelay)
+      } else if (reconnectAttempts >= maxReconnectAttempts) {
+        console.error("❌ 최대 재연결 시도 횟수 초과 - 수동 새로고침 필요")
+        setMotorError(`연결 실패 - 최대 재연결 시도 초과 (${maxReconnectAttempts}회). 페이지를 새로고침하거나 서버 상태를 확인하세요.`)
+      } else {
+        setMotorError("WebSocket 연결이 정상 종료되었습니다.")
+      }
     }
 
     socket.onerror = (err) => {
-      console.error("❌ 모터 WebSocket 오류:", err)
-      setMotorError("WebSocket 연결 오류가 발생했습니다.")
+      console.error("❌ WebSocket 연결 오류:", err)
+      setIsReconnecting(false)
+      
+      if (reconnectAttempts < maxReconnectAttempts) {
+        setMotorError(`연결 오류 - ${reconnectDelay/1000}초 후 재연결 시도`)
+      } else {
+        setMotorError("WebSocket 연결 오류 - 최대 재연결 시도 초과")
+      }
     }
 
     socket.onmessage = (e) => {
@@ -1487,19 +1554,7 @@ export default function NeedleInspectorUI() {
     }
 
     setWs(socket)
-
-    // 컴포넌트 언마운트 시 정리
-    return () => {
-      if (socket.readyState === WebSocket.OPEN) {
-        console.log("🔧 모터 포트 닫기 및 WebSocket 연결 종료...")
-        socket.send(JSON.stringify({ cmd: "disconnect" }))
-        setTimeout(() => {
-          socket.close()
-          console.log("✅ 모터 연겴 정리 완료")
-        }, 500)
-      }
-    }
-  }, [])
+  }
 
   // 앱 종료 시 정리 (window beforeunload 이벤트)
   useEffect(() => {
