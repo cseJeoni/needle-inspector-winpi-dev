@@ -39,8 +39,8 @@ const CameraView = forwardRef(({
   onLineColorChange,
   workStatus = 'waiting' // 작업 상태 (니들 쇼트, 저장 실패 등)
 }, ref) => {
-  // LED 상태 관리
-  const [ledState, setLedState] = useState(false); // false: OFF, true: ON
+  // LED 상태 관리 (기본적으로 LED가 켜져 있으므로 초기 상태를 true로 설정)
+  const [ledState, setLedState] = useState(true); // false: OFF, true: ON
   const [deviceIndex, setDeviceIndex] = useState(null); // 카메라 디바이스 인덱스
   const [cameraDevices, setCameraDevices] = useState([]);
 
@@ -62,6 +62,23 @@ const CameraView = forwardRef(({
               const targetIndex = Math.min(cameraId - 1, result.devices.length - 1);
               setDeviceIndex(targetIndex);
               console.log(`[${title}] 디바이스 인덱스 설정: ${targetIndex}`);
+              
+              // 컴포넌트 마운트 시 LED를 OFF로 설정
+              setTimeout(async () => {
+                try {
+                  if (window.electronAPI && window.electronAPI.setCameraLED) {
+                    const result = await window.electronAPI.setCameraLED(targetIndex, 0); // OFF
+                    if (result.success) {
+                      setLedState(false);
+                      console.log(`[${title}] 초기 LED OFF 설정 완료`);
+                    } else {
+                      console.warn(`[${title}] 초기 LED OFF 설정 실패:`, result.error);
+                    }
+                  }
+                } catch (error) {
+                  console.error(`[${title}] 초기 LED 설정 오류:`, error);
+                }
+              }, 500); // 0.5초 후 실행
             }
           } else {
             console.warn(`[${title}] 카메라 디바이스 목록 로드 실패:`, result.error);
@@ -314,13 +331,14 @@ const CameraView = forwardRef(({
             className={`control-button led-button ${ledState ? 'led-on' : 'led-off'}`}
             style={{ 
               color: '#000000',
-              backgroundColor: ledState ? '#4CAF50' : '#f44336',
-              border: `2px solid ${ledState ? '#45a049' : '#da190b'}`,
-              fontWeight: 'bold'
+              backgroundColor: ledState ? '#FFD700' : '#9E9E9E', // 노란색(ON) / 회색(OFF)
+              border: `2px solid ${ledState ? '#FFC107' : '#757575'}`,
+              fontWeight: 'bold',
+              minWidth: '50px'
             }}
-            title={`카메라 LED ${ledState ? 'OFF' : 'ON'}`}
+            title={`카메라 LED ${ledState ? '켜짐' : '꺼짐'} - 클릭하여 ${ledState ? '끄기' : '켜기'}`}
           >
-            LED {ledState ? 'OFF' : 'ON'}
+            LED
           </button>
           <div className="calibration-container">
             <label className="calibration-label">스케일 (px/mm):</label>
