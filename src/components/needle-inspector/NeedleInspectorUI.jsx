@@ -2000,6 +2000,7 @@ export default function NeedleInspectorUI() {
             onSelectedNeedleTypeChange={setSelectedNeedleType} // 선택된 니들 타입 변경 콜백 함수 전달
             needleOffset1={needleOffset1} // 모터 1 니들 오프셋 전달
             needleProtrusion1={needleProtrusion1} // 모터 1 니들 돌출부분 전달
+            needleSpeed1={needleSpeed1} // 모터 1 니들 속도 전달
             needleOffset2={needleOffset2} // 모터 2 니들 오프셋 전달
             needleProtrusion2={needleProtrusion2} // 모터 2 니들 돌출부분 전달
             needleSpeed2={needleSpeed2} // 모터 2 니들 속도 전달
