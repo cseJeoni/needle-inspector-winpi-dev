@@ -538,9 +538,11 @@ async def handler(websocket):
                     force = data.get("force")
                     motor_id = data.get("motor_id", 1)  # 기본값은 모터 1
                     
-                    # needle_speed가 있으면 speed로 사용 (모터1, 모터2 통일)
+                    # needle_speed가 있으면 speed로 사용하고 mode를 speed로 변경 (모터1, 모터2 통일)
                     if needle_speed is not None:
                         speed = needle_speed
+                        mode = "speed"  # needle_speed가 있으면 자동으로 speed 모드로 변경
+                        print(f"[DEBUG] 모터{motor_id} needle_speed 감지 - 속도: {speed}, 모드: {mode}로 자동 변경")
                     
                     # 모터 이동 명령 처리
                     

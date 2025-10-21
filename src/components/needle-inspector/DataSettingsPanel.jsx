@@ -877,7 +877,6 @@ const DataSettingsPanel = forwardRef(({
           websocket.send(JSON.stringify({ 
             cmd: "move", 
             position: motor1UpPosition, 
-            mode: "speed", 
             needle_speed: needleSpeed1,
             motor_id: 1 
           }));
@@ -945,7 +944,6 @@ const DataSettingsPanel = forwardRef(({
         websocket.send(JSON.stringify({ 
           cmd: "move", 
           position: motor1UpPosition, 
-          mode: "speed", 
           needle_speed: needleSpeed1,
           motor_id: 1 
         }));
@@ -987,7 +985,7 @@ const DataSettingsPanel = forwardRef(({
       const motor1DownPosition = Math.round(needleOffset1 * 125);
       const motor2DownPosition = Math.round(needleOffset2 * 40);
       console.log('모터1 DOWN 명령 전송 (스피드 모드) - 위치:', motor1DownPosition, '(초기 위치:', needleOffset1, '), 속도:', needleSpeed1)
-      websocket.send(JSON.stringify({ cmd: "move", position: motor1DownPosition, mode: "speed", needle_speed: needleSpeed1, motor_id: 1 }))
+      websocket.send(JSON.stringify({ cmd: "move", position: motor1DownPosition, needle_speed: needleSpeed1, motor_id: 1 }))
       console.log('모터2 DOWN 명령 전송 - 위치:', motor2DownPosition, '(초기 위치:', needleOffset2, '), 속도:', needleSpeed2)
       websocket.send(JSON.stringify({ cmd: "move", position: motor2DownPosition, needle_speed: needleSpeed2, motor_id: 2 }))
     } else {
