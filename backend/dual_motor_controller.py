@@ -329,35 +329,44 @@ class DualMotorController:
                 
                 if deceleration_enabled and deceleration_position > 0 and deceleration_speed > 0:
                     # === 2단계 감속 시스템 ===
-                    # 감속 지점 계산 (목표 위치 + 감속 거리)
-                    decel_point = position + (deceleration_position * 40)
+                    # A: 현재 위치 (초기 위치)
+                    # B: 감속 시작 지점 = (목표 위치 + 감속 시작 지점 입력값) * 40
+                    # C: 목표 지점 = position
                     
-                    print(f"[2STAGE_DECEL] 2단계 감속 시작 - 목표: {position}({position/40:.1f}mm), 감속지점: {decel_point}({decel_point/40:.1f}mm)")
+                    # 감속 시작 지점 계산 (목표 위치에서 감속 거리만큼 더 멀리)
+                    current_pos = self.motor2_position  # A 지점 (현재 위치)
+                    target_pos = position  # C 지점 (최종 목표)
+                    decel_start_point = target_pos + (deceleration_position * 40)  # B 지점 (감속 시작)
                     
-                    # 1단계: 감속 지점까지 빠른 속도로 이동 (완료 대기)
-                    cmd1 = generate_speed_mode_command(speed, decel_point, motor_id=0x02)
+                    print(f"[2STAGE_DECEL] A→B→C 감속 시작")
+                    print(f"[2STAGE_DECEL] A(현재): {current_pos}({current_pos/40:.1f}mm)")
+                    print(f"[2STAGE_DECEL] B(감속시작): {decel_start_point}({decel_start_point/40:.1f}mm)")
+                    print(f"[2STAGE_DECEL] C(목표): {target_pos}({target_pos/40:.1f}mm)")
+                    
+                    # 1단계: A에서 B까지 빠른 속도로 이동 (완료 대기)
+                    cmd1 = generate_speed_mode_command(speed, decel_start_point, motor_id=0x02)
                     queued_cmd1 = QueuedCommand(
                         command=cmd1,
                         motor_id=2,
                         wait_for_completion=True,
-                        target_position=decel_point,
+                        target_position=decel_start_point,
                         completion_tolerance=50  # 1.25mm 허용 오차
                     )
                     self.command_queue.put(queued_cmd1)
-                    print(f"[2STAGE_DECEL] 1단계 명령 큐잉: {decel_point}({decel_point/40:.1f}mm)까지 속도 {speed}로 이동 (완료 대기)")
+                    print(f"[2STAGE_DECEL] 1단계 명령 큐잉: A→B ({decel_start_point}({decel_start_point/40:.1f}mm)까지 속도 {speed}로 이동, 완료 대기)")
                     
-                    # 2단계: 감속 지점에서 목표까지 느린 속도로 이동
-                    cmd2 = generate_speed_mode_command(deceleration_speed, position, motor_id=0x02)
+                    # 2단계: B에서 C까지 느린 속도로 감속 이동
+                    cmd2 = generate_speed_mode_command(deceleration_speed, target_pos, motor_id=0x02)
                     queued_cmd2 = QueuedCommand(
                         command=cmd2,
                         motor_id=2,
                         wait_for_completion=False,
-                        target_position=position
+                        target_position=target_pos
                     )
                     self.command_queue.put(queued_cmd2)
-                    print(f"[2STAGE_DECEL] 2단계 명령 큐잉: {position}({position/40:.1f}mm)까지 속도 {deceleration_speed}로 감속 이동")
+                    print(f"[2STAGE_DECEL] 2단계 명령 큐잉: B→C ({target_pos}({target_pos/40:.1f}mm)까지 속도 {deceleration_speed}로 감속 이동)")
                     
-                    result_msg = f"📤 모터2 2단계 감속 명령 큐잉 완료 - 1단계: {speed}→{decel_point}, 2단계: {deceleration_speed}→{position}"
+                    result_msg = f"📤 모터2 A→B→C 감속 명령 큐잉 완료 - 1단계: {speed}→{decel_start_point}, 2단계: {deceleration_speed}→{target_pos}"
                     
                 else:
                     # === 일반 이동 (감속 없음) ===
