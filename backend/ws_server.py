@@ -586,7 +586,24 @@ async def handler(websocket):
                     elif mode == "speed":
                         if speed is not None and position is not None:
                             if motor_id == 2:
-                                result = motor.move_with_speed_motor2(speed, position)
+                                # 모터2는 감속 파라미터도 함께 처리
+                                deceleration_enabled = data.get("deceleration_enabled", False)
+                                deceleration_position = data.get("deceleration_position", 0)
+                                deceleration_speed = data.get("deceleration_speed", 0)
+                                
+                                # 감속 파라미터 로그 출력
+                                if deceleration_enabled:
+                                    print(f"[INFO] 모터2 감속 파라미터 수신 (speed 모드) - 목표위치: {position}, 속도: {speed}, 감속활성화: {deceleration_enabled}, 감속위치: {deceleration_position}mm, 감속속도: {deceleration_speed}")
+                                else:
+                                    print(f"[INFO] 모터2 일반 이동 (speed 모드) - 목표위치: {position}, 속도: {speed}")
+                                
+                                result = motor.move_with_speed_motor2(
+                                    speed=speed, 
+                                    position=position,
+                                    deceleration_enabled=deceleration_enabled,
+                                    deceleration_position=deceleration_position,
+                                    deceleration_speed=deceleration_speed
+                                )
                             else:
                                 result = motor.move_with_speed(speed, position)
                             await websocket.send(json.dumps({
