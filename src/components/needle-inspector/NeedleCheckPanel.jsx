@@ -8,7 +8,7 @@ import { Input } from "./Input"
 import lockIcon from '../../assets/icon/lock.png';
 import unlockIcon from '../../assets/icon/unlock.png';
 
-export default function NeedleCheckPanel({ mode, isMotorConnected, needlePosition, onNeedleUp, onNeedleDown, websocket, isWsConnected, onMotorPositionChange, needleOffset, onNeedleOffsetChange, needleProtrusion, onNeedleProtrusionChange }) {
+export default function NeedleCheckPanel({ mode, isMotorConnected, needlePosition, onNeedleUp, onNeedleDown, websocket, isWsConnected, onMotorPositionChange, needleOffset, onNeedleOffsetChange, needleProtrusion, onNeedleProtrusionChange, needleSpeed, onNeedleSpeedChange }) {
   // 모터 상태에 따라 needleStatus 동기화
   const [needleStatus, setNeedleStatus] = useState(needlePosition === 'UP' ? 'UP' : needlePosition === 'DOWN' ? 'DOWN' : 'MOVING')
   // 버튼에 표시할 텍스트 (다음 동작을 표시, MOVING일 때는 현재 상태 유지)
@@ -24,7 +24,7 @@ export default function NeedleCheckPanel({ mode, isMotorConnected, needlePositio
   // 니들 소음 확인 상태
   const [isNeedleNoiseChecking, setIsNeedleNoiseChecking] = useState(false)
 
-  // WebSocket을 통한 모터 위치 명령 전송 함수
+  // WebSocket을 통한 모터 위치 명령 전송 함수 (속도 모드 지원)
   const sendMotorCommand = (targetPosition) => {
     if (!websocket || !isWsConnected) {
       console.log('WebSocket 연결되지 않음. 모터 명령 전송 실패:', targetPosition);
@@ -34,16 +34,16 @@ export default function NeedleCheckPanel({ mode, isMotorConnected, needlePositio
     const msg = {
       cmd: "move",
       position: targetPosition,
-      mode: "position",
+      mode: "speed", // 속도 모드로 변경
+      motor_id: 1, // 모터 1 사용
+      needle_speed: needleSpeed || 1000 // 기본 속도 1000
     }
 
-    console.log(` 모터 위치 명령 전송:`, msg);
+    console.log(`모터 1 속도/위치 명령 전송:`, msg);
     websocket.send(JSON.stringify(msg));
   }
   
-  // 니들 오프셋과 돌출 부분의 UP/DOWN 상태 (기본값: UP)
-  const [needleOffsetState, setNeedleOffsetState] = useState('UP')
-  const [needleProtrusionState, setNeedleProtrusionState] = useState('UP')
+  // 토글 상태 제거 - 단순 이동 명령으로 변경
   
   // 니들 설정 잠금/해제 토글 함수
   const handleNeedleCheckToggle = () => {
@@ -76,6 +76,9 @@ export default function NeedleCheckPanel({ mode, isMotorConnected, needlePositio
           if (onNeedleProtrusionChange && params.needleProtrusion !== undefined) {
             onNeedleProtrusionChange(params.needleProtrusion);
           }
+          if (onNeedleSpeedChange && params.needleSpeed !== undefined) {
+            onNeedleSpeedChange(params.needleSpeed);
+          }
           
           console.log('📋 NeedleCheckPanel 파라미터 로드 완료:', params);
         }
@@ -97,7 +100,8 @@ export default function NeedleCheckPanel({ mode, isMotorConnected, needlePositio
         ...currentParams,
         needleCheckPanel: {
           needleOffset,
-          needleProtrusion
+          needleProtrusion,
+          needleSpeed
         }
       };
       
@@ -115,7 +119,7 @@ export default function NeedleCheckPanel({ mode, isMotorConnected, needlePositio
     }, 500); // 500ms 지연
 
     return () => clearTimeout(timeoutId);
-  }, [needleOffset, needleProtrusion]);
+  }, [needleOffset, needleProtrusion, needleSpeed]);
 
   // 니들 오프셋과 돌출 부분 값이 변경될 때마다 계산된 모터 위치를 상위로 전달
   useEffect(() => {
@@ -141,29 +145,27 @@ export default function NeedleCheckPanel({ mode, isMotorConnected, needlePositio
     // MOVING 상태일 때는 버튼 비활성화
   }
 
-  // 모터 UP 명령 함수
+  // 모터 UP 명령 함수 (초기위치 + 돌출부분으로 이동)
   const handleMotorUp = () => {
     if (!isMotorConnected) {
       console.error("❌ 모터가 연결되지 않았습니다.")
       return
     }
 
-    // UP 명령 (초기 위치 + 돌출 부분)
     const upPosition = Math.round((needleOffset + needleProtrusion) * 125);
-    console.log(`🎯 모터 UP 명령 실행 (${upPosition})`);
+    console.log(`🎯 모터 UP 명령: 초기위치 + 돌출부분 (${needleOffset} + ${needleProtrusion} = ${needleOffset + needleProtrusion}mm, 모터위치: ${upPosition})`);
     sendMotorCommand(upPosition);
   }
 
-  // 모터 DOWN 명령 함수
+  // 모터 DOWN 명령 함수 (초기위치로 이동)
   const handleMotorDown = () => {
     if (!isMotorConnected) {
       console.error("❌ 모터가 연결되지 않았습니다.")
       return
     }
 
-    // DOWN 명령 (0)
-    const downPosition = 0;
-    console.log(`🎯 모터 DOWN 명령 실행 (${downPosition})`);
+    const downPosition = Math.round(needleOffset * 125);
+    console.log(`🎯 모터 DOWN 명령: 초기위치로 이동 (${needleOffset}mm, 모터위치: ${downPosition})`);
     sendMotorCommand(downPosition);
   }
 
@@ -209,18 +211,9 @@ export default function NeedleCheckPanel({ mode, isMotorConnected, needlePositio
             />
             <Button
               onClick={() => {
-                if (needleOffsetState === 'UP') {
-                  const motorPosition = Math.round(needleOffset * 125);
-                  console.log('니들 오프셋 UP:', needleOffset, '모터 위치:', motorPosition);
-                  // WebSocket을 통한 모터 위치 명령 전송
-                  sendMotorCommand(motorPosition);
-                  setNeedleOffsetState('DOWN');
-                } else {
-                  console.log('니들 오프셋 DOWN: 모터 위치 0');
-                  // WebSocket을 통한 모터 위치 명령 전송
-                  sendMotorCommand(0);
-                  setNeedleOffsetState('UP');
-                }
+                const motorPosition = Math.round(needleOffset * 125);
+                console.log('니들 초기위치 이동:', needleOffset, 'mm, 모터 위치:', motorPosition);
+                sendMotorCommand(motorPosition);
               }}
               disabled={!isNeedleCheckEnabled}
               style={{
@@ -235,7 +228,7 @@ export default function NeedleCheckPanel({ mode, isMotorConnected, needlePositio
                 opacity: (!isNeedleCheckEnabled) ? 0.6 : 1
               }}
             >
-              {needleOffsetState === 'UP' ? '↑' : '↓'}
+              ↑
             </Button>
           </div>
         </div>
@@ -263,19 +256,9 @@ export default function NeedleCheckPanel({ mode, isMotorConnected, needlePositio
             />
             <Button
               onClick={() => {
-                if (needleProtrusionState === 'UP') {
-                  const motorPosition = Math.round((needleOffset + needleProtrusion) * 125);
-                  console.log('니들 돌출 부분 UP:', needleOffset, '+', needleProtrusion, '=', needleOffset + needleProtrusion, '모터 위치:', motorPosition);
-                  // WebSocket을 통한 모터 위치 명령 전송
-                  sendMotorCommand(motorPosition);
-                  setNeedleProtrusionState('DOWN');
-                } else {
-                  const motorPosition = Math.round(needleOffset * 125);
-                  console.log('니들 돌출 부분 DOWN: 니듡 초기 위치로', needleOffset, '모터 위치:', motorPosition);
-                  // WebSocket을 통한 모터 위치 명령 전송
-                  sendMotorCommand(motorPosition);
-                  setNeedleProtrusionState('UP');
-                }
+                const motorPosition = Math.round((needleOffset + needleProtrusion) * 125);
+                console.log('니들 돌출 부분 이동:', needleOffset, '+', needleProtrusion, '=', needleOffset + needleProtrusion, 'mm, 모터 위치:', motorPosition);
+                sendMotorCommand(motorPosition);
               }}
               disabled={!isNeedleCheckEnabled}
               style={{
@@ -290,7 +273,7 @@ export default function NeedleCheckPanel({ mode, isMotorConnected, needlePositio
                 opacity: (!isNeedleCheckEnabled) ? 0.6 : 1
               }}
             >
-              {needleProtrusionState === 'UP' ? '↑' : '↓'}
+              ↑
             </Button>
           </div>
         </div>
@@ -306,7 +289,7 @@ export default function NeedleCheckPanel({ mode, isMotorConnected, needlePositio
                 backgroundColor: '#171C26',
                 color: (!isMotorConnected) ? '#D1D5DB' : '#BFB2E4',
                 width: '20%',
-                fontSize: '1.1dvh', 
+                fontSize: '1.3dvh', 
                 height: '3dvh',
                 border: `1px solid ${(!isMotorConnected) ? '#6B7280' : '#BFB2E4'}`,
                 borderRadius: '0.375rem',
@@ -323,7 +306,7 @@ export default function NeedleCheckPanel({ mode, isMotorConnected, needlePositio
                 backgroundColor: '#171C26',
                 color: (!isMotorConnected) ? '#D1D5DB' : '#BFB2E4',
                 width: '20%',
-                fontSize: '1.1dvh', 
+                fontSize: '1.3dvh', 
                 height: '3dvh',
                 border: `1px solid ${(!isMotorConnected) ? '#6B7280' : '#BFB2E4'}`,
                 borderRadius: '0.375rem',
@@ -333,6 +316,30 @@ export default function NeedleCheckPanel({ mode, isMotorConnected, needlePositio
             >
               ↓
             </Button>
+          </div>
+        </div>
+
+        {/* 니들 기본 속도 */}
+        <div style={{ display: 'flex', gap: '0.5dvw' }}>
+          <div style={{ display: 'flex', alignItems: 'center', flex: 1, gap: '0.5dvw' }}>
+            <label style={{ width: '40%', fontSize: '1.3dvh', color: '#D1D5DB' }}>모터 기본 속도</label>
+            <Input 
+              type="number"
+              value={needleSpeed || 0}
+              onChange={(e) => onNeedleSpeedChange && onNeedleSpeedChange(Number(e.target.value))}
+              min="0"
+              disabled={!isNeedleCheckEnabled}
+              style={{ 
+                backgroundColor: '#171C26', 
+                color: !isNeedleCheckEnabled ? '#D1D5DB' : '#BFB2E4', 
+                textAlign: 'center',
+                width: '42%',
+                fontSize: '1.1dvh', 
+                height: '3dvh',
+                opacity: !isNeedleCheckEnabled ? 0.6 : 1,
+                border: `1px solid ${!isNeedleCheckEnabled ? '#6B7280' : '#BFB2E4'}`
+              }}
+            />
           </div>
         </div>
         </div>

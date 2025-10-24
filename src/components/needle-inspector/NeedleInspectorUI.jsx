@@ -2069,6 +2069,8 @@ export default function NeedleInspectorUI() {
               onNeedleOffsetChange={setNeedleOffset1}
               needleProtrusion={needleProtrusion1}
               onNeedleProtrusionChange={setNeedleProtrusion1}
+              needleSpeed={needleSpeed1}
+              onNeedleSpeedChange={setNeedleSpeed1}
             />
           )}
           </div>
