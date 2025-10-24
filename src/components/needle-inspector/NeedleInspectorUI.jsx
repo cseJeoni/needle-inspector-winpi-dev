@@ -2093,6 +2093,8 @@ export default function NeedleInspectorUI() {
             isResistanceAbnormal={isResistanceAbnormal} // 저항 이상 상태 전달
             needleOffset1={needleOffset1} // 모터 1 초기 위치 전달
             needleOffset2={needleOffset2} // 모터 2 초기 위치 전달
+            needleSpeed1={needleSpeed1} // 모터 1 속도 전달
+            needleSpeed2={needleSpeed2} // 모터 2 속도 전달
             workStatus={workStatus} // 작업 상태 전달 (니들 쇼트 포함)
             onDebugModeChange={setIsDebugMode} // 디버깅 모드 변경 콜백 전달
             />

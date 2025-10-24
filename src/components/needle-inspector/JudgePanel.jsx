@@ -3,7 +3,7 @@ import { Button } from "./Button"
 import { useAuth } from "../../hooks/useAuth.jsx"
 import { useState, useRef, useEffect, forwardRef, useImperativeHandle } from "react"
 
-const JudgePanel = forwardRef(function JudgePanel({ onJudge, isStarted, onReset, camera1Ref, camera2Ref, hasNeedleTip = true, websocket, isWsConnected, onCaptureMergedImage, eepromData, generateUserBasedPath, isWaitingEepromRead = false, onWaitingEepromReadChange, isResistanceAbnormal = false, needleOffset1, needleOffset2, workStatus = 'waiting', onDebugModeChange }, ref) {
+const JudgePanel = forwardRef(function JudgePanel({ onJudge, isStarted, onReset, camera1Ref, camera2Ref, hasNeedleTip = true, websocket, isWsConnected, onCaptureMergedImage, eepromData, generateUserBasedPath, isWaitingEepromRead = false, onWaitingEepromReadChange, isResistanceAbnormal = false, needleOffset1, needleOffset2, needleSpeed1, needleSpeed2, workStatus = 'waiting', onDebugModeChange }, ref) {
   // 사용자 정보 가져오기
   const { user, resetUsersCache } = useAuth()
   
@@ -56,13 +56,25 @@ const JudgePanel = forwardRef(function JudgePanel({ onJudge, isStarted, onReset,
   const sendNeedleDown = () => {
     if (websocket && isWsConnected) {
       const motor1DownPosition = Math.round((needleOffset1 || 0.1) * 125);
-      const motor2DownPosition = Math.round((needleOffset2 || 0.1) * 100);
+      const motor2DownPosition = Math.round((needleOffset2 || 0.1) * 40); // 모터2는 40배율 사용
       
-      console.log('판정 후 모터 1 DOWN 명령 전송 - 위치:', motor1DownPosition, '(초기 위치:', needleOffset1 || 0.1, ')')
-      websocket.send(JSON.stringify({ cmd: "move", position: motor1DownPosition, mode: "position", motor_id: 1 }))
+      console.log('판정 후 모터 1 DOWN 명령 전송 - 위치:', motor1DownPosition, '(초기 위치:', needleOffset1 || 0.1, '), 속도:', needleSpeed1 || 1000)
+      websocket.send(JSON.stringify({ 
+        cmd: "move", 
+        position: motor1DownPosition, 
+        mode: "speed", 
+        motor_id: 1,
+        needle_speed: needleSpeed1 || 1000
+      }))
       
-      console.log('판정 후 모터 2 DOWN 명령 전송 - 위치:', motor2DownPosition, '(초기 위치:', needleOffset2 || 0.1, ')')
-      websocket.send(JSON.stringify({ cmd: "move", position: motor2DownPosition, mode: "position", motor_id: 2 }))
+      console.log('판정 후 모터 2 DOWN 명령 전송 - 위치:', motor2DownPosition, '(초기 위치:', needleOffset2 || 0.1, '), 속도:', needleSpeed2 || 5000)
+      websocket.send(JSON.stringify({ 
+        cmd: "move", 
+        position: motor2DownPosition, 
+        mode: "speed", 
+        motor_id: 2,
+        needle_speed: needleSpeed2 || 5000
+      }))
     } else {
       console.error('WebSocket 연결되지 않음 - 니듡 DOWN 명령 실패')
     }
