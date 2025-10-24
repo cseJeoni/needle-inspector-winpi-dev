@@ -1364,7 +1364,28 @@ export default function NeedleInspectorUI() {
           return;
         }
         
-        const res = JSON.parse(e.data)
+        // 줄바꿈으로 구분된 여러 JSON 메시지 처리
+        const messages = e.data.trim().split('\n').filter(msg => msg.trim() !== '');
+        
+        for (const messageStr of messages) {
+          try {
+            const res = JSON.parse(messageStr.trim());
+            processWebSocketMessage(res);
+          } catch (parseErr) {
+            console.error("❌ 개별 메시지 파싱 오류:", parseErr);
+            console.error("❌ 문제가 된 메시지:", messageStr);
+          }
+        }
+      } catch (err) {
+        console.error("❌ 모터 메시지 파싱 오류:", err)
+        console.error("❌ 문제가 된 원본 데이터:", e.data)
+        console.error("❌ 데이터 타입:", typeof e.data)
+        console.error("❌ 데이터 길이:", e.data?.length)
+      }
+    }
+    
+    // WebSocket 메시지 처리 함수 분리
+    const processWebSocketMessage = (res) => {
 
         if (res.type === "serial") {
           // 모터 ID 구분 (응답에 motor_id가 포함되어 있는지 확인)
@@ -1548,12 +1569,6 @@ export default function NeedleInspectorUI() {
           console.error("❌ 모터 오류:", res.result)
           setMotorError(res.result)
         }
-      } catch (err) {
-        console.error("❌ 모터 메시지 파싱 오류:", err)
-        console.error("❌ 문제가 된 원본 데이터:", e.data)
-        console.error("❌ 데이터 타입:", typeof e.data)
-        console.error("❌ 데이터 길이:", e.data?.length)
-      }
     }
 
     setWs(socket)
