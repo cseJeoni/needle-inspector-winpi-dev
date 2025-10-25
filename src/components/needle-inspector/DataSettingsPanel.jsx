@@ -921,7 +921,7 @@ const DataSettingsPanel = forwardRef(({
 
     return new Promise((resolve, reject) => {
       let checkCount = 0;
-      const maxChecks = 100; // 10초 타임아웃 (100ms * 100)
+      const maxChecks = 80; // 8초 타임아웃 (100ms * 80)
       let motor1RealtimePosition = motor1Position; // 프롭에서 초기값 가져오기
 
       // WebSocket 메시지 리스너 추가
@@ -948,17 +948,17 @@ const DataSettingsPanel = forwardRef(({
         checkCount++;
         const distance = Math.abs(motor1RealtimePosition - targetPosition);
 
-        if (checkCount % 20 === 0) { // 2초마다 로그
+        if (checkCount % 15 === 0) { // 1.5초마다 로그
           console.log(`🔍 모터1 위치 체크 ${checkCount}/${maxChecks} - 실시간: ${motor1RealtimePosition}, 목표: ${targetPosition}, 거리: ${distance}`);
         }
 
-        // 조건 1: 목표 위치 도달 (±10 허용) 및 최소 시간(500ms) 경과
-        if (distance <= 10 && checkCount >= 5) {
+        // 조건 1: 목표 위치 도달 (±10 허용) 및 최소 시간(300ms) 경과
+        if (distance <= 10 && checkCount >= 3) {
           console.log('✅ 모터1 목표 위치 도달 완료 - 실시간:', motor1RealtimePosition);
           if (websocket) {
             websocket.removeEventListener('message', handleMotor1StatusUpdate);
           }
-          setTimeout(resolve, 200); // 200ms 안정화 시간 후 resolve
+          setTimeout(resolve, 100); // 100ms 안정화 시간 후 resolve
         }
         // 조건 2: 타임아웃
         else if (checkCount >= maxChecks) {
