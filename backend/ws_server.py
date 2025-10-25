@@ -74,7 +74,7 @@ except Exception as e:
     print(f"[ERROR] GPIO 초기화 오류: {e}")
 
 motor = DualMotorController()
-connected_clients = set()
+connected_clients = {}  # 클라이언트별 Lock을 저장하기 위해 dict로 변경
 
 # GPIO11 이벤트 핸들러 (gpiozero 방식) - 니들팁 상태만 관리
 def _on_tip_connected():
@@ -112,12 +112,13 @@ async def _on_start_button_pressed():
         }
     }
     
-    for ws in connected_clients.copy():
+    for ws, lock in connected_clients.copy().items():
         try:
-            await ws.send(json.dumps(start_message) + '\n')
+            async with lock:
+                await ws.send(json.dumps(start_message))
         except Exception as e:
             print(f"[WARN] GPIO6 START 신호 전송 실패: {e}")
-            connected_clients.discard(ws)
+            connected_clients.pop(ws, None)
 
 def _on_start_button_pressed_sync():
     """GPIO6 START 버튼 스위치 동기 래퍼 함수"""
@@ -145,12 +146,13 @@ async def _on_pass_button_pressed():
         }
     }
     
-    for ws in connected_clients.copy():
+    for ws, lock in connected_clients.copy().items():
         try:
-            await ws.send(json.dumps(pass_message) + '\n')
+            async with lock:
+                await ws.send(json.dumps(pass_message))
         except Exception as e:
             print(f"[WARN] GPIO13 PASS 신호 전송 실패: {e}")
-            connected_clients.discard(ws)
+            connected_clients.pop(ws, None)
 
 def _on_pass_button_pressed_sync():
     """GPIO13 PASS 버튼 스위치 동기 래퍼 함수"""
@@ -174,12 +176,13 @@ async def _on_ng_button_pressed():
         }
     }
     
-    for ws in connected_clients.copy():
+    for ws, lock in connected_clients.copy().items():
         try:
-            await ws.send(json.dumps(ng_message) + '\n')
+            async with lock:
+                await ws.send(json.dumps(ng_message))
         except Exception as e:
             print(f"[WARN] GPIO19 NG 신호 전송 실패: {e}")
-            connected_clients.discard(ws)
+            connected_clients.pop(ws, None)
 
 def _on_ng_button_pressed_sync():
     """GPIO19 NG 버튼 스위치 동기 래퍼 함수"""
@@ -504,7 +507,8 @@ def read_eeprom_mtr40():
 
 async def handler(websocket):
     print("[INFO] 클라이언트 연결됨")
-    connected_clients.add(websocket)
+    connected_clients[websocket] = asyncio.Lock()  # Lock 객체 할당
+    lock = connected_clients[websocket]  # Lock 변수 가져오기
     try:
         async for msg in websocket:
             try:
@@ -518,17 +522,19 @@ async def handler(websocket):
                     stopbits = data.get("stopbits")
 
                     result = motor.connect(port, baudrate, parity, databits, stopbits)
-                    await websocket.send(json.dumps({
-                        "type": "serial",
-                        "result": result
-                    }) + '\n')
+                    async with lock:
+                        await websocket.send(json.dumps({
+                            "type": "serial",
+                            "result": result
+                        }) + '\n')
 
                 elif data["cmd"] == "disconnect":
                     result = motor.disconnect()
-                    await websocket.send(json.dumps({
-                        "type": "serial",
-                        "result": result
-                    }) + '\n')
+                    async with lock:
+                        await websocket.send(json.dumps({
+                            "type": "serial",
+                            "result": result
+                        }) + '\n')
 
                 elif data["cmd"] == "move":
                     mode = data.get("mode", "servo")
@@ -573,15 +579,17 @@ async def handler(websocket):
                             else:
                                 result = motor.move_to_position(position, mode)
                             print(f"[INFO] 모터{motor_id} 이동 결과: {result}")
-                            await websocket.send(json.dumps({
-                                "type": "serial",
-                                "result": result
-                            }) + '\n')
+                            async with lock:
+                                await websocket.send(json.dumps({
+                                    "type": "serial",
+                                    "result": result
+                                }) + '\n')
                         else:
-                            await websocket.send(json.dumps({
-                                "type": "error",
-                                "result": "위치 값이 없습니다."
-                            }) + '\n')
+                            async with lock:
+                                await websocket.send(json.dumps({
+                                    "type": "error",
+                                    "result": "위치 값이 없습니다."
+                                }) + '\n')
                     
                     elif mode == "speed":
                         if speed is not None and position is not None:
@@ -606,15 +614,17 @@ async def handler(websocket):
                                 )
                             else:
                                 result = motor.move_with_speed(speed, position)
-                            await websocket.send(json.dumps({
-                                "type": "serial",
-                                "result": result
-                            }) + '\n')
+                            async with lock:
+                                await websocket.send(json.dumps({
+                                    "type": "serial",
+                                    "result": result
+                                }) + '\n')
                         else:
-                            await websocket.send(json.dumps({
-                                "type": "error",
-                                "result": "속도 또는 위치 값이 없습니다."
-                            }) + '\n')
+                            async with lock:
+                                await websocket.send(json.dumps({
+                                    "type": "error",
+                                    "result": "속도 또는 위치 값이 없습니다."
+                                }) + '\n')
                     
                     elif mode == "speed_force":
                         if all(v is not None for v in [force, speed, position]):
@@ -622,15 +632,17 @@ async def handler(websocket):
                                 result = motor.move_with_speed_force_motor2(force, speed, position)
                             else:
                                 result = motor.move_with_speed_force(force, speed, position)
-                            await websocket.send(json.dumps({
-                                "type": "serial",
-                                "result": result
-                            }) + '\n')
+                            async with lock:
+                                await websocket.send(json.dumps({
+                                    "type": "serial",
+                                    "result": result
+                                }) + '\n')
                         else:
-                            await websocket.send(json.dumps({
-                                "type": "error",
-                                "result": "힘, 속도, 또는 위치 값이 없습니다."
-                            }) + '\n')
+                            async with lock:
+                                await websocket.send(json.dumps({
+                                    "type": "error",
+                                    "result": "힘, 속도, 또는 위치 값이 없습니다."
+                                }) + '\n')
                     
                     elif mode == "force":
                         if force is not None:
@@ -638,43 +650,49 @@ async def handler(websocket):
                                 result = motor.set_force_motor2(force)
                             else:
                                 result = motor.set_force(force)
-                            await websocket.send(json.dumps({
-                                "type": "serial",
-                                "result": result
-                            }) + '\n')
+                            async with lock:
+                                await websocket.send(json.dumps({
+                                    "type": "serial",
+                                    "result": result
+                                }) + '\n')
                         else:
-                            await websocket.send(json.dumps({
-                                "type": "error",
-                                "result": "힘 값이 없습니다."
-                            }) + '\n')
+                            async with lock:
+                                await websocket.send(json.dumps({
+                                    "type": "error",
+                                    "result": "힘 값이 없습니다."
+                                }) + '\n')
                     
                     else:
-                        await websocket.send(json.dumps({
-                            "type": "error",
-                            "result": f"❌ 지원하지 않는 모드입니다: {mode}"
-                        }) + '\n')
+                        async with lock:
+                            await websocket.send(json.dumps({
+                                "type": "error",
+                                "result": f"❌ 지원하지 않는 모드입니다: {mode}"
+                            }) + '\n')
 
                 elif data["cmd"] == "check":
                     connected = motor.is_connected()
-                    await websocket.send(json.dumps({
-                        "type": "serial",
-                        "result": "연결됨" if connected else "연결 안됨"
-                    }) + '\n')
+                    async with lock:
+                        await websocket.send(json.dumps({
+                            "type": "serial",
+                            "result": "연결됨" if connected else "연결 안됨"
+                        }) + '\n')
 
                 elif data["cmd"] == "gpio_read":
                     if gpio_available and pin5:
                         state_text = "HIGH" if pin5.is_active else "LOW"
                         print(f"[INFO] GPIO 5번 상태 (Short 체크): {state_text}")
-                        await websocket.send(json.dumps({
-                            "type": "gpio",
-                            "pin": 5,
-                            "state": state_text
-                        }) + '\n')
+                        async with lock:
+                            await websocket.send(json.dumps({
+                                "type": "gpio",
+                                "pin": 5,
+                                "state": state_text
+                            }) + '\n')
                     else:
-                        await websocket.send(json.dumps({
-                            "type": "error",
-                            "result": "GPIO 기능이 비활성화되어 있습니다."
-                        }) + '\n')
+                        async with lock:
+                            await websocket.send(json.dumps({
+                                "type": "error",
+                                "result": "GPIO 기능이 비활성화되어 있습니다."
+                            }) + '\n')
 
                 elif data["cmd"] == "eeprom_write":
                     tip_type = data.get("tipType")
@@ -689,10 +707,11 @@ async def handler(websocket):
                     print(f"[INFO] EEPROM 쓰기 요청: MTR={mtr_version}, 국가={country}, TIP_TYPE={tip_type}, SHOT_COUNT={shot_count}, DATE={year}-{month}-{day}, MAKER={maker_code}")
                     
                     if tip_type is None or year is None or month is None or day is None or maker_code is None:
-                        await websocket.send(json.dumps({
-                            "type": "error",
-                            "result": "필수 데이터가 누락되었습니다."
-                        }) + '\n')
+                        async with lock:
+                            await websocket.send(json.dumps({
+                                "type": "error",
+                                "result": "필수 데이터가 누락되었습니다."
+                            }) + '\n')
                     else:
                         # MTR 버전과 국가에 따라 적절한 함수 선택
                         if mtr_version == "4.0":
@@ -714,10 +733,11 @@ async def handler(websocket):
                             else:
                                 print(f"[WARN] EEPROM 쓰기 후 읽기 실패: {read_result}")
                         
-                        await websocket.send(json.dumps({
-                            "type": "eeprom_write",
-                            "result": result
-                        }) + '\n')
+                        async with lock:
+                            await websocket.send(json.dumps({
+                                "type": "eeprom_write",
+                                "result": result
+                            }) + '\n')
 
                 elif data["cmd"] == "eeprom_read":
                     mtr_version = data.get("mtrVersion", "2.0")  # 기본값: MTR 2.0
@@ -731,10 +751,11 @@ async def handler(websocket):
                     else:  # MTR 2.0
                         result = read_eeprom_mtr20(country)
                     
-                    await websocket.send(json.dumps({
-                        "type": "eeprom_read",
-                        "result": result
-                    }) + '\n')
+                    async with lock:
+                        await websocket.send(json.dumps({
+                            "type": "eeprom_read",
+                            "result": result
+                        }) + '\n')
 
                 # 저항 측정 명령 (임시 연결/해제 방식)
                 elif data["cmd"] == "measure_resistance":
@@ -748,26 +769,29 @@ async def handler(websocket):
                         "type": "resistance",
                         "data": result
                     }
-                    await websocket.send(json.dumps(response) + '\n')
+                    async with lock:
+                        await websocket.send(json.dumps(response) + '\n')
                     print(f"[MainServer] 저항 측정 결과 전송 완료: {result.get('connected', False)}")
 
                 else:
-                    await websocket.send(json.dumps({
-                        "type": "error",
-                        "result": "알 수 없는 명령어입니다."
-                    }) + '\n')
+                    async with lock:
+                        await websocket.send(json.dumps({
+                            "type": "error",
+                            "result": "알 수 없는 명령어입니다."
+                        }) + '\n')
 
             except Exception as e:
                 print(f"[ERROR] WebSocket 메시지 처리 중 에러: {str(e)}")
-                print(f"[ERROR] 문제가 된 메시지: {message}")
+                print(f"[ERROR] 문제가 된 메시지: {msg}")
                 import traceback
                 print(f"[ERROR] 상세 오류: {traceback.format_exc()}")
-                await websocket.send(json.dumps({
-                    "type": "error",
-                    "result": str(e)
-                }) + '\n')
+                async with lock:
+                    await websocket.send(json.dumps({
+                        "type": "error",
+                        "result": str(e)
+                    }) + '\n')
     finally:
-        connected_clients.discard(websocket)
+        connected_clients.pop(websocket, None)
         print("[INFO] 클라이언트 연결 해제됨")
 
 async def push_motor_status():
@@ -879,10 +903,11 @@ async def push_motor_status():
             # WebSocket 클라이언트에게 상태 전송
             if connected_clients:
                 disconnected_clients = []
-                for ws in connected_clients.copy():
+                for ws, lock in connected_clients.copy().items():
                     try:
                         message = json.dumps(data) + '\n'
-                        await ws.send(message)
+                        async with lock:
+                            await ws.send(message)
                     except websockets.exceptions.ConnectionClosed:
                         print(f"[INFO] 클라이언트 연결 종료 감지")
                         disconnected_clients.append(ws)
@@ -892,8 +917,7 @@ async def push_motor_status():
                 
                 # 연결이 끈어진 클라이언트 제거
                 for ws in disconnected_clients:
-                    if ws in connected_clients:
-                        connected_clients.remove(ws)
+                    connected_clients.pop(ws, None)
             
             # 연속 오류 카운터 초기화
             consecutive_errors = 0
