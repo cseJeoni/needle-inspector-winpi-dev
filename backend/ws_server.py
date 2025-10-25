@@ -52,19 +52,19 @@ try:
     from gpiozero import DigitalInputDevice, Button
     
     # GPIO5: Short 체크용 (Button 클래스, 인터럽트 지원)
-    pin5 = Button(5, pull_up=True, bounce_time=0.2)
+    pin5 = Button(5, pull_up=True, bounce_time=0.05)
     
     # GPIO11: Button 클래스로 니들팁 연결 감지 (내부 풀업, 바운스 타임 지원)
-    pin11 = Button(11, pull_up=True, bounce_time=0.2)
+    pin11 = Button(11, pull_up=True, bounce_time=0.05)
     
     # GPIO6: Button 클래스로 START 버튼 스위치 (내부 풀업, 바운스 타임 지원)
-    pin6 = Button(6, pull_up=True, bounce_time=0.2)
+    pin6 = Button(6, pull_up=True, bounce_time=0.05)
     
     # GPIO13: Button 클래스로 PASS 버튼 스위치 (내부 풀업, 바운스 타임 지원)
-    pin13 = Button(13, pull_up=True, bounce_time=0.2)
+    pin13 = Button(13, pull_up=True, bounce_time=0.05)
     
     # GPIO19: Button 클래스로 NG 버튼 스위치 (내부 풀업, 바운스 타임 지원)
-    pin19 = Button(19, pull_up=True, bounce_time=0.2)
+    pin19 = Button(19, pull_up=True, bounce_time=0.05)
     
     gpio_available = True
     print("[OK] GPIO 5번, 11번, 6번, 13번, 19번 핀 초기화 완료 (gpiozero 라이브러리)")
