@@ -578,7 +578,7 @@ class DualMotorController:
                         if bytes_written != len(self.last_command_motor1):
                             print(f"[Warning] 모터1 전송된 바이트 수 불일치: {bytes_written}/{len(self.last_command_motor1)}")
                 
-                time.sleep(0.005)  # 모터 간 간격 (5ms)
+                time.sleep(0.01)  # 모터 간 간격 (10ms)
                 
                 # Motor 2 상태 읽기 (기존 감속 로직 제거 - 2단계 큐 시스템 사용)
                 with self.lock:
@@ -588,7 +588,7 @@ class DualMotorController:
                         if bytes_written != len(self.last_command_motor2):
                             print(f"[Warning] 모터2 전송된 바이트 수 불일치: {bytes_written}/{len(self.last_command_motor2)}")
                 
-                time.sleep(0.005)  # 다음 루프까지 대기 (5ms)
+                time.sleep(0.03)  # 다음 루프까지 대기 (30ms) - 총 50ms 주기
                         
             except Exception as e:
                 print(f"[CMD_QUEUE Error] {str(e)}")
