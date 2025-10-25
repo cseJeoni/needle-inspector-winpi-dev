@@ -204,11 +204,27 @@ const JudgePanel = forwardRef(function JudgePanel({ onJudge, isStarted, onReset,
   };
 
   const handleNGClick = () => {
+    // 화면 버튼의 disabled 로직과 동일한 검사
+    const isDisabled = !isStarted || !hasNeedleTip || isWaitingEepromRead;
+    
+    if (isDisabled) {
+      console.log("🔘 [PHYSICAL] NG 버튼 무시 (UI 비활성화 상태)");
+      return; // UI가 비활성화된 상태이므로 물리 버튼 입력 무시
+    }
+    
     console.log("NG 판정");
     handleJudge('NG');
   };
 
   const handlePassClick = () => {
+    // 화면 버튼의 disabled 로직과 동일한 검사
+    const isDisabled = !isStarted || !hasNeedleTip || isWaitingEepromRead || isResistanceAbnormal || workStatus === 'needle_short';
+    
+    if (isDisabled) {
+      console.log("🔘 [PHYSICAL] PASS 버튼 무시 (UI 비활성화 상태)");
+      return; // UI가 비활성화된 상태이므로 물리 버튼 입력 무시
+    }
+    
     console.log("PASS 판정");
     handleJudge('PASS');
   };
