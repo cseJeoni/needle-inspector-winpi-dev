@@ -2030,6 +2030,7 @@ export default function NeedleInspectorUI() {
             onResistance2StatusChange={setResistance2Status} // 저항2 상태 변경 함수 전달
             gpio5State={gpio5State} // GPIO 5번 쇼트 체크 상태 전달
             motor2Position={motor2Position} // 실시간 모터2 위치 전달
+            motor1Position={currentPosition} // 실시간 모터1 위치 전달
           />
           </div>
           <div className="w-[26.5%]">

@@ -47,7 +47,8 @@ const DataSettingsPanel = forwardRef(({
   onResistance1StatusChange,
   onResistance2StatusChange,
   gpio5State, // GPIO 5번 쇼트 체크 상태
-  motor2Position // 실시간 모터2 위치
+  motor2Position, // 실시간 모터2 위치
+  motor1Position  // 실시간 모터1 위치
 }, ref) => {
   // isStarted와 readEepromData는 이제 props로 받아서 사용
   const [selectedYear, setSelectedYear] = useState("")
@@ -885,10 +886,12 @@ const DataSettingsPanel = forwardRef(({
           return
         }
         
-        console.log('🔟 모터 시퀀스 완료 - 판정 버튼 활성화')
+        // 10단계: 모터 1 이동 대기 (실시간 모니터링)
+        console.log('🔟 모터 1 이동 대기 (실시간 모니터링) - 캡처 레이스 컨디션 방지');
+        await waitForMotor1Up(motor1UpPosition);
         
-        // 판정 버튼 활성화 (write_success 상태 유지)
-        onStartedChange && onStartedChange(true)
+        console.log('1️⃣1️⃣ 모터 시퀀스 완료 - 판정 버튼 활성화');
+        onStartedChange && onStartedChange(true);
         
       console.log('🎉 MTR4 MULTI 로직 완료 - 판정 버튼 활성화됨')
       
@@ -908,6 +911,69 @@ const DataSettingsPanel = forwardRef(({
       return
     }
   }
+  
+  /**
+   * 모터 1 이동 완료를 기다리는 Promise (WebSocket 상태 기반 대기)
+   * @param {number} targetPosition - 모터 1의 목표 위치 (예: 831)
+   */
+  const waitForMotor1Up = (targetPosition) => {
+    console.log(`⏱️ 모터1 목표 위치 도달 대기 중... (목표: ${targetPosition})`);
+
+    return new Promise((resolve, reject) => {
+      let checkCount = 0;
+      const maxChecks = 100; // 10초 타임아웃 (100ms * 100)
+      let motor1RealtimePosition = motor1Position; // 프롭에서 초기값 가져오기
+
+      // WebSocket 메시지 리스너 추가
+      const handleMotor1StatusUpdate = (event) => {
+        try {
+          const messages = event.data.trim().split('\n').filter(msg => msg.trim() !== '');
+          for (const messageStr of messages) {
+            try {
+              const response = JSON.parse(messageStr.trim());
+              // 모터 1의 'position' 값을 확인
+              if (response.type === 'status' && response.data && response.data.position !== undefined) {
+                motor1RealtimePosition = response.data.position;
+              }
+            } catch (parseErr) { /* 개별 메시지 파싱 오류 무시 */ }
+          }
+        } catch (error) { /* JSON 파싱 오류 무시 */ }
+      };
+
+      if (websocket && isWsConnected) {
+        websocket.addEventListener('message', handleMotor1StatusUpdate);
+      }
+
+      const checkMotorPosition = () => {
+        checkCount++;
+        const distance = Math.abs(motor1RealtimePosition - targetPosition);
+
+        if (checkCount % 20 === 0) { // 2초마다 로그
+          console.log(`🔍 모터1 위치 체크 ${checkCount}/${maxChecks} - 실시간: ${motor1RealtimePosition}, 목표: ${targetPosition}, 거리: ${distance}`);
+        }
+
+        // 조건 1: 목표 위치 도달 (±10 허용) 및 최소 시간(500ms) 경과
+        if (distance <= 10 && checkCount >= 5) {
+          console.log('✅ 모터1 목표 위치 도달 완료 - 실시간:', motor1RealtimePosition);
+          if (websocket) {
+            websocket.removeEventListener('message', handleMotor1StatusUpdate);
+          }
+          setTimeout(resolve, 200); // 200ms 안정화 시간 후 resolve
+        }
+        // 조건 2: 타임아웃
+        else if (checkCount >= maxChecks) {
+          console.error('❌ 모터1 이동 타임아웃 - 실시간:', motor1RealtimePosition, ', 목표:', targetPosition);
+          if (websocket) {
+            websocket.removeEventListener('message', handleMotor1StatusUpdate);
+          }
+          reject(new Error(`모터1 이동 타임아웃`));
+        } else {
+          setTimeout(checkMotorPosition, 100); // 100ms마다 체크
+        }
+      }
+      setTimeout(checkMotorPosition, 100); // 100ms 후 체크 시작
+    });
+  };
   
   // 일반 니듡 로직 (6단계 - 저항 측정 제외)
   const handleGeneralNeedleLogic = async () => {
@@ -952,10 +1018,12 @@ const DataSettingsPanel = forwardRef(({
         return
       }
       
-      console.log('4️⃣ 모터 시퀀스 완료 - 판정 버튼 활성화')
+      // 4단계: 모터 1 이동 대기 (실시간 모니터링)
+      console.log('4️⃣ 모터 1 이동 대기 (실시간 모니터링) - 캡처 레이스 컨디션 방지');
+      await waitForMotor1Up(motor1UpPosition);
       
-      // 판정 버튼 활성화 (write_success 상태 유지, 저항 이상 상태 초기화로 PASS/NG 모두 활성화)
-      onStartedChange && onStartedChange(true)
+      console.log('5️⃣ 모터 시퀀스 완료 - 판정 버튼 활성화');
+      onStartedChange && onStartedChange(true);
       
       console.log('🎉 일반 로직 완료 - 판정 버튼 활성화됨')
       
