@@ -75,6 +75,7 @@ except Exception as e:
 
 motor = DualMotorController()
 connected_clients = {}  # 클라이언트별 Lock을 저장하기 위해 dict로 변경
+main_event_loop = None  # 메인 이벤트 루프 저장용
 
 # GPIO11 이벤트 핸들러 (gpiozero 방식) - 니들팁 상태만 관리
 def _on_tip_connected():
@@ -122,15 +123,13 @@ async def _on_start_button_pressed():
 
 def _on_start_button_pressed_sync():
     """GPIO6 START 버튼 스위치 동기 래퍼 함수"""
-    # 비동기 함수를 동기적으로 실행하기 위한 래퍼
-    try:
-        # 현재 실행 중인 이벤트 루프가 있는지 확인
-        loop = asyncio.get_running_loop()
-        # 이미 실행 중인 루프에서 태스크 생성
-        asyncio.create_task(_on_start_button_pressed())
-    except RuntimeError:
-        # 실행 중인 루프가 없으면 새로 생성
-        asyncio.run(_on_start_button_pressed())
+    if main_event_loop:
+        asyncio.run_coroutine_threadsafe(
+            _on_start_button_pressed(), 
+            main_event_loop
+        )
+    else:
+        print("[ERROR] main_event_loop가 설정되지 않았습니다.")
 
 # GPIO13 이벤트 핸들러 (PASS 버튼 스위치)
 async def _on_pass_button_pressed():
@@ -156,11 +155,13 @@ async def _on_pass_button_pressed():
 
 def _on_pass_button_pressed_sync():
     """GPIO13 PASS 버튼 스위치 동기 래퍼 함수"""
-    try:
-        loop = asyncio.get_running_loop()
-        asyncio.create_task(_on_pass_button_pressed())
-    except RuntimeError:
-        asyncio.run(_on_pass_button_pressed())
+    if main_event_loop:
+        asyncio.run_coroutine_threadsafe(
+            _on_pass_button_pressed(), 
+            main_event_loop
+        )
+    else:
+        print("[ERROR] main_event_loop가 설정되지 않았습니다.")
 
 # GPIO19 이벤트 핸들러 (NG 버튼 스위치)
 async def _on_ng_button_pressed():
@@ -186,11 +187,13 @@ async def _on_ng_button_pressed():
 
 def _on_ng_button_pressed_sync():
     """GPIO19 NG 버튼 스위치 동기 래퍼 함수"""
-    try:
-        loop = asyncio.get_running_loop()
-        asyncio.create_task(_on_ng_button_pressed())
-    except RuntimeError:
-        asyncio.run(_on_ng_button_pressed())
+    if main_event_loop:
+        asyncio.run_coroutine_threadsafe(
+            _on_ng_button_pressed(), 
+            main_event_loop
+        )
+    else:
+        print("[ERROR] main_event_loop가 설정되지 않았습니다.")
 
 # GPIO5 이벤트 핸들러 설정 (Short 체크)
 if gpio_available and pin5:
@@ -952,8 +955,10 @@ def cleanup_gpio():
         except Exception as e:
             print(f"[ERROR] GPIO 정리 오류: {e}")
 
-
 async def main():
+    global main_event_loop  # 전역 변수 선언
+    main_event_loop = asyncio.get_running_loop()  # 현재 루프를 캡처
+    
     # 모터 상태 푸시 비동기 작업 시작
     asyncio.create_task(push_motor_status())
     
