@@ -58,6 +58,7 @@ const DataSettingsPanel = forwardRef(({
   // selectedNeedleType는 props로 받아서 사용 (로컬 상태 제거)
   const [mtrVersion, setMtrVersion] = useState('2.0'); // MTR 버전 상태 추가, 기본값 '2.0'
   const [manufacturer, setManufacturer] = useState('4'); // 제조사 상태 추가
+  const [inspector, setInspector] = useState(''); // 검사기 상태 추가
   
   // 저장 데이터 설정 활성화 상태 (기본값: 비활성화)
   const [isDataSettingsEnabled, setIsDataSettingsEnabled] = useState(false)
@@ -274,6 +275,7 @@ const DataSettingsPanel = forwardRef(({
           // 저장된 값이 있으면 사용, 없으면 기본값 사용
           setSelectedCountry(params.selectedCountry || '');
           setManufacturer(params.manufacturer || '4');
+          setInspector(params.inspector || '');
           
           // 날짜는 항상 오늘 날짜로 설정 (저장하지 않음)
           setSelectedYear(String(currentYear));
@@ -396,7 +398,8 @@ const DataSettingsPanel = forwardRef(({
           selectedCountry,
           selectedNeedleType,
           manufacturer,
-          mtrVersion
+          mtrVersion,
+          inspector
           // 날짜는 저장하지 않음 (항상 오늘 날짜 사용)
         }
       };
@@ -415,7 +418,7 @@ const DataSettingsPanel = forwardRef(({
     }, 500); // 500ms 지연
 
     return () => clearTimeout(timeoutId);
-  }, [selectedCountry, selectedNeedleType, manufacturer, mtrVersion]) // 날짜만 제외
+  }, [selectedCountry, selectedNeedleType, manufacturer, mtrVersion, inspector]) // 날짜만 제외
 
   // EEPROM 읽기 함수 (Promise 기반 동기화)
   const readFromEEPROM = () => {
@@ -1031,18 +1034,7 @@ const DataSettingsPanel = forwardRef(({
       <Panel title={
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
           <h2 className="text-lg font-bold text-responsive">데이터 설정</h2>
-          <img
-            src={isDataSettingsEnabled ? unlockIcon : lockIcon}
-            alt={isDataSettingsEnabled ? 'Unlocked' : 'Locked'}
-            className="responsive-icon"
-            style={{ cursor: 'pointer' }}
-            onClick={handleDataSettingsToggle}
-            title={isDataSettingsEnabled ? '설정 잠금' : '설정 잠금 해제'}
-          />
-        </div>
-      }>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8dvh', overflow: 'hidden' }}>
-        <div style={{ display: 'flex', gap: '1dvw', marginTop: '0.6dvh', marginBottom: '1dvh' }}>
+          <div style={{ display: 'flex', gap: '0.5dvw' }}>
             <Button 
                 onClick={() => {
                   console.log('[DEBUG] MTR 2.0 버튼 클릭');
@@ -1050,13 +1042,13 @@ const DataSettingsPanel = forwardRef(({
                 }}
                 disabled={!isDataSettingsEnabled}
                 style={{
-                    flex: 1,
                     backgroundColor: mtrVersion === '2.0' ? '#4A90E2' : '#171C26',
                     color: 'white',
                     border: `1px solid ${mtrVersion === '2.0' ? '#4A90E2' : '#374151'}`,
-                    fontSize: '1.3dvh',
-                    padding: '0.4dvh 0',
-                    height: '3.5dvh'
+                    fontSize: '1.1dvh',
+                    padding: '0.3dvh 1.2dvw',
+                    height: '2.8dvh',
+                    minWidth: '5dvw'
                 }}
             >
                 MTR 2.0
@@ -1068,18 +1060,29 @@ const DataSettingsPanel = forwardRef(({
                 }}
                 disabled={!isDataSettingsEnabled}
                 style={{
-                    flex: 1,
                     backgroundColor: mtrVersion === '4.0' ? '#4A90E2' : '#171C26',
                     color: 'white',
                     border: `1px solid ${mtrVersion === '4.0' ? '#4A90E2' : '#374151'}`,
-                    fontSize: '1.3dvh',
-                    padding: '0.4dvh 0',
-                    height: '3.5dvh'
+                    fontSize: '1.1dvh',
+                    padding: '0.3dvh 1.2dvw',
+                    height: '2.8dvh',
+                    minWidth: '5dvw'
                 }}
             >
                 MTR 4.0
             </Button>
+          </div>
+          <img
+            src={isDataSettingsEnabled ? unlockIcon : lockIcon}
+            alt={isDataSettingsEnabled ? 'Unlocked' : 'Locked'}
+            className="responsive-icon"
+            style={{ cursor: 'pointer' }}
+            onClick={handleDataSettingsToggle}
+            title={isDataSettingsEnabled ? '설정 잠금' : '설정 잠금 해제'}
+          />
         </div>
+      }>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8dvh', overflow: 'hidden' }}>
         <div style={{ display: 'flex', gap: '1dvw' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5dvw', width: '40%' }}>
             <label style={{ width: '20%', fontSize: '1.3dvh', color: '#D1D5DB', flexShrink: 0 }}>국가</label>
@@ -1118,7 +1121,7 @@ const DataSettingsPanel = forwardRef(({
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '1dvw' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5dvw', flex: 1 }}>
-            <label style={{ width: '20%', fontSize: '1.3dvh', color: '#D1D5DB' }}>날짜</label>
+            <label style={{ width: '3dvw', fontSize: '1.3dvh', color: '#D1D5DB', flexShrink: 0 }}>날짜</label>
             <div style={{ display: 'flex', width: '100%', gap: '0.8dvw' }}>
             <Select value={selectedYear} onValueChange={handleYearChange} disabled={isStarted || !isDataSettingsEnabled}>
               <SelectTrigger style={{ backgroundColor: '#171C26', border: 'none', color: 'white', fontSize: '1.1dvh', height: '3dvh' }}>
@@ -1159,12 +1162,31 @@ const DataSettingsPanel = forwardRef(({
             </div>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5dvw', width: '30%' }}>
-            <label style={{ width: '30%', fontSize: '1.3dvh', color: '#D1D5DB', flexShrink: 0 }}>제조사</label>
+            <label style={{ width: '3dvw', fontSize: '1.3dvh', color: '#D1D5DB', flexShrink: 0 }}>제조사</label>
             <Input 
               type="text"
               value={manufacturer}
               onChange={(e) => setManufacturer(e.target.value)}
               placeholder="제조사"
+              disabled={isStarted || !isDataSettingsEnabled}
+              style={{ 
+                backgroundColor: '#171C26', 
+                color: (!isDataSettingsEnabled || isStarted) ? '#D1D5DB' : 'white',
+                fontSize: '1.1dvh', 
+                height: '3dvh',
+                opacity: (!isDataSettingsEnabled || isStarted) ? 0.6 : 1,
+                width: '100%'
+              }}
+            />
+          </div>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1dvw' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5dvw', width: '30%' }}>
+            <label style={{ width: '3dvw', fontSize: '1.3dvh', color: '#D1D5DB', flexShrink: 0 }}>검사기</label>
+            <Input 
+              type="text"
+              value={inspector}
+              onChange={(e) => setInspector(e.target.value)}
               disabled={isStarted || !isDataSettingsEnabled}
               style={{ 
                 backgroundColor: '#171C26', 
