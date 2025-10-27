@@ -723,7 +723,8 @@ const DataSettingsPanel = forwardRef(({
         console.log('5️⃣ 저항 측정 시작')
         if (websocket && isWsConnected) {
           const measureMsg = {
-            cmd: "measure_resistance"
+            cmd: "measure_resistance",
+            threshold: resistanceThreshold // [수정] 임계값 추가
           };
           console.log('저항 측정 명령 전송:', measureMsg);
           websocket.send(JSON.stringify(measureMsg));

@@ -235,7 +235,9 @@ def _on_tip_disconnected():
 # GPIO5 이벤트 핸들러 (Short 체크)
 async def _on_short_detected():
     """GPIO5 Short 감지 시 호출되는 이벤트 핸들러"""
-    print("[GPIO5] Short 감지됨 (HIGH 상태)")
+    global ng_button_pressed  # [수정] 전역 플래그 접근
+    ng_button_pressed = True  # [수정] NG 상태로 설정
+    print("[GPIO5] Short 감지됨 (HIGH 상태) - NG 모드 활성화")
     
     # LED 제어: Short 감지 시 RED LED ON (NG 상황)
     set_led_red_on()
@@ -374,10 +376,14 @@ def _on_start_button_released_sync():
 # GPIO13 이벤트 핸들러 (PASS 버튼 스위치)
 async def _on_pass_button_pressed():
     """GPIO13 PASS 버튼 스위치가 눌렸을 때 호출되는 이벤트 핸들러"""
+    global ng_button_pressed  # [수정] 전역 플래그 접근
     print("[GPIO13] PASS 버튼 스위치 눌림 - 프론트엔드로 PASS 신호 전송")
     
     # LED 제어: PASS 버튼 눌림 시 GREEN LED ON
-    set_led_green_on()
+    if not ng_button_pressed:  # [수정] NG 상태가 아닐 때만 켜지도록 변경
+        set_led_green_on()
+    else:
+        print("[GPIO13] NG 모드 활성화 중 - GREEN LED 제어 무시")
     
     # 디버깅 패널로 GPIO 상태 변경 알림
     gpio_message = {
@@ -1091,9 +1097,11 @@ async def handler(websocket):
                             else:
                                 print(f"[WARN] EEPROM 쓰기 후 읽기 실패: {read_result}")
                                 # LED 제어: EEPROM 읽기 실패 시 RED LED ON
+                                ng_button_pressed = True  # [수정] NG 상태로 설정
                                 set_led_red_on()
                         else:
                             # LED 제어: EEPROM 저장 실패 시 RED LED ON
+                            ng_button_pressed = True  # [수정] NG 상태로 설정
                             set_led_red_on()
                         
                         async with lock:
@@ -1116,6 +1124,7 @@ async def handler(websocket):
                     
                     # LED 제어: EEPROM 읽기 실패 시 RED LED ON
                     if not result.get("success"):
+                        ng_button_pressed = True  # [수정] NG 상태로 설정
                         set_led_red_on()
                     
                     async with lock:
@@ -1126,24 +1135,41 @@ async def handler(websocket):
 
                 # 저항 측정 명령 (임시 연결/해제 방식)
                 elif data["cmd"] == "measure_resistance":
-                    print("[MainServer] 저항 측정 요청 수신 - 임시 연결 방식")
+                    print("[MainServer] 저항 측정 요청 수신")
                     
                     # 일회성 저항 측정 (연결 -> 측정 -> 즉시 해제)
                     result = measure_resistance_once(port="/dev/usb-resistance")
                     
-                    # LED 제어: 저항 측정 결과에 따른 LED 제어
-                    if result.get("connected") and result.get("resistance_ohm") is not None:
-                        resistance_value = result.get("resistance_ohm")
-                        resistance_threshold = data.get("threshold", 1000)  # 기본 임계값 1000옴
+                    # [수정] 프론트엔드에서 받은 임계값(Ohm) 사용, 기본 100 Ohm
+                    resistance_threshold_ohm = data.get("threshold", 100)
+                    resistance_threshold_mohm = resistance_threshold_ohm * 1000  # mOhm으로 변환
+                    
+                    is_abnormal = False
+                    
+                    if result.get("connected"):
+                        res1_mohm = result.get("resistance1")
+                        res2_mohm = result.get("resistance2")
+
+                        print(f"[DEBUG] 저항 측정값: R1={res1_mohm} mΩ, R2={res2_mohm} mΩ (임계값: {resistance_threshold_mohm} mΩ)")
+
+                        if res1_mohm is not None and res1_mohm > resistance_threshold_mohm:
+                            is_abnormal = True
+                            print(f"[LED] 저항 1 비정상 감지 ({res1_mohm}mΩ > {resistance_threshold_mohm}mΩ)")
                         
-                        if resistance_value > resistance_threshold:
-                            # 저항값이 임계값을 초과하면 RED LED ON (저항 비정상)
+                        if res2_mohm is not None and res2_mohm > resistance_threshold_mohm:
+                            is_abnormal = True
+                            print(f"[LED] 저항 2 비정상 감지 ({res2_mohm}mΩ > {resistance_threshold_mohm}mΩ)")
+
+                        if is_abnormal:
+                            ng_button_pressed = True  # NG 상태 설정
                             set_led_red_on()
-                            print(f"[LED] 저항 비정상 감지 ({resistance_value}Ω > {resistance_threshold}Ω) - RED LED ON")
                         else:
-                            print(f"[LED] 저항 정상 ({resistance_value}Ω ≤ {resistance_threshold}Ω)")
-                    elif not result.get("connected"):
-                        # 저항 측정기 연결 실패 시에도 RED LED ON
+                            print(f"[LED] 저항 정상 (Threshold: {resistance_threshold_mohm}mΩ)")
+                    
+                    else:
+                        # 저항 측정기 연결 실패
+                        is_abnormal = True
+                        ng_button_pressed = True  # NG 상태 설정
                         set_led_red_on()
                         print("[LED] 저항 측정기 연결 실패 - RED LED ON")
                     
@@ -1154,7 +1180,7 @@ async def handler(websocket):
                     }
                     async with lock:
                         await websocket.send(json.dumps(response) + '\n')
-                    print(f"[MainServer] 저항 측정 결과 전송 완료: {result.get('connected', False)}")
+                    print(f"[MainServer] 저항 측정 결과 전송 완료 (비정상: {is_abnormal})")
 
                 # LED 제어 명령
                 elif data["cmd"] == "led_control":
