@@ -91,18 +91,80 @@ def _on_tip_disconnected():
     print("[GPIO11] 니들팁 상태 변경: 분리됨")
 
 # GPIO5 이벤트 핸들러 (Short 체크)
-def _on_short_detected():
+async def _on_short_detected():
     """GPIO5 Short 감지 시 호출되는 이벤트 핸들러"""
     print("[GPIO5] Short 감지됨 (HIGH 상태)")
+    
+    # 디버깅 패널로 GPIO 상태 변경 알림
+    gpio_message = {
+        "type": "gpio_state_change",
+        "data": {
+            "pin": 5,
+            "state": "HIGH",
+            "timestamp": time.time()
+        }
+    }
+    
+    for ws, lock in connected_clients.copy().items():
+        try:
+            async with lock:
+                await ws.send(json.dumps(gpio_message))
+        except Exception as e:
+            print(f"[WARN] GPIO5 상태 변경 알림 전송 실패: {e}")
+            connected_clients.pop(ws, None)
 
-def _on_short_cleared():
+async def _on_short_cleared():
     """GPIO5 Short 해제 시 호출되는 이벤트 핸들러"""
     print("[GPIO5] Short 해제됨 (LOW 상태)")
+    
+    # 디버깅 패널로 GPIO 상태 변경 알림
+    gpio_message = {
+        "type": "gpio_state_change",
+        "data": {
+            "pin": 5,
+            "state": "LOW",
+            "timestamp": time.time()
+        }
+    }
+    
+    for ws, lock in connected_clients.copy().items():
+        try:
+            async with lock:
+                await ws.send(json.dumps(gpio_message))
+        except Exception as e:
+            print(f"[WARN] GPIO5 상태 변경 알림 전송 실패: {e}")
+            connected_clients.pop(ws, None)
+
+def _on_short_detected_sync():
+    """GPIO5 Short 감지 동기 래퍼 함수"""
+    if main_event_loop:
+        asyncio.run_coroutine_threadsafe(
+            _on_short_detected(), 
+            main_event_loop
+        )
+
+def _on_short_cleared_sync():
+    """GPIO5 Short 해제 동기 래퍼 함수"""
+    if main_event_loop:
+        asyncio.run_coroutine_threadsafe(
+            _on_short_cleared(), 
+            main_event_loop
+        )
 
 # GPIO6 이벤트 핸들러 (START 버튼 스위치)
 async def _on_start_button_pressed():
     """GPIO6 START 버튼 스위치가 눌렸을 때 호출되는 이벤트 핸들러"""
     print("[GPIO6] START 버튼 스위치 눌림 - 프론트엔드로 START 신호 전송")
+    
+    # 디버깅 패널로 GPIO 상태 변경 알림
+    gpio_message = {
+        "type": "gpio_state_change",
+        "data": {
+            "pin": 6,
+            "state": "HIGH",
+            "timestamp": time.time()
+        }
+    }
     
     # 모든 연결된 클라이언트에게 START 신호 전송
     start_message = {
@@ -116,6 +178,7 @@ async def _on_start_button_pressed():
     for ws, lock in connected_clients.copy().items():
         try:
             async with lock:
+                await ws.send(json.dumps(gpio_message))
                 await ws.send(json.dumps(start_message))
         except Exception as e:
             print(f"[WARN] GPIO6 START 신호 전송 실패: {e}")
@@ -136,6 +199,16 @@ async def _on_pass_button_pressed():
     """GPIO13 PASS 버튼 스위치가 눌렸을 때 호출되는 이벤트 핸들러"""
     print("[GPIO13] PASS 버튼 스위치 눌림 - 프론트엔드로 PASS 신호 전송")
     
+    # 디버깅 패널로 GPIO 상태 변경 알림
+    gpio_message = {
+        "type": "gpio_state_change",
+        "data": {
+            "pin": 13,
+            "state": "HIGH",
+            "timestamp": time.time()
+        }
+    }
+    
     # 모든 연결된 클라이언트에게 PASS 신호 전송
     pass_message = {
         "type": "gpio_pass_button",
@@ -148,6 +221,7 @@ async def _on_pass_button_pressed():
     for ws, lock in connected_clients.copy().items():
         try:
             async with lock:
+                await ws.send(json.dumps(gpio_message))
                 await ws.send(json.dumps(pass_message))
         except Exception as e:
             print(f"[WARN] GPIO13 PASS 신호 전송 실패: {e}")
@@ -168,6 +242,16 @@ async def _on_ng_button_pressed():
     """GPIO19 NG 버튼 스위치가 눌렸을 때 호출되는 이벤트 핸들러"""
     print("[GPIO19] NG 버튼 스위치 눌림 - 프론트엔드로 NG 신호 전송")
     
+    # 디버깅 패널로 GPIO 상태 변경 알림
+    gpio_message = {
+        "type": "gpio_state_change",
+        "data": {
+            "pin": 19,
+            "state": "HIGH",
+            "timestamp": time.time()
+        }
+    }
+    
     # 모든 연결된 클라이언트에게 NG 신호 전송
     ng_message = {
         "type": "gpio_ng_button",
@@ -180,6 +264,7 @@ async def _on_ng_button_pressed():
     for ws, lock in connected_clients.copy().items():
         try:
             async with lock:
+                await ws.send(json.dumps(gpio_message))
                 await ws.send(json.dumps(ng_message))
         except Exception as e:
             print(f"[WARN] GPIO19 NG 신호 전송 실패: {e}")
@@ -203,8 +288,8 @@ if gpio_available and pin5:
         print(f"[GPIO5] 초기 Short 체크 상태: {'SHORT (HIGH)' if initial_short_state else 'NORMAL (LOW)'}")
         
         # 이벤트 핸들러 할당
-        pin5.when_activated = _on_short_detected    # HIGH 상태 (Short 감지)
-        pin5.when_deactivated = _on_short_cleared   # LOW 상태 (Short 해제)
+        pin5.when_activated = _on_short_detected_sync    # HIGH 상태 (Short 감지)
+        pin5.when_deactivated = _on_short_cleared_sync   # LOW 상태 (Short 해제)
         
         print("[OK] GPIO5 이벤트 핸들러 등록 완료 (gpiozero) - Short 체크")
     except Exception as e:
@@ -830,42 +915,8 @@ async def push_motor_status():
                 await asyncio.sleep(0.1)
                 continue
             
-            # GPIO 상태 읽기 (예외 처리 추가)
-            gpio5_state = "UNKNOWN"
-            gpio11_state = "UNKNOWN"
-            gpio6_state = "UNKNOWN"
-            gpio13_state = "UNKNOWN"
-            gpio19_state = "UNKNOWN"
-            
-            try:
-                if gpio_available and pin5:
-                    gpio5_state = "HIGH" if pin5.is_active else "LOW"
-            except Exception as e:
-                print(f"[WARN] GPIO5 상태 읽기 실패: {e}")
-            
-            try:
-                if gpio_available and pin11:
-                    gpio11_state = "HIGH" if pin11.is_active else "LOW"
-            except Exception as e:
-                print(f"[WARN] GPIO11 상태 읽기 실패: {e}")
-            
-            try:
-                if gpio_available and pin6:
-                    gpio6_state = "HIGH" if pin6.is_active else "LOW"
-            except Exception as e:
-                print(f"[WARN] GPIO6 상태 읽기 실패: {e}")
-            
-            try:
-                if gpio_available and pin13:
-                    gpio13_state = "HIGH" if pin13.is_active else "LOW"
-            except Exception as e:
-                print(f"[WARN] GPIO13 상태 읽기 실패: {e}")
-            
-            try:
-                if gpio_available and pin19:
-                    gpio19_state = "HIGH" if pin19.is_active else "LOW"
-            except Exception as e:
-                print(f"[WARN] GPIO19 상태 읽기 실패: {e}")
+            # GPIO 상태는 인터럽트로만 처리하므로 폴링 제거
+            # 디버깅 패널용 GPIO 상태는 gpio_state_change 메시지로 별도 전송
             
             # 모터 상태 읽기 (예외 처리 추가)
             try:
@@ -890,12 +941,7 @@ async def push_motor_status():
                         "motor2_setPos": motor2_status["setPos"],
                         # 명령어 큐 상태 (디버깅용)
                         "command_queue_size": motor.get_queue_size(),
-                        # GPIO 상태
-                        "gpio5": gpio5_state,
-                        "gpio11": gpio11_state,
-                        "gpio6": gpio6_state,
-                        "gpio13": gpio13_state,
-                        "gpio19": gpio19_state,
+                        # 니들팁 연결 상태 (GPIO11 기반)
                         "needle_tip_connected": needle_tip_connected,
                     }
                 }

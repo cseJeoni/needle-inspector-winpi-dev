@@ -1490,23 +1490,7 @@ export default function NeedleInspectorUI() {
             // EEPROM 데이터 수신 감지 (자동 처리 비활성화)
           }
           
-          // GPIO 5번 상태 업데이트 (Short 체크용 - 상태 표시만)
-          if (gpio5 && gpio5 !== "UNKNOWN") {
-            // 상태 업데이트 (디버깅 패널 표시용)
-            prevGpio5Ref.current = gpio5
-            setGpio5State(gpio5)
-          }
-          
-          // GPIO 6, 13, 19번 상태 업데이트 (디버깅 패널용)
-          if (gpio6 && gpio6 !== "UNKNOWN") {
-            setGpio6State(gpio6)
-          }
-          if (gpio13 && gpio13 !== "UNKNOWN") {
-            setGpio13State(gpio13)
-          }
-          if (gpio19 && gpio19 !== "UNKNOWN") {
-            setGpio19State(gpio19)
-          }
+          // GPIO 상태는 인터럽트 기반 gpio_state_change 메시지로 처리됨
         } else if (res.type === "resistance") {
           // 저항 측정 결과 처리
           console.log('📊 저항 측정 결과 수신:', res.data)
@@ -1520,6 +1504,36 @@ export default function NeedleInspectorUI() {
           
           // 측정 완료 상태로 변경
           setIsResistanceMeasuring(false)
+        } else if (res.type === "gpio_state_change") {
+          // GPIO 상태 변경 알림 처리 (인터럽트 기반)
+          console.log('🔄 GPIO 상태 변경:', res.data)
+          
+          if (res.data && typeof res.data.pin === 'number' && res.data.state) {
+            const { pin, state } = res.data
+            
+            // 각 GPIO 핀별로 상태 업데이트
+            switch (pin) {
+              case 5:
+                setGpio5State(state)
+                prevGpio5Ref.current = state
+                console.log(`[GPIO5] Short 체크 상태 변경: ${state}`)
+                break
+              case 6:
+                setGpio6State(state)
+                console.log(`[GPIO6] START 버튼 상태 변경: ${state}`)
+                break
+              case 13:
+                setGpio13State(state)
+                console.log(`[GPIO13] PASS 버튼 상태 변경: ${state}`)
+                break
+              case 19:
+                setGpio19State(state)
+                console.log(`[GPIO19] NG 버튼 상태 변경: ${state}`)
+                break
+              default:
+                console.warn(`[GPIO] 알 수 없는 핀 번호: ${pin}`)
+            }
+          }
         } else if (res.type === "gpio_start_button") {
           // GPIO 6번 START 버튼 스위치 신호 처리
           console.log('🔘 GPIO6 START 버튼 스위치 신호 수신:', res.data)
