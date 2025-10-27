@@ -55,6 +55,7 @@ led_red = None    # GPIO27 - RED LED
 led_green = None  # GPIO22 - GREEN LED
 
 needle_tip_connected = False  # 니들팁 연결 상태 (전역 변수)
+is_started = False  # 스타트 상태 (전역 변수) - 판정 버튼 활성화 여부
 last_eeprom_data = {"success": False, "error": "니들팁이 연결되지 않음"}  # 마지막 EEPROM 상태
 
 try:
@@ -264,8 +265,12 @@ async def _on_short_detected():
     """GPIO5 Short 감지 시 호출되는 이벤트 핸들러"""
     print("[GPIO5] Short 감지됨 (HIGH 상태)")
     
-    # LED 제어: Short 감지 시 RED LED ON (NG 상황)
-    set_led_red_on()
+    # LED 제어: 스타트 상태일 때만 Short 감지 시 RED LED ON (NG 상황)
+    if is_started:
+        set_led_red_on()
+        print("[GPIO5] 스타트 상태 - Short 감지 RED LED ON")
+    else:
+        print("[GPIO5] 비활성 상태 - LED 제어 무시")
     
     # 디버깅 패널로 GPIO 상태 변경 알림
     gpio_message = {
@@ -326,7 +331,11 @@ def _on_short_cleared_sync():
 # GPIO6 이벤트 핸들러 (START 버튼 스위치)
 async def _on_start_button_pressed():
     """GPIO6 START 버튼 스위치가 눌렸을 때 호출되는 이벤트 핸들러"""
-    print("[GPIO6] START 버튼 스위치 눌림 - 프론트엔드로 START 신호 전송")
+    global is_started
+    
+    # 스타트 상태 토글
+    is_started = not is_started
+    print(f"[GPIO6] START 버튼 스위치 눌림 - 스타트 상태: {'활성화' if is_started else '비활성화'}")
     
     # 디버깅 패널로 GPIO 상태 변경 알림
     gpio_message = {
@@ -401,10 +410,14 @@ def _on_start_button_released_sync():
 # GPIO13 이벤트 핸들러 (PASS 버튼 스위치)
 async def _on_pass_button_pressed():
     """GPIO13 PASS 버튼 스위치가 눌렸을 때 호출되는 이벤트 핸들러"""
-    print("[GPIO13] PASS 버튼 스위치 눌림 - 프론트엔드로 PASS 신호 전송")
+    print("[GPIO13] PASS 버튼 스위치 눌림")
     
-    # LED 제어: PASS 버튼 눌림 시 GREEN LED ON
-    set_led_green_on()
+    # LED 제어: 스타트 상태일 때만 GREEN LED ON
+    if is_started:
+        set_led_green_on()
+        print("[GPIO13] 스타트 상태 - GREEN LED ON")
+    else:
+        print("[GPIO13] 비활성 상태 - LED 제어 무시")
     
     # 디버깅 패널로 GPIO 상태 변경 알림
     gpio_message = {
@@ -481,9 +494,12 @@ async def _on_ng_button_pressed():
     """GPIO19 NG 버튼 스위치가 눌렸을 때 호출되는 이벤트 핸들러"""
     print("[GPIO19] NG 버튼 스위치 눌림")
     
-    # LED 제어: NG 버튼 눌림 시 RED LED ON
-    set_led_red_on()
-    print("[GPIO19] NG 버튼 눌림 - RED LED 제어 완료")
+    # LED 제어: 스타트 상태일 때만 RED LED ON
+    if is_started:
+        set_led_red_on()
+        print("[GPIO19] 스타트 상태 - RED LED ON")
+    else:
+        print("[GPIO19] 비활성 상태 - LED 제어 무시")
     
     # 디버깅 패널로 GPIO 상태 변경 알림
     gpio_message = {
@@ -1095,16 +1111,21 @@ async def handler(websocket):
                             if read_result.get("success"):
                                 result["data"] = read_result  # 읽은 데이터를 응답에 포함
                                 print(f"[INFO] EEPROM 쓰기 후 읽기 성공: {read_result}")
-                                # LED 제어: EEPROM 저장 완료 시 GREEN LED ON
-                                set_led_green_on()
-                                print("[EEPROM] 저장 완료 - GREEN LED ON")
+                                # LED 제어: 스타트 상태일 때만 EEPROM 저장 완료 시 GREEN LED ON
+                                if is_started:
+                                    set_led_green_on()
+                                    print("[EEPROM] 저장 완료 - GREEN LED ON")
                             else:
                                 print(f"[WARN] EEPROM 쓰기 후 읽기 실패: {read_result}")
-                                # LED 제어: EEPROM 읽기 실패 시 RED LED ON
-                                set_led_red_on()
+                                # LED 제어: 스타트 상태일 때만 EEPROM 읽기 실패 시 RED LED ON
+                                if is_started:
+                                    set_led_red_on()
+                                    print("[EEPROM] 읽기 실패 - RED LED ON")
                         else:
-                            # LED 제어: EEPROM 저장 실패 시 RED LED ON
-                            set_led_red_on()
+                            # LED 제어: 스타트 상태일 때만 EEPROM 저장 실패 시 RED LED ON
+                            if is_started:
+                                set_led_red_on()
+                                print("[EEPROM] 저장 실패 - RED LED ON")
                         
                         async with lock:
                             await websocket.send(json.dumps({
@@ -1162,15 +1183,18 @@ async def handler(websocket):
                             print(f"[LED] 저항 2 비정상 감지 ({res2_mohm}mΩ > {resistance_threshold_mohm}mΩ)")
 
                         if is_abnormal:
-                            set_led_red_on()
+                            if is_started:
+                                set_led_red_on()
+                                print("[LED] 저항 비정상 - RED LED ON")
                         else:
                             print(f"[LED] 저항 정상 (Threshold: {resistance_threshold_mohm}mΩ)")
                     
                     else:
                         # 저항 측정기 연결 실패
                         is_abnormal = True
-                        set_led_red_on()
-                        print("[LED] 저항 측정기 연결 실패 - RED LED ON")
+                        if is_started:
+                            set_led_red_on()
+                            print("[LED] 저항 측정기 연결 실패 - RED LED ON")
                     
                     # 결과를 요청한 클라이언트에게 전송
                     response = {
@@ -1311,6 +1335,8 @@ async def push_motor_status():
                         "command_queue_size": motor.get_queue_size(),
                         # 니들팁 연결 상태 (GPIO11 기반)
                         "needle_tip_connected": needle_tip_connected,
+                        # 스타트 상태 (판정 버튼 활성화 여부)
+                        "is_started": is_started,
                     }
                 }
             except Exception as e:
