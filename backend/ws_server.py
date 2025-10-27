@@ -1193,6 +1193,7 @@ async def handler(websocket):
                         result = {"success": True, "message": "BLUE LED ON"}
                     elif led_type == "red":
                         print("[LED_CONTROL] RED LED 제어 명령 실행")
+                        ng_button_pressed = True  # NG 상태로 설정 (물리 버튼과 동일)
                         set_led_red_on()
                         result = {"success": True, "message": "RED LED ON"}
                     elif led_type == "green":

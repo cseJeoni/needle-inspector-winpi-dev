@@ -213,6 +213,17 @@ const JudgePanel = forwardRef(function JudgePanel({ onJudge, isStarted, onReset,
     }
     
     console.log("NG 판정");
+    
+    // [수정] 물리 NG 버튼과 동일하게 RED LED 제어 명령 전송
+    if (websocket && isWsConnected) {
+      const ledCommand = {
+        cmd: "led_control",
+        type: "red"
+      };
+      console.log("🔴 프론트엔드 NG 버튼 - RED LED 제어 명령 전송:", ledCommand);
+      websocket.send(JSON.stringify(ledCommand));
+    }
+    
     handleJudge('NG');
   };
 
