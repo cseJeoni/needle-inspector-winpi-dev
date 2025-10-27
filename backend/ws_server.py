@@ -48,7 +48,6 @@ pin19 = None  # GPIO19 객체 (NG 버튼 스위치용)
 
 # LED 상태 관리
 current_led_state = None  # 현재 LED 상태 ('blue', 'red', 'green', 'off')
-ng_button_pressed = False  # NG 버튼이 눌렸는지 플래그
 
 # LED GPIO 핀 (출력용)
 led_blue = None   # GPIO17 - BLUE LED
@@ -211,23 +210,19 @@ def get_led_status():
 # GPIO11 이벤트 핸들러 (gpiozero 방식) - 니들팁 상태만 관리
 def _on_tip_connected():
     """니들팁 연결 시 호출되는 이벤트 핸들러"""
-    global needle_tip_connected, ng_button_pressed
+    global needle_tip_connected
     needle_tip_connected = True
     print("[GPIO11] 니들팁 상태 변경: 연결됨")
     
-    # LED 제어: NG 버튼이 눌린 상태가 아닐 때만 BLUE LED ON
-    if not ng_button_pressed:
-        set_led_blue_on()
-        print("[GPIO11] 니들팁 연결 - BLUE LED ON")
-    else:
-        print("[GPIO11] 니들팁 연결 - NG 모드로 인해 BLUE LED 제어 무시")
+    # LED 제어: 니들팁 연결 시 BLUE LED ON
+    set_led_blue_on()
+    print("[GPIO11] 니들팁 연결 - BLUE LED ON")
 
 def _on_tip_disconnected():
     """니들팁 분리 시 호출되는 이벤트 핸들러"""
-    global needle_tip_connected, ng_button_pressed
+    global needle_tip_connected
     needle_tip_connected = False
-    ng_button_pressed = False  # NG 모드 초기화
-    print("[GPIO11] 니들팁 상태 변경: 분리됨 - NG 모드 초기화")
+    print("[GPIO11] 니들팁 상태 변경: 분리됨")
     
     # LED 제어: 니들팁 분리 시 모든 LED OFF
     set_all_leds_off()
@@ -235,9 +230,7 @@ def _on_tip_disconnected():
 # GPIO5 이벤트 핸들러 (Short 체크)
 async def _on_short_detected():
     """GPIO5 Short 감지 시 호출되는 이벤트 핸들러"""
-    global ng_button_pressed  # [수정] 전역 플래그 접근
-    ng_button_pressed = True  # [수정] NG 상태로 설정
-    print("[GPIO5] Short 감지됨 (HIGH 상태) - NG 모드 활성화")
+    print("[GPIO5] Short 감지됨 (HIGH 상태)")
     
     # LED 제어: Short 감지 시 RED LED ON (NG 상황)
     set_led_red_on()
@@ -376,14 +369,10 @@ def _on_start_button_released_sync():
 # GPIO13 이벤트 핸들러 (PASS 버튼 스위치)
 async def _on_pass_button_pressed():
     """GPIO13 PASS 버튼 스위치가 눌렸을 때 호출되는 이벤트 핸들러"""
-    global ng_button_pressed  # [수정] 전역 플래그 접근
     print("[GPIO13] PASS 버튼 스위치 눌림 - 프론트엔드로 PASS 신호 전송")
     
     # LED 제어: PASS 버튼 눌림 시 GREEN LED ON
-    if not ng_button_pressed:  # [수정] NG 상태가 아닐 때만 켜지도록 변경
-        set_led_green_on()
-    else:
-        print("[GPIO13] NG 모드 활성화 중 - GREEN LED 제어 무시")
+    set_led_green_on()
     
     # 디버깅 패널로 GPIO 상태 변경 알림
     gpio_message = {
@@ -458,22 +447,9 @@ def _on_pass_button_released_sync():
 # GPIO19 이벤트 핸들러 (NG 버튼 스위치)
 async def _on_ng_button_pressed():
     """GPIO19 NG 버튼 스위치가 눌렸을 때 호출되는 이벤트 핸들러"""
-    global ng_button_pressed
-    ng_button_pressed = True  # NG 모드 활성화
-    print("[GPIO19] NG 버튼 스위치 눌림 - NG 모드 활성화")
+    print("[GPIO19] NG 버튼 스위치 눌림")
     
-    # LED 제어: NG 버튼 눌림 시 RED LED ON (강제 제어)
-    print("[GPIO19] NG 버튼 눌림 - RED LED 강제 제어 시작")
-    try:
-        if led_blue: led_blue.off()
-        if led_red: led_red.on()
-        if led_green: led_green.off()
-        current_led_state = 'red'
-        print("[GPIO19] NG 버튼 - 강제 RED LED ON 완료")
-    except Exception as e:
-        print(f"[GPIO19] NG 버튼 - RED LED 제어 실패: {e}")
-    
-    # 기존 함수도 호출
+    # LED 제어: NG 버튼 눌림 시 RED LED ON
     set_led_red_on()
     print("[GPIO19] NG 버튼 눌림 - RED LED 제어 완료")
     
@@ -864,7 +840,6 @@ def read_eeprom_mtr40():
                 except: pass
 
 async def handler(websocket):
-    global ng_button_pressed  # [수정] handler 함수 최상단에 global 선언 추가
     print("[INFO] 클라이언트 연결됨")
     connected_clients[websocket] = asyncio.Lock()  # Lock 객체 할당
     lock = connected_clients[websocket]  # Lock 변수 가져오기
@@ -1089,20 +1064,15 @@ async def handler(websocket):
                             if read_result.get("success"):
                                 result["data"] = read_result  # 읽은 데이터를 응답에 포함
                                 print(f"[INFO] EEPROM 쓰기 후 읽기 성공: {read_result}")
-                                # LED 제어: NG 모드가 아닐 때만 GREEN LED ON
-                                if not ng_button_pressed:
-                                    set_led_green_on()
-                                    print("[EEPROM] 저장 완료 - GREEN LED ON")
-                                else:
-                                    print("[EEPROM] 저장 완료 - NG 모드로 인해 GREEN LED 제어 무시")
+                                # LED 제어: EEPROM 저장 완료 시 GREEN LED ON
+                                set_led_green_on()
+                                print("[EEPROM] 저장 완료 - GREEN LED ON")
                             else:
                                 print(f"[WARN] EEPROM 쓰기 후 읽기 실패: {read_result}")
                                 # LED 제어: EEPROM 읽기 실패 시 RED LED ON
-                                ng_button_pressed = True  # NG 상태로 설정
                                 set_led_red_on()
                         else:
                             # LED 제어: EEPROM 저장 실패 시 RED LED ON
-                            ng_button_pressed = True  # NG 상태로 설정
                             set_led_red_on()
                         
                         async with lock:
@@ -1125,7 +1095,6 @@ async def handler(websocket):
                     
                     # LED 제어: EEPROM 읽기 실패 시 RED LED ON
                     if not result.get("success"):
-                        ng_button_pressed = True  # NG 상태로 설정
                         set_led_red_on()
                     
                     async with lock:
@@ -1162,7 +1131,6 @@ async def handler(websocket):
                             print(f"[LED] 저항 2 비정상 감지 ({res2_mohm}mΩ > {resistance_threshold_mohm}mΩ)")
 
                         if is_abnormal:
-                            ng_button_pressed = True  # NG 상태 설정
                             set_led_red_on()
                         else:
                             print(f"[LED] 저항 정상 (Threshold: {resistance_threshold_mohm}mΩ)")
@@ -1170,7 +1138,6 @@ async def handler(websocket):
                     else:
                         # 저항 측정기 연결 실패
                         is_abnormal = True
-                        ng_button_pressed = True  # NG 상태 설정
                         set_led_red_on()
                         print("[LED] 저항 측정기 연결 실패 - RED LED ON")
                     
@@ -1193,7 +1160,6 @@ async def handler(websocket):
                         result = {"success": True, "message": "BLUE LED ON"}
                     elif led_type == "red":
                         print("[LED_CONTROL] RED LED 제어 명령 실행")
-                        ng_button_pressed = True  # NG 상태로 설정 (물리 버튼과 동일)
                         set_led_red_on()
                         result = {"success": True, "message": "RED LED ON"}
                     elif led_type == "green":
