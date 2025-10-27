@@ -45,11 +45,17 @@ pin11 = None  # GPIO11 객체 (니들팁 연결 감지용)
 pin6 = None   # GPIO6 객체 (START 버튼 스위치용)
 pin13 = None  # GPIO13 객체 (PASS 버튼 스위치용)
 pin19 = None  # GPIO19 객체 (NG 버튼 스위치용)
+
+# LED GPIO 핀 (출력용)
+led_blue = None   # GPIO17 - BLUE LED
+led_red = None    # GPIO27 - RED LED  
+led_green = None  # GPIO22 - GREEN LED
+
 needle_tip_connected = False  # 니들팁 연결 상태 (전역 변수)
 last_eeprom_data = {"success": False, "error": "니들팁이 연결되지 않음"}  # 마지막 EEPROM 상태
 
 try:
-    from gpiozero import DigitalInputDevice, Button
+    from gpiozero import DigitalInputDevice, Button, LED
     
     # GPIO5: Short 체크용 (Button 클래스, 인터럽트 지원)
     pin5 = Button(5, pull_up=True, bounce_time=0.05)
@@ -66,8 +72,19 @@ try:
     # GPIO19: Button 클래스로 NG 버튼 스위치 (내부 풀업, 바운스 타임 지원)
     pin19 = Button(19, pull_up=True, bounce_time=0.05)
     
+    # LED 초기화 (출력용)
+    led_blue = LED(17)   # GPIO17 - BLUE LED
+    led_red = LED(27)    # GPIO27 - RED LED
+    led_green = LED(22)  # GPIO22 - GREEN LED
+    
+    # 초기 상태: 모든 LED OFF
+    led_blue.off()
+    led_red.off()
+    led_green.off()
+    
     gpio_available = True
     print("[OK] GPIO 5번, 11번, 6번, 13번, 19번 핀 초기화 완료 (gpiozero 라이브러리)")
+    print("[OK] LED GPIO 17번(BLUE), 27번(RED), 22번(GREEN) 초기화 완료 - 모든 LED OFF")
 except ImportError as ie:
     print(f"[ERROR] GPIO 모듈을 찾을 수 없습니다: {ie}. GPIO 기능이 비활성화됩니다.")
 except Exception as e:
@@ -77,23 +94,91 @@ motor = DualMotorController()
 connected_clients = {}  # 클라이언트별 Lock을 저장하기 위해 dict로 변경
 main_event_loop = None  # 메인 이벤트 루프 저장용
 
+# LED 제어 함수들
+def set_led_blue_on():
+    """BLUE LED만 켜고 나머지는 끄기"""
+    if gpio_available and led_blue and led_red and led_green:
+        try:
+            led_blue.on()
+            led_red.off()
+            led_green.off()
+            print("[LED] BLUE LED ON, 나머지 OFF")
+        except Exception as e:
+            print(f"[ERROR] BLUE LED 제어 실패: {e}")
+
+def set_led_red_on():
+    """RED LED만 켜고 나머지는 끄기"""
+    if gpio_available and led_blue and led_red and led_green:
+        try:
+            led_blue.off()
+            led_red.on()
+            led_green.off()
+            print("[LED] RED LED ON, 나머지 OFF")
+        except Exception as e:
+            print(f"[ERROR] RED LED 제어 실패: {e}")
+
+def set_led_green_on():
+    """GREEN LED만 켜고 나머지는 끄기"""
+    if gpio_available and led_blue and led_red and led_green:
+        try:
+            led_blue.off()
+            led_red.off()
+            led_green.on()
+            print("[LED] GREEN LED ON, 나머지 OFF")
+        except Exception as e:
+            print(f"[ERROR] GREEN LED 제어 실패: {e}")
+
+def set_all_leds_off():
+    """모든 LED 끄기"""
+    if gpio_available and led_blue and led_red and led_green:
+        try:
+            led_blue.off()
+            led_red.off()
+            led_green.off()
+            print("[LED] 모든 LED OFF")
+        except Exception as e:
+            print(f"[ERROR] 모든 LED OFF 제어 실패: {e}")
+
+def get_led_status():
+    """현재 LED 상태 반환"""
+    if gpio_available and led_blue and led_red and led_green:
+        try:
+            return {
+                "blue": led_blue.is_lit,
+                "red": led_red.is_lit,
+                "green": led_green.is_lit
+            }
+        except Exception as e:
+            print(f"[ERROR] LED 상태 읽기 실패: {e}")
+            return {"blue": False, "red": False, "green": False}
+    return {"blue": False, "red": False, "green": False}
+
 # GPIO11 이벤트 핸들러 (gpiozero 방식) - 니들팁 상태만 관리
 def _on_tip_connected():
     """니들팁 연결 시 호출되는 이벤트 핸들러"""
     global needle_tip_connected
     needle_tip_connected = True
     print("[GPIO11] 니들팁 상태 변경: 연결됨")
+    
+    # LED 제어: 니들팁 연결 시 BLUE LED ON
+    set_led_blue_on()
 
 def _on_tip_disconnected():
     """니들팁 분리 시 호출되는 이벤트 핸들러"""
     global needle_tip_connected
     needle_tip_connected = False
     print("[GPIO11] 니들팁 상태 변경: 분리됨")
+    
+    # LED 제어: 니들팁 분리 시 모든 LED OFF
+    set_all_leds_off()
 
 # GPIO5 이벤트 핸들러 (Short 체크)
 async def _on_short_detected():
     """GPIO5 Short 감지 시 호출되는 이벤트 핸들러"""
     print("[GPIO5] Short 감지됨 (HIGH 상태)")
+    
+    # LED 제어: Short 감지 시 RED LED ON (NG 상황)
+    set_led_red_on()
     
     # 디버깅 패널로 GPIO 상태 변경 알림
     gpio_message = {
@@ -231,6 +316,9 @@ async def _on_pass_button_pressed():
     """GPIO13 PASS 버튼 스위치가 눌렸을 때 호출되는 이벤트 핸들러"""
     print("[GPIO13] PASS 버튼 스위치 눌림 - 프론트엔드로 PASS 신호 전송")
     
+    # LED 제어: PASS 버튼 눌림 시 GREEN LED ON
+    set_led_green_on()
+    
     # 디버깅 패널로 GPIO 상태 변경 알림
     gpio_message = {
         "type": "gpio_state_change",
@@ -305,6 +393,9 @@ def _on_pass_button_released_sync():
 async def _on_ng_button_pressed():
     """GPIO19 NG 버튼 스위치가 눌렸을 때 호출되는 이벤트 핸들러"""
     print("[GPIO19] NG 버튼 스위치 눌림 - 프론트엔드로 NG 신호 전송")
+    
+    # LED 제어: NG 버튼 눌림 시 RED LED ON
+    set_led_red_on()
     
     # 디버깅 패널로 GPIO 상태 변경 알림
     gpio_message = {
@@ -917,8 +1008,15 @@ async def handler(websocket):
                             if read_result.get("success"):
                                 result["data"] = read_result  # 읽은 데이터를 응답에 포함
                                 print(f"[INFO] EEPROM 쓰기 후 읽기 성공: {read_result}")
+                                # LED 제어: EEPROM 저장 완료 시 GREEN LED ON
+                                set_led_green_on()
                             else:
                                 print(f"[WARN] EEPROM 쓰기 후 읽기 실패: {read_result}")
+                                # LED 제어: EEPROM 읽기 실패 시 RED LED ON
+                                set_led_red_on()
+                        else:
+                            # LED 제어: EEPROM 저장 실패 시 RED LED ON
+                            set_led_red_on()
                         
                         async with lock:
                             await websocket.send(json.dumps({
@@ -937,6 +1035,10 @@ async def handler(websocket):
                         result = read_eeprom_mtr40()
                     else:  # MTR 2.0
                         result = read_eeprom_mtr20(country)
+                    
+                    # LED 제어: EEPROM 읽기 실패 시 RED LED ON
+                    if not result.get("success"):
+                        set_led_red_on()
                     
                     async with lock:
                         await websocket.send(json.dumps({
@@ -959,6 +1061,35 @@ async def handler(websocket):
                     async with lock:
                         await websocket.send(json.dumps(response) + '\n')
                     print(f"[MainServer] 저항 측정 결과 전송 완료: {result.get('connected', False)}")
+
+                # LED 제어 명령
+                elif data["cmd"] == "led_control":
+                    led_type = data.get("type")
+                    
+                    if led_type == "blue":
+                        set_led_blue_on()
+                        result = {"success": True, "message": "BLUE LED ON"}
+                    elif led_type == "red":
+                        set_led_red_on()
+                        result = {"success": True, "message": "RED LED ON"}
+                    elif led_type == "green":
+                        set_led_green_on()
+                        result = {"success": True, "message": "GREEN LED ON"}
+                    elif led_type == "all_off":
+                        set_all_leds_off()
+                        result = {"success": True, "message": "모든 LED OFF"}
+                    elif led_type == "status":
+                        # LED 상태 조회
+                        status = get_led_status()
+                        result = {"success": True, "status": status}
+                    else:
+                        result = {"success": False, "error": f"지원하지 않는 LED 타입: {led_type}"}
+                    
+                    async with lock:
+                        await websocket.send(json.dumps({
+                            "type": "led_control",
+                            "result": result
+                        }) + '\n')
 
                 else:
                     async with lock:
@@ -1096,7 +1227,14 @@ def cleanup_gpio():
                 pin13.close()
             if pin19:
                 pin19.close()
-            print("[OK] GPIO 리소스 정리 완료 (gpiozero)")
+            # LED 리소스 정리
+            if led_blue:
+                led_blue.close()
+            if led_red:
+                led_red.close()
+            if led_green:
+                led_green.close()
+            print("[OK] GPIO 및 LED 리소스 정리 완료 (gpiozero)")
         except Exception as e:
             print(f"[ERROR] GPIO 정리 오류: {e}")
 
