@@ -109,9 +109,9 @@ def check_initial_needle_tip_state():
         return
     
     try:
-        # GPIO11 상태 읽기 (Button 클래스는 is_pressed 속성 사용)
-        # 풀업이므로 연결되면 LOW(False), 분리되면 HIGH(True)
-        is_tip_connected = not pin11.is_pressed  # 반전 로직
+        # GPIO11 상태 읽기 (Button 클래스는 is_active 속성 사용)
+        # 이벤트 핸들러와 동일한 로직: activated = 연결됨, deactivated = 분리됨
+        is_tip_connected = pin11.is_active
         
         if is_tip_connected:
             needle_tip_connected = True
@@ -573,9 +573,8 @@ if gpio_available and pin5:
 # GPIO11 이벤트 핸들러 설정 (gpiozero 방식)
 if gpio_available and pin11:
     try:
-        # 초기 니들팁 상태 설정 (is_active는 pull-up 상태에서 HIGH일 때 True)
-        needle_tip_connected = pin11.is_active
-        print(f"[GPIO11] 초기 니들팁 상태: {'연결됨' if needle_tip_connected else '분리됨'}")
+        # 초기 상태는 이미 check_initial_needle_tip_state()에서 설정했으므로 덮어쓰지 않음
+        print(f"[GPIO11] 현재 니들팁 상태: {'연결됨' if needle_tip_connected else '분리됨'}")
         
         # 이벤트 핸들러 할당 (체결: HIGH, 분리: LOW)
         pin11.when_activated = _on_tip_connected
