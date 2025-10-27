@@ -46,6 +46,9 @@ pin6 = None   # GPIO6 객체 (START 버튼 스위치용)
 pin13 = None  # GPIO13 객체 (PASS 버튼 스위치용)
 pin19 = None  # GPIO19 객체 (NG 버튼 스위치용)
 
+# LED 상태 관리
+current_led_state = None  # 현재 LED 상태 ('blue', 'red', 'green', 'off')
+
 # LED GPIO 핀 (출력용)
 led_blue = None   # GPIO17 - BLUE LED
 led_red = None    # GPIO27 - RED LED  
@@ -112,6 +115,7 @@ def set_led_blue_on():
             led_red.off()
         if led_green:
             led_green.off()
+        current_led_state = 'blue'
         print("[LED] BLUE LED ON, 나머지 OFF")
     except Exception as e:
         print(f"[ERROR] BLUE LED 제어 실패: {e}")
@@ -137,6 +141,7 @@ def set_led_red_on():
             led_red.on()
         if led_green:
             led_green.off()
+        current_led_state = 'red'
         print("[LED] RED LED ON, 나머지 OFF")
     except Exception as e:
         print(f"[ERROR] RED LED 제어 실패: {e}")
@@ -145,6 +150,8 @@ def set_led_red_on():
 
 def set_led_green_on():
     """GREEN LED만 켜고 나머지는 끄기"""
+    global current_led_state
+    
     if not gpio_available:
         print("[ERROR] GPIO 기능이 비활성화되어 있습니다.")
         return
@@ -154,12 +161,10 @@ def set_led_green_on():
         return
         
     try:
-        if led_blue:
-            led_blue.off()
-        if led_red:
-            led_red.off()
-        if led_green:
-            led_green.on()
+        led_blue.off()
+        led_red.off()
+        led_green.on()
+        current_led_state = 'green'
         print("[LED] GREEN LED ON, 나머지 OFF")
     except Exception as e:
         print(f"[ERROR] GREEN LED 제어 실패: {e}")
@@ -168,6 +173,8 @@ def set_led_green_on():
 
 def set_all_leds_off():
     """모든 LED 끄기"""
+    global current_led_state
+    
     if not gpio_available:
         print("[ERROR] GPIO 기능이 비활성화되어 있습니다.")
         return
@@ -179,6 +186,7 @@ def set_all_leds_off():
             led_red.off()
         if led_green:
             led_green.off()
+        current_led_state = 'off'
         print("[LED] 모든 LED OFF")
     except Exception as e:
         print(f"[ERROR] 모든 LED OFF 제어 실패: {e}")
@@ -440,8 +448,17 @@ async def _on_ng_button_pressed():
     """GPIO19 NG 버튼 스위치가 눌렸을 때 호출되는 이벤트 핸들러"""
     print("[GPIO19] NG 버튼 스위치 눌림 - 프론트엔드로 NG 신호 전송")
     
-    # LED 제어: NG 버튼 눌림 시 RED LED ON
-    print("[GPIO19] NG 버튼 눌림 - RED LED 제어 시작")
+    # LED 제어: NG 버튼 눌림 시 RED LED ON (강제 제어)
+    print("[GPIO19] NG 버튼 눌림 - RED LED 강제 제어 시작")
+    try:
+        if led_blue: led_blue.off()
+        if led_red: led_red.on()
+        if led_green: led_green.off()
+        print("[GPIO19] NG 버튼 - 강제 RED LED ON 완료")
+    except Exception as e:
+        print(f"[GPIO19] NG 버튼 - RED LED 제어 실패: {e}")
+    
+    # 기존 함수도 호출
     set_led_red_on()
     print("[GPIO19] NG 버튼 눌림 - RED LED 제어 완료")
     
@@ -1149,10 +1166,17 @@ async def handler(websocket):
                         status = get_led_status()
                         result = {"success": True, "status": status}
                     elif led_type == "test_ng":
-                        # NG 버튼 테스트
-                        print("[LED_CONTROL] NG 버튼 테스트 실행")
-                        set_led_red_on()
-                        result = {"success": True, "message": "NG 버튼 테스트 - RED LED ON"}
+                        # NG 버튼 테스트 - 강제로 RED LED만 켜기
+                        print("[LED_CONTROL] NG 버튼 테스트 실행 - 강제 RED LED")
+                        try:
+                            if led_blue: led_blue.off()
+                            if led_red: led_red.on()
+                            if led_green: led_green.off()
+                            print("[LED_CONTROL] 강제 RED LED ON 완료")
+                            result = {"success": True, "message": "강제 RED LED ON 테스트 완료"}
+                        except Exception as e:
+                            print(f"[LED_CONTROL] 강제 RED LED 실패: {e}")
+                            result = {"success": False, "error": str(e)}
                     else:
                         result = {"success": False, "error": f"지원하지 않는 LED 타입: {led_type}"}
                     
