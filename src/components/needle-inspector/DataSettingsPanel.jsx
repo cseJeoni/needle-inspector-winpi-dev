@@ -1035,44 +1035,6 @@ const DataSettingsPanel = forwardRef(({
       <Panel title={
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
           <h2 className="text-lg font-bold text-responsive">데이터 설정</h2>
-          <div style={{ display: 'flex', gap: '0.5dvw' }}>
-            <Button 
-                onClick={() => {
-                  console.log('[DEBUG] MTR 2.0 버튼 클릭');
-                  setMtrVersion('2.0');
-                }}
-                disabled={!isDataSettingsEnabled}
-                style={{
-                    backgroundColor: mtrVersion === '2.0' ? '#4A90E2' : '#171C26',
-                    color: 'white',
-                    border: `1px solid ${mtrVersion === '2.0' ? '#4A90E2' : '#374151'}`,
-                    fontSize: '1.1dvh',
-                    padding: '0.3dvh 1.2dvw',
-                    height: '2.8dvh',
-                    width: '8dvw'
-                }}
-            >
-                MTR 2.0
-            </Button>
-            <Button 
-                onClick={() => {
-                  console.log('[DEBUG] MTR 4.0 버튼 클릭');
-                  setMtrVersion('4.0');
-                }}
-                disabled={!isDataSettingsEnabled}
-                style={{
-                    backgroundColor: mtrVersion === '4.0' ? '#4A90E2' : '#171C26',
-                    color: 'white',
-                    border: `1px solid ${mtrVersion === '4.0' ? '#4A90E2' : '#374151'}`,
-                    fontSize: '1.1dvh',
-                    padding: '0.3dvh 1.2dvw',
-                    height: '2.8dvh',
-                    width: '8dvw'
-                }}
-            >
-                MTR 4.0
-            </Button>
-          </div>
           <img
             src={isDataSettingsEnabled ? unlockIcon : lockIcon}
             alt={isDataSettingsEnabled ? 'Unlocked' : 'Locked'}
@@ -1083,7 +1045,47 @@ const DataSettingsPanel = forwardRef(({
           />
         </div>
       }>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8dvh', overflow: 'hidden' }}>
+        {/* MTR 버전 선택 버튼들 */}
+        <div style={{ display: 'flex', gap: '0.5dvw' }}>
+          <Button 
+              onClick={() => {
+                console.log('[DEBUG] MTR 2.0 버튼 클릭');
+                setMtrVersion('2.0');
+              }}
+              disabled={!isDataSettingsEnabled}
+              style={{
+                  backgroundColor: mtrVersion === '2.0' ? '#4A90E2' : '#171C26',
+                  color: 'white',
+                  border: `1px solid ${mtrVersion === '2.0' ? '#4A90E2' : '#374151'}`,
+                  fontSize: '1.1dvh',
+                  padding: '0.3dvh 1.2dvw',
+                  height: '2.8dvh',
+                  flex: 1
+              }}
+          >
+              MTR 2.0
+          </Button>
+          <Button 
+              onClick={() => {
+                console.log('[DEBUG] MTR 4.0 버튼 클릭');
+                setMtrVersion('4.0');
+              }}
+              disabled={!isDataSettingsEnabled}
+              style={{
+                  backgroundColor: mtrVersion === '4.0' ? '#4A90E2' : '#171C26',
+                  color: 'white',
+                  border: `1px solid ${mtrVersion === '4.0' ? '#4A90E2' : '#374151'}`,
+                  fontSize: '1.1dvh',
+                  padding: '0.3dvh 1.2dvw',
+                  height: '2.8dvh',
+                  flex: 1
+              }}
+          >
+              MTR 4.0
+          </Button>
+        </div>
+        
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8dvh', overflow: 'hidden' }}>
         <div style={{ display: 'flex', gap: '1dvw' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5dvw', width: '40%' }}>
             <label style={{ width: '20%', fontSize: '1.3dvh', color: '#D1D5DB', flexShrink: 0 }}>국가</label>
