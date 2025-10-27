@@ -1996,7 +1996,7 @@ export default function NeedleInspectorUI() {
           <div className="w-[20%]">
             <StatusPanel mode={mode} workStatus={workStatus} needleTipConnected={needleTipConnected} isWaitingEepromRead={isWaitingEepromRead} />
           </div>
-          <div className="w-[31%]">
+          <div className="w-[30%]">
             <DataSettingsPanel 
             ref={dataSettingsPanelRef} // GPIO 6번 START 버튼용 ref 추가
             makerCode={makerCode} 
@@ -2033,7 +2033,7 @@ export default function NeedleInspectorUI() {
             motor1Position={currentPosition} // 실시간 모터1 위치 전달
           />
           </div>
-          <div className="w-[26.5%]">
+          <div className="w-[27.5%]">
             {selectedNeedleType.startsWith('MULTI') && mtrVersion === '4.0' ? (
             <NeedleCheckPanelV4Multi 
               mode={mode} 
