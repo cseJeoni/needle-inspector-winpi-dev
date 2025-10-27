@@ -1137,6 +1137,7 @@ async def handler(websocket):
 
                 # 저항 측정 명령 (임시 연결/해제 방식)
                 elif data["cmd"] == "measure_resistance":
+                    global ng_button_pressed  # [수정] global 선언 추가
                     print("[MainServer] 저항 측정 요청 수신")
                     
                     # 일회성 저항 측정 (연결 -> 측정 -> 즉시 해제)
