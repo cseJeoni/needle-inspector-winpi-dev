@@ -1053,6 +1053,7 @@ async def handler(websocket):
                             }) + '\n')
 
                 elif data["cmd"] == "eeprom_write":
+                    global ng_button_pressed  # [수정] 이 위치로 이동
                     tip_type = data.get("tipType")
                     shot_count = data.get("shotCount", 0)
                     year = data.get("year")
@@ -1097,11 +1098,11 @@ async def handler(websocket):
                             else:
                                 print(f"[WARN] EEPROM 쓰기 후 읽기 실패: {read_result}")
                                 # LED 제어: EEPROM 읽기 실패 시 RED LED ON
-                                ng_button_pressed = True  # [수정] NG 상태로 설정
+                                ng_button_pressed = True  # NG 상태로 설정
                                 set_led_red_on()
                         else:
                             # LED 제어: EEPROM 저장 실패 시 RED LED ON
-                            ng_button_pressed = True  # [수정] NG 상태로 설정
+                            ng_button_pressed = True  # NG 상태로 설정
                             set_led_red_on()
                         
                         async with lock:
@@ -1111,6 +1112,7 @@ async def handler(websocket):
                             }) + '\n')
 
                 elif data["cmd"] == "eeprom_read":
+                    global ng_button_pressed  # [수정] 이 위치로 이동
                     mtr_version = data.get("mtrVersion", "2.0")  # 기본값: MTR 2.0
                     country = data.get("country", "CLASSYS")    # 기본값: CLASSYS
                     
@@ -1124,7 +1126,7 @@ async def handler(websocket):
                     
                     # LED 제어: EEPROM 읽기 실패 시 RED LED ON
                     if not result.get("success"):
-                        ng_button_pressed = True  # [수정] NG 상태로 설정
+                        ng_button_pressed = True  # NG 상태로 설정
                         set_led_red_on()
                     
                     async with lock:
