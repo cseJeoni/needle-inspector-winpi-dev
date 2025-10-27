@@ -1049,7 +1049,7 @@ const DataSettingsPanel = forwardRef(({
                     fontSize: '1.1dvh',
                     padding: '0.3dvh 1.2dvw',
                     height: '2.8dvh',
-                    minWidth: '5dvw'
+                    width: '8dvw'
                 }}
             >
                 MTR 2.0
@@ -1067,7 +1067,7 @@ const DataSettingsPanel = forwardRef(({
                     fontSize: '1.1dvh',
                     padding: '0.3dvh 1.2dvw',
                     height: '2.8dvh',
-                    minWidth: '5dvw'
+                    width: '8dvw'
                 }}
             >
                 MTR 4.0
