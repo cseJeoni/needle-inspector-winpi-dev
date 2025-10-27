@@ -88,6 +88,8 @@ try:
     gpio_available = True
     print("[OK] GPIO 5번, 11번, 6번, 13번, 19번 핀 초기화 완료 (gpiozero 라이브러리)")
     print("[OK] LED GPIO 17번(BLUE), 27번(RED), 22번(GREEN) 초기화 완료 - 모든 LED OFF")
+    
+    # 프로그램 시작 시 니들팁 상태 확인 및 LED 설정 (LED 함수 정의 후 호출)
 except ImportError as ie:
     print(f"[ERROR] GPIO 모듈을 찾을 수 없습니다: {ie}. GPIO 기능이 비활성화됩니다.")
 except Exception as e:
@@ -96,6 +98,32 @@ except Exception as e:
 motor = DualMotorController()
 connected_clients = {}  # 클라이언트별 Lock을 저장하기 위해 dict로 변경
 main_event_loop = None  # 메인 이벤트 루프 저장용
+
+# 프로그램 시작 시 니들팁 상태 확인 함수
+def check_initial_needle_tip_state():
+    """프로그램 시작 시 니들팁 상태를 확인하고 적절한 LED를 켜는 함수"""
+    global needle_tip_connected
+    
+    if not gpio_available or not pin11:
+        print("[WARN] GPIO 기능이 비활성화되어 있어 니들팁 상태를 확인할 수 없습니다.")
+        return
+    
+    try:
+        # GPIO11 상태 읽기 (Button 클래스는 is_pressed 속성 사용)
+        # 풀업이므로 연결되면 LOW(False), 분리되면 HIGH(True)
+        is_tip_connected = not pin11.is_pressed  # 반전 로직
+        
+        if is_tip_connected:
+            needle_tip_connected = True
+            set_led_blue_on()
+            print("[INIT] 니들팁이 이미 체결되어 있습니다 - BLUE LED ON")
+        else:
+            needle_tip_connected = False
+            set_all_leds_off()
+            print("[INIT] 니들팁이 분리되어 있습니다 - 모든 LED OFF")
+            
+    except Exception as e:
+        print(f"[ERROR] 니들팁 초기 상태 확인 실패: {e}")
 
 # LED 제어 함수들
 def set_led_blue_on():
@@ -206,6 +234,10 @@ def get_led_status():
             print(f"[ERROR] LED 상태 읽기 실패: {e}")
             return {"blue": False, "red": False, "green": False}
     return {"blue": False, "red": False, "green": False}
+
+# 프로그램 시작 시 니들팁 초기 상태 확인 및 LED 설정 (LED 함수들이 정의된 후 실행)
+if gpio_available:
+    check_initial_needle_tip_state()
 
 # GPIO11 이벤트 핸들러 (gpiozero 방식) - 니들팁 상태만 관리
 def _on_tip_connected():
