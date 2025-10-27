@@ -97,47 +97,93 @@ main_event_loop = None  # 메인 이벤트 루프 저장용
 # LED 제어 함수들
 def set_led_blue_on():
     """BLUE LED만 켜고 나머지는 끄기"""
-    if gpio_available and led_blue and led_red and led_green:
-        try:
+    if not gpio_available:
+        print("[ERROR] GPIO 기능이 비활성화되어 있습니다.")
+        return
+        
+    if not led_blue:
+        print("[ERROR] BLUE LED 객체가 초기화되지 않았습니다.")
+        return
+        
+    try:
+        if led_blue:
             led_blue.on()
+        if led_red:
             led_red.off()
+        if led_green:
             led_green.off()
-            print("[LED] BLUE LED ON, 나머지 OFF")
-        except Exception as e:
-            print(f"[ERROR] BLUE LED 제어 실패: {e}")
+        print("[LED] BLUE LED ON, 나머지 OFF")
+    except Exception as e:
+        print(f"[ERROR] BLUE LED 제어 실패: {e}")
+        import traceback
+        print(f"[ERROR] 상세 오류: {traceback.format_exc()}")
 
 def set_led_red_on():
     """RED LED만 켜고 나머지는 끄기"""
-    if gpio_available and led_blue and led_red and led_green:
-        try:
+    print(f"[DEBUG] LED 제어 시도 - gpio_available: {gpio_available}, led_blue: {led_blue is not None}, led_red: {led_red is not None}, led_green: {led_green is not None}")
+    
+    if not gpio_available:
+        print("[ERROR] GPIO 기능이 비활성화되어 있습니다.")
+        return
+        
+    if not led_red:
+        print("[ERROR] RED LED 객체가 초기화되지 않았습니다.")
+        return
+        
+    try:
+        if led_blue:
             led_blue.off()
+        if led_red:
             led_red.on()
+        if led_green:
             led_green.off()
-            print("[LED] RED LED ON, 나머지 OFF")
-        except Exception as e:
-            print(f"[ERROR] RED LED 제어 실패: {e}")
+        print("[LED] RED LED ON, 나머지 OFF")
+    except Exception as e:
+        print(f"[ERROR] RED LED 제어 실패: {e}")
+        import traceback
+        print(f"[ERROR] 상세 오류: {traceback.format_exc()}")
 
 def set_led_green_on():
     """GREEN LED만 켜고 나머지는 끄기"""
-    if gpio_available and led_blue and led_red and led_green:
-        try:
+    if not gpio_available:
+        print("[ERROR] GPIO 기능이 비활성화되어 있습니다.")
+        return
+        
+    if not led_green:
+        print("[ERROR] GREEN LED 객체가 초기화되지 않았습니다.")
+        return
+        
+    try:
+        if led_blue:
             led_blue.off()
+        if led_red:
             led_red.off()
+        if led_green:
             led_green.on()
-            print("[LED] GREEN LED ON, 나머지 OFF")
-        except Exception as e:
-            print(f"[ERROR] GREEN LED 제어 실패: {e}")
+        print("[LED] GREEN LED ON, 나머지 OFF")
+    except Exception as e:
+        print(f"[ERROR] GREEN LED 제어 실패: {e}")
+        import traceback
+        print(f"[ERROR] 상세 오류: {traceback.format_exc()}")
 
 def set_all_leds_off():
     """모든 LED 끄기"""
-    if gpio_available and led_blue and led_red and led_green:
-        try:
+    if not gpio_available:
+        print("[ERROR] GPIO 기능이 비활성화되어 있습니다.")
+        return
+        
+    try:
+        if led_blue:
             led_blue.off()
+        if led_red:
             led_red.off()
+        if led_green:
             led_green.off()
-            print("[LED] 모든 LED OFF")
-        except Exception as e:
-            print(f"[ERROR] 모든 LED OFF 제어 실패: {e}")
+        print("[LED] 모든 LED OFF")
+    except Exception as e:
+        print(f"[ERROR] 모든 LED OFF 제어 실패: {e}")
+        import traceback
+        print(f"[ERROR] 상세 오류: {traceback.format_exc()}")
 
 def get_led_status():
     """현재 LED 상태 반환"""
@@ -395,7 +441,9 @@ async def _on_ng_button_pressed():
     print("[GPIO19] NG 버튼 스위치 눌림 - 프론트엔드로 NG 신호 전송")
     
     # LED 제어: NG 버튼 눌림 시 RED LED ON
+    print("[GPIO19] NG 버튼 눌림 - RED LED 제어 시작")
     set_led_red_on()
+    print("[GPIO19] NG 버튼 눌림 - RED LED 제어 완료")
     
     # 디버깅 패널로 GPIO 상태 변경 알림
     gpio_message = {
@@ -1053,6 +1101,22 @@ async def handler(websocket):
                     # 일회성 저항 측정 (연결 -> 측정 -> 즉시 해제)
                     result = measure_resistance_once(port="/dev/usb-resistance")
                     
+                    # LED 제어: 저항 측정 결과에 따른 LED 제어
+                    if result.get("connected") and result.get("resistance_ohm") is not None:
+                        resistance_value = result.get("resistance_ohm")
+                        resistance_threshold = data.get("threshold", 1000)  # 기본 임계값 1000옴
+                        
+                        if resistance_value > resistance_threshold:
+                            # 저항값이 임계값을 초과하면 RED LED ON (저항 비정상)
+                            set_led_red_on()
+                            print(f"[LED] 저항 비정상 감지 ({resistance_value}Ω > {resistance_threshold}Ω) - RED LED ON")
+                        else:
+                            print(f"[LED] 저항 정상 ({resistance_value}Ω ≤ {resistance_threshold}Ω)")
+                    elif not result.get("connected"):
+                        # 저항 측정기 연결 실패 시에도 RED LED ON
+                        set_led_red_on()
+                        print("[LED] 저항 측정기 연결 실패 - RED LED ON")
+                    
                     # 결과를 요청한 클라이언트에게 전송
                     response = {
                         "type": "resistance",
@@ -1065,11 +1129,13 @@ async def handler(websocket):
                 # LED 제어 명령
                 elif data["cmd"] == "led_control":
                     led_type = data.get("type")
+                    print(f"[LED_CONTROL] 명령 수신: {led_type}")
                     
                     if led_type == "blue":
                         set_led_blue_on()
                         result = {"success": True, "message": "BLUE LED ON"}
                     elif led_type == "red":
+                        print("[LED_CONTROL] RED LED 제어 명령 실행")
                         set_led_red_on()
                         result = {"success": True, "message": "RED LED ON"}
                     elif led_type == "green":
@@ -1082,6 +1148,11 @@ async def handler(websocket):
                         # LED 상태 조회
                         status = get_led_status()
                         result = {"success": True, "status": status}
+                    elif led_type == "test_ng":
+                        # NG 버튼 테스트
+                        print("[LED_CONTROL] NG 버튼 테스트 실행")
+                        set_led_red_on()
+                        result = {"success": True, "message": "NG 버튼 테스트 - RED LED ON"}
                     else:
                         result = {"success": False, "error": f"지원하지 않는 LED 타입: {led_type}"}
                     
