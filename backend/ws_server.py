@@ -864,6 +864,7 @@ def read_eeprom_mtr40():
                 except: pass
 
 async def handler(websocket):
+    global ng_button_pressed  # [수정] handler 함수 최상단에 global 선언 추가
     print("[INFO] 클라이언트 연결됨")
     connected_clients[websocket] = asyncio.Lock()  # Lock 객체 할당
     lock = connected_clients[websocket]  # Lock 변수 가져오기
@@ -1053,7 +1054,6 @@ async def handler(websocket):
                             }) + '\n')
 
                 elif data["cmd"] == "eeprom_write":
-                    global ng_button_pressed  # [수정] 이 위치로 이동
                     tip_type = data.get("tipType")
                     shot_count = data.get("shotCount", 0)
                     year = data.get("year")
@@ -1112,7 +1112,6 @@ async def handler(websocket):
                             }) + '\n')
 
                 elif data["cmd"] == "eeprom_read":
-                    global ng_button_pressed  # [수정] 이 위치로 이동
                     mtr_version = data.get("mtrVersion", "2.0")  # 기본값: MTR 2.0
                     country = data.get("country", "CLASSYS")    # 기본값: CLASSYS
                     
@@ -1137,7 +1136,6 @@ async def handler(websocket):
 
                 # 저항 측정 명령 (임시 연결/해제 방식)
                 elif data["cmd"] == "measure_resistance":
-                    global ng_button_pressed  # [수정] global 선언 추가
                     print("[MainServer] 저항 측정 요청 수신")
                     
                     # 일회성 저항 측정 (연결 -> 측정 -> 즉시 해제)
