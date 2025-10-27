@@ -1244,6 +1244,11 @@ async def handler(websocket):
     finally:
         connected_clients.pop(websocket, None)
         print("[INFO] 클라이언트 연결 해제됨")
+        
+        # 모든 클라이언트가 연결 해제되면 LED 끄기
+        if not connected_clients:
+            print("[INFO] 모든 클라이언트 연결 해제 - 모든 LED OFF")
+            set_all_leds_off()
 
 async def push_motor_status():
     """
@@ -1330,6 +1335,11 @@ async def push_motor_status():
                 # 연결이 끈어진 클라이언트 제거
                 for ws in disconnected_clients:
                     connected_clients.pop(ws, None)
+                
+                # 모든 클라이언트가 연결 해제되면 LED 끄기
+                if disconnected_clients and not connected_clients:
+                    print("[INFO] 모든 클라이언트 연결 해제 - 모든 LED OFF")
+                    set_all_leds_off()
             
             # 연속 오류 카운터 초기화
             consecutive_errors = 0
