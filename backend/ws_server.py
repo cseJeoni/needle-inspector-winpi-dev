@@ -184,11 +184,43 @@ async def _on_start_button_pressed():
             print(f"[WARN] GPIO6 START 신호 전송 실패: {e}")
             connected_clients.pop(ws, None)
 
+async def _on_start_button_released():
+    """GPIO6 START 버튼 스위치가 떼어졌을 때 호출되는 이벤트 핸들러"""
+    print("[GPIO6] START 버튼 스위치 떼어짐 - 디버깅 패널 상태 업데이트")
+    
+    # 디버깅 패널로 GPIO 상태 변경 알림
+    gpio_message = {
+        "type": "gpio_state_change",
+        "data": {
+            "pin": 6,
+            "state": "LOW",
+            "timestamp": time.time()
+        }
+    }
+    
+    for ws, lock in connected_clients.copy().items():
+        try:
+            async with lock:
+                await ws.send(json.dumps(gpio_message))
+        except Exception as e:
+            print(f"[WARN] GPIO6 상태 변경 알림 전송 실패: {e}")
+            connected_clients.pop(ws, None)
+
 def _on_start_button_pressed_sync():
-    """GPIO6 START 버튼 스위치 동기 래퍼 함수"""
+    """GPIO6 START 버튼 스위치 눌림 동기 래퍼 함수"""
     if main_event_loop:
         asyncio.run_coroutine_threadsafe(
             _on_start_button_pressed(), 
+            main_event_loop
+        )
+    else:
+        print("[ERROR] main_event_loop가 설정되지 않았습니다.")
+
+def _on_start_button_released_sync():
+    """GPIO6 START 버튼 스위치 떼어짐 동기 래퍼 함수"""
+    if main_event_loop:
+        asyncio.run_coroutine_threadsafe(
+            _on_start_button_released(), 
             main_event_loop
         )
     else:
@@ -227,11 +259,43 @@ async def _on_pass_button_pressed():
             print(f"[WARN] GPIO13 PASS 신호 전송 실패: {e}")
             connected_clients.pop(ws, None)
 
+async def _on_pass_button_released():
+    """GPIO13 PASS 버튼 스위치가 떼어졌을 때 호출되는 이벤트 핸들러"""
+    print("[GPIO13] PASS 버튼 스위치 떼어짐 - 디버깅 패널 상태 업데이트")
+    
+    # 디버깅 패널로 GPIO 상태 변경 알림
+    gpio_message = {
+        "type": "gpio_state_change",
+        "data": {
+            "pin": 13,
+            "state": "LOW",
+            "timestamp": time.time()
+        }
+    }
+    
+    for ws, lock in connected_clients.copy().items():
+        try:
+            async with lock:
+                await ws.send(json.dumps(gpio_message))
+        except Exception as e:
+            print(f"[WARN] GPIO13 상태 변경 알림 전송 실패: {e}")
+            connected_clients.pop(ws, None)
+
 def _on_pass_button_pressed_sync():
-    """GPIO13 PASS 버튼 스위치 동기 래퍼 함수"""
+    """GPIO13 PASS 버튼 스위치 눌림 동기 래퍼 함수"""
     if main_event_loop:
         asyncio.run_coroutine_threadsafe(
             _on_pass_button_pressed(), 
+            main_event_loop
+        )
+    else:
+        print("[ERROR] main_event_loop가 설정되지 않았습니다.")
+
+def _on_pass_button_released_sync():
+    """GPIO13 PASS 버튼 스위치 떼어짐 동기 래퍼 함수"""
+    if main_event_loop:
+        asyncio.run_coroutine_threadsafe(
+            _on_pass_button_released(), 
             main_event_loop
         )
     else:
@@ -270,11 +334,43 @@ async def _on_ng_button_pressed():
             print(f"[WARN] GPIO19 NG 신호 전송 실패: {e}")
             connected_clients.pop(ws, None)
 
+async def _on_ng_button_released():
+    """GPIO19 NG 버튼 스위치가 떼어졌을 때 호출되는 이벤트 핸들러"""
+    print("[GPIO19] NG 버튼 스위치 떼어짐 - 디버깅 패널 상태 업데이트")
+    
+    # 디버깅 패널로 GPIO 상태 변경 알림
+    gpio_message = {
+        "type": "gpio_state_change",
+        "data": {
+            "pin": 19,
+            "state": "LOW",
+            "timestamp": time.time()
+        }
+    }
+    
+    for ws, lock in connected_clients.copy().items():
+        try:
+            async with lock:
+                await ws.send(json.dumps(gpio_message))
+        except Exception as e:
+            print(f"[WARN] GPIO19 상태 변경 알림 전송 실패: {e}")
+            connected_clients.pop(ws, None)
+
 def _on_ng_button_pressed_sync():
-    """GPIO19 NG 버튼 스위치 동기 래퍼 함수"""
+    """GPIO19 NG 버튼 스위치 눌림 동기 래퍼 함수"""
     if main_event_loop:
         asyncio.run_coroutine_threadsafe(
             _on_ng_button_pressed(), 
+            main_event_loop
+        )
+    else:
+        print("[ERROR] main_event_loop가 설정되지 않았습니다.")
+
+def _on_ng_button_released_sync():
+    """GPIO19 NG 버튼 스위치 떼어짐 동기 래퍼 함수"""
+    if main_event_loop:
+        asyncio.run_coroutine_threadsafe(
+            _on_ng_button_released(), 
             main_event_loop
         )
     else:
@@ -316,8 +412,9 @@ if gpio_available and pin6:
         # GPIO6 초기 상태 확인
         print(f"[GPIO6] 초기 START 버튼 상태: {'눌림' if pin6.is_active else '안눌림'}")
         
-        # 이벤트 핸들러 할당 (버튼 눌림: HIGH -> LOW 전환 시 트리거)
-        pin6.when_activated = _on_start_button_pressed_sync
+        # 이벤트 핸들러 할당
+        pin6.when_activated = _on_start_button_pressed_sync    # 버튼 눌림
+        pin6.when_deactivated = _on_start_button_released_sync # 버튼 떼어짐
         
         print("[OK] GPIO6 이벤트 핸들러 등록 완료 (gpiozero) - START 버튼 스위치")
     except Exception as e:
@@ -329,8 +426,9 @@ if gpio_available and pin13:
         # GPIO13 초기 상태 확인
         print(f"[GPIO13] 초기 PASS 버튼 상태: {'눌림' if pin13.is_active else '안눌림'}")
         
-        # 이벤트 핸들러 할당 (버튼 눌림: HIGH -> LOW 전환 시 트리거)
-        pin13.when_activated = _on_pass_button_pressed_sync
+        # 이벤트 핸들러 할당
+        pin13.when_activated = _on_pass_button_pressed_sync    # 버튼 눌림
+        pin13.when_deactivated = _on_pass_button_released_sync # 버튼 떼어짐
         
         print("[OK] GPIO13 이벤트 핸들러 등록 완료 (gpiozero) - PASS 버튼 스위치")
     except Exception as e:
@@ -342,8 +440,9 @@ if gpio_available and pin19:
         # GPIO19 초기 상태 확인
         print(f"[GPIO19] 초기 NG 버튼 상태: {'눌림' if pin19.is_active else '안눌림'}")
         
-        # 이벤트 핸들러 할당 (버튼 눌림: HIGH -> LOW 전환 시 트리거)
-        pin19.when_activated = _on_ng_button_pressed_sync
+        # 이벤트 핸들러 할당
+        pin19.when_activated = _on_ng_button_pressed_sync    # 버튼 눌림
+        pin19.when_deactivated = _on_ng_button_released_sync # 버튼 떼어짐
         
         print("[OK] GPIO19 이벤트 핸들러 등록 완료 (gpiozero) - NG 버튼 스위치")
     except Exception as e:
