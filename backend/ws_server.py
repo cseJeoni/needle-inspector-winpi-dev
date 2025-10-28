@@ -887,6 +887,7 @@ def read_eeprom_mtr40():
                 except: pass
 
 async def handler(websocket):
+    global is_started
     print("[INFO] 클라이언트 연결됨")
     connected_clients[websocket] = asyncio.Lock()  # Lock 객체 할당
     lock = connected_clients[websocket]  # Lock 변수 가져오기
@@ -1250,7 +1251,6 @@ async def handler(websocket):
 
                 # START/STOP 상태 제어 명령
                 elif data["cmd"] == "set_start_state":
-                    global is_started
                     new_state = data.get("state", False)  # True: START, False: STOP
                     is_started = new_state
                     print(f"[START_STATE] 상태 변경: {'START' if is_started else 'STOP'}")
