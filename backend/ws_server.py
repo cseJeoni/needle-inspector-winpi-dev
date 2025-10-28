@@ -102,7 +102,7 @@ main_event_loop = None  # 메인 이벤트 루프 저장용
 
 # 프로그램 시작 시 니들팁 상태 확인 함수
 def check_initial_needle_tip_state():
-    """프로그램 시작 시 니들팁 상태를 확인하고 적절한 LED를 켜는 함수"""
+    """프로그램 시작 시 니들팁 상태를 확인하는 함수 (LED 제어 없음)"""
     global needle_tip_connected
     
     if not gpio_available or not pin11:
@@ -116,12 +116,10 @@ def check_initial_needle_tip_state():
         
         if is_tip_connected:
             needle_tip_connected = True
-            set_led_blue_on()
-            print("[INIT] 니들팁이 이미 체결되어 있습니다 - BLUE LED ON")
+            print("[INIT] 니들팁이 이미 체결되어 있습니다 (LED는 클라이언트 연결 시 설정)")
         else:
             needle_tip_connected = False
-            set_all_leds_off()
-            print("[INIT] 니들팁이 분리되어 있습니다 - 모든 LED OFF")
+            print("[INIT] 니들팁이 분리되어 있습니다 (LED는 클라이언트 연결 시 설정)")
             
     except Exception as e:
         print(f"[ERROR] 니들팁 초기 상태 확인 실패: {e}")
@@ -236,7 +234,7 @@ def get_led_status():
             return {"blue": False, "red": False, "green": False}
     return {"blue": False, "red": False, "green": False}
 
-# 프로그램 시작 시 니들팁 초기 상태 확인 및 LED 설정 (LED 함수들이 정의된 후 실행)
+# 프로그램 시작 시 니들팁 초기 상태 확인 (LED는 클라이언트 연결 시 설정)
 if gpio_available:
     check_initial_needle_tip_state()
 
@@ -336,6 +334,10 @@ async def _on_start_button_pressed():
     # 스타트 상태 토글
     is_started = not is_started
     print(f"[GPIO6] START 버튼 스위치 눌림 - 스타트 상태: {'활성화' if is_started else '비활성화'}")
+    
+    # LED 제어: START 버튼을 누를 수 있다는 것은 니들팁이 체결되어 있다는 의미이므로 BLUE LED ON
+    set_led_blue_on()
+    print("[GPIO6] START 버튼 - BLUE LED ON (니들팁 체결 상태)")
     
     # 디버깅 패널로 GPIO 상태 변경 알림
     gpio_message = {
@@ -891,6 +893,18 @@ async def handler(websocket):
     print("[INFO] 클라이언트 연결됨")
     connected_clients[websocket] = asyncio.Lock()  # Lock 객체 할당
     lock = connected_clients[websocket]  # Lock 변수 가져오기
+    
+    # 클라이언트 연결 시 니들팁 상태 확인 후 LED 설정
+    if gpio_available and pin11:
+        try:
+            if needle_tip_connected:
+                set_led_blue_on()
+                print("[CLIENT_CONNECT] 니들팁 연결됨 - BLUE LED ON")
+            else:
+                set_all_leds_off()
+                print("[CLIENT_CONNECT] 니들팁 분리됨 - 모든 LED OFF")
+        except Exception as e:
+            print(f"[ERROR] 클라이언트 연결 시 LED 설정 실패: {e}")
     try:
         async for msg in websocket:
             try:
