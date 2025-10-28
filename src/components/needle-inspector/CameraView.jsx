@@ -121,10 +121,14 @@ const CameraView = forwardRef(({
     }
   };
 
-  // 카메라 이미지 + 캔버스 오버레이 + 시간 텍스트를 포함한 이미지 캡처
+  // 카메라 이미지 + 캔버스 오버레이만 포함한 순수 이미지 캡처 (정보 오버레이 제거)
   const captureImage = async (judgeResult = null, eepromData = null, resistanceData = null) => {
-    // eepromData와 resistanceData의 실제 구조를 확인하기 위한 로그
-    console.log(`[CameraView] captureImage called with:`, { judgeResult, eepromData, resistanceData });
+    // 정보 오버레이가 필요한 경우에만 로그 출력
+    if (judgeResult || eepromData || resistanceData) {
+      console.log(`[CameraView] ${title} - 정보 오버레이 포함 캡처 요청`);
+    } else {
+      console.log(`[CameraView] ${title} - 순수 이미지 캡처 요청`);
+    }
 
     try {
       console.log(`📸 ${title} 이미지 캡처 시작...`);
@@ -254,77 +258,7 @@ const CameraView = forwardRef(({
         );
       }
 
-      // 3. 텍스트 정보 추가
-      const now = new Date();
-      const timeText = now.toLocaleString();
-      
-      // 텍스트 스타일 설정
-      ctx.font = "bold 20px Arial";
-      ctx.lineWidth = 2;
-      
-      const textX = 10;
-      let currentY = 30;
-      
-      // EEPROM 정보와 판정 결과 표시 (최상단)
-      if (judgeResult) {
-        let eepromText;
-        
-        if (eepromData) {
-          // EEPROM 데이터가 있는 경우
-          if (workStatus === 'needle_short') {
-            // 니들 쇼트 시: EEPROM 정보 + 니들 쇼트 표시
-            eepromText = `EEPROM      TIP:${eepromData.tipType}      SHOT:${eepromData.shotCount}      DATE:${eepromData.year}-${String(eepromData.month).padStart(2, '0')}-${String(eepromData.day).padStart(2, '0')}      MAKER:${eepromData.makerCode}      니들 쇼트      ${judgeResult}`;
-          } else {
-            // 정상 시: 기존 방식
-            eepromText = `EEPROM      TIP:${eepromData.tipType}      SHOT:${eepromData.shotCount}      DATE:${eepromData.year}-${String(eepromData.month).padStart(2, '0')}-${String(eepromData.day).padStart(2, '0')}      MAKER:${eepromData.makerCode}      ${judgeResult}`;
-          }
-        } else {
-          // EEPROM 데이터가 없는 경우 - workStatus에 따라 메시지 구분
-          if (workStatus === 'needle_short') {
-            eepromText = `니들 쇼트 ${judgeResult}`;
-          } else {
-            eepromText = `EEPROM 데이터 읽기 실패 ${judgeResult}`;
-          }
-        }
-        
-        // 저항 데이터가 있는 경우 추가
-        if (resistanceData && (resistanceData.resistance1 !== undefined || resistanceData.resistance2 !== undefined)) {
-          const r1 = isNaN(resistanceData.resistance1) ? 'NaN' : (0.001 * resistanceData.resistance1).toFixed(3);
-          const r2 = isNaN(resistanceData.resistance2) ? 'NaN' : (0.001 * resistanceData.resistance2).toFixed(3);
-          eepromText += `      R1:${r1}Ω      R2:${r2}Ω`;
-        }
-        
-        console.log(`🎨 EEPROM 텍스트 그리기: ${eepromText}`);
-        
-        // 텍스트 크기 측정 (저항 정보가 추가되어 더 길어질 수 있음)
-        const textMetrics = ctx.measureText(eepromText);
-        const textWidth = textMetrics.width;
-        const textHeight = 25;
-        
-        
-        // 판정 결과에 따른 색상 설정
-        if (judgeResult === 'PASS') {
-          ctx.fillStyle = "lime";
-          ctx.strokeStyle = "darkgreen";
-        } else if (judgeResult === 'NG') {
-          ctx.fillStyle = "red";
-          ctx.strokeStyle = "darkred";
-        } else {
-          ctx.fillStyle = "yellow";
-          ctx.strokeStyle = "black";
-        }
-        
-        // 텍스트 그리기 (테두리 + 채우기)
-        ctx.strokeText(eepromText, textX, currentY);
-        ctx.fillText(eepromText, textX, currentY);
-        currentY += 35;
-        
-        console.log(`✅ EEPROM 및 저항 텍스트 그리기 완료`);
-      } else {
-        console.log(`❌ 판정 결과 없음: judgeResult=${judgeResult}`);
-      }
-      
-      // 카메라 제목과 시간 텍스트를 오른쪽 하단에 표시
+      // 3. 카메라 제목만 오른쪽 하단에 표시 (시간 정보는 상단 프레임에서 처리)
       ctx.font = "bold 16px Arial";
       ctx.fillStyle = "yellow";
       ctx.strokeStyle = "black";
@@ -333,18 +267,10 @@ const CameraView = forwardRef(({
       // 카메라 제목 오른쪽 하단 위치 계산
       const titleMetrics = ctx.measureText(title);
       const titleX = captureCanvas.width - titleMetrics.width - 10; // 오른쪽 여백 10px
-      const titleY = captureCanvas.height - 40; // 하단에서 40px 위
+      const titleY = captureCanvas.height - 20; // 하단에서 20px 위 (시간 제거로 위치 조정)
       
       ctx.strokeText(title, titleX, titleY);
       ctx.fillText(title, titleX, titleY);
-      
-      // 시간 텍스트 오른쪽 하단 위치 계산
-      const timeMetrics = ctx.measureText(timeText);
-      const timeX = captureCanvas.width - timeMetrics.width - 10; // 오른쪽 여백 10px
-      const timeY = captureCanvas.height - 20; // 하단에서 20px 위
-      
-      ctx.strokeText(timeText, timeX, timeY);
-      ctx.fillText(timeText, timeX, timeY);
 
       // 4. 이미지 데이터 반환 (저장은 호출하는 쪽에서 처리)
       const dataURL = captureCanvas.toDataURL("image/png");

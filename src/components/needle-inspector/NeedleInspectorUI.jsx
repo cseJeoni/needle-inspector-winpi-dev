@@ -175,9 +175,9 @@ export default function NeedleInspectorUI() {
       
       console.log(`🔍 니들 타입: ${selectedNeedleType}, MTR: ${mtrVersion}, 저항 데이터 포함: ${isMultiNeedle}`);
       
-      // 두 카메라에서 개별 이미지 캡처
-      const camera1Image = await cameraViewRef1.current?.captureImage(judgeResult, eepromData, resistanceData);
-      const camera2Image = await cameraViewRef2.current?.captureImage(judgeResult, eepromData, resistanceData);
+      // 두 카메라에서 개별 이미지 캡처 (정보 오버레이 없이)
+      const camera1Image = await cameraViewRef1.current?.captureImage(null, null, null); // 정보 없이 순수 이미지만
+      const camera2Image = await cameraViewRef2.current?.captureImage(null, null, null); // 정보 없이 순수 이미지만
       
       if (!camera1Image || !camera2Image) {
         console.error('❌ 카메라 이미지 캡처 실패');
@@ -200,31 +200,115 @@ export default function NeedleInspectorUI() {
         loadImage(camera2Image)
       ]);
       
-      // 병합용 캔버스 생성 (가로로 이어붙이기)
+      // 정보 표시용 상단 프레임 높이 계산 (저항 정보까지 포함하여 충분한 공간 확보)
+      const infoFrameHeight = 100; // 상단 정보 프레임 높이
+      
+      // 병합용 캔버스 생성 (상단 프레임 + 두 이미지 가로 배치)
       const mergedCanvas = document.createElement('canvas');
       const ctx = mergedCanvas.getContext('2d');
       
-      // 캔버스 크기 설정 (두 이미지를 가로로 배치)
+      // 캔버스 크기 설정 (상단 프레임 + 두 이미지를 가로로 배치)
       mergedCanvas.width = img1.width + img2.width;
-      mergedCanvas.height = Math.max(img1.height, img2.height);
+      mergedCanvas.height = Math.max(img1.height, img2.height) + infoFrameHeight;
       
-      // 배경을 검은색으로 채우기
+      // 전체 배경을 검은색으로 채우기
       ctx.fillStyle = 'black';
       ctx.fillRect(0, 0, mergedCanvas.width, mergedCanvas.height);
       
-      // 첫 번째 이미지 그리기 (왼쪽)
-      ctx.drawImage(img1, 0, 0);
+      // 상단 정보 프레임 영역 (더 진한 검은색 배경)
+      ctx.fillStyle = '#000000';
+      ctx.fillRect(0, 0, mergedCanvas.width, infoFrameHeight);
       
-      // 두 번째 이미지 그리기 (오른쪽)
-      ctx.drawImage(img2, img1.width, 0);
-      
-      // 구분선 그리기 (선택사항)
+      // 상단 프레임과 이미지 영역 구분선
       ctx.strokeStyle = 'white';
       ctx.lineWidth = 2;
       ctx.beginPath();
-      ctx.moveTo(img1.width, 0);
+      ctx.moveTo(0, infoFrameHeight);
+      ctx.lineTo(mergedCanvas.width, infoFrameHeight);
+      ctx.stroke();
+      
+      // 첫 번째 이미지 그리기 (왼쪽, 상단 프레임 아래)
+      ctx.drawImage(img1, 0, infoFrameHeight);
+      
+      // 두 번째 이미지 그리기 (오른쪽, 상단 프레임 아래)
+      ctx.drawImage(img2, img1.width, infoFrameHeight);
+      
+      // 이미지 간 구분선 그리기
+      ctx.strokeStyle = 'white';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(img1.width, infoFrameHeight);
       ctx.lineTo(img1.width, mergedCanvas.height);
       ctx.stroke();
+      
+      // 상단 프레임에 통합 정보 표시
+      if (judgeResult) {
+        const now = new Date();
+        const timeText = now.toLocaleString();
+        
+        // 텍스트 스타일 설정
+        ctx.font = "bold 16px Arial";
+        ctx.lineWidth = 2;
+        
+        let infoText = '';
+        
+        // EEPROM 정보 구성
+        if (eepromData) {
+          if (workStatus === 'needle_short') {
+            infoText = `EEPROM | TIP:${eepromData.tipType} | SHOT:${eepromData.shotCount} | DATE:${eepromData.year}-${String(eepromData.month).padStart(2, '0')}-${String(eepromData.day).padStart(2, '0')} | MAKER:${eepromData.makerCode} | 니들 쇼트 | ${judgeResult}`;
+          } else {
+            infoText = `EEPROM | TIP:${eepromData.tipType} | SHOT:${eepromData.shotCount} | DATE:${eepromData.year}-${String(eepromData.month).padStart(2, '0')}-${String(eepromData.day).padStart(2, '0')} | MAKER:${eepromData.makerCode} | ${judgeResult}`;
+          }
+        } else {
+          if (workStatus === 'needle_short') {
+            infoText = `니들 쇼트 ${judgeResult}`;
+          } else {
+            infoText = `EEPROM 데이터 읽기 실패 ${judgeResult}`;
+          }
+        }
+        
+        // 저항 데이터 추가 (두 번째 줄)
+        let resistanceText = '';
+        if (resistanceData && (resistanceData.resistance1 !== undefined || resistanceData.resistance2 !== undefined)) {
+          const r1 = isNaN(resistanceData.resistance1) ? 'NaN' : (0.001 * resistanceData.resistance1).toFixed(3);
+          const r2 = isNaN(resistanceData.resistance2) ? 'NaN' : (0.001 * resistanceData.resistance2).toFixed(3);
+          resistanceText = `저항 측정 | R1: ${r1}Ω | R2: ${r2}Ω | 임계값: ${(resistanceThreshold).toFixed(1)}Ω`;
+        }
+        
+        // 판정 결과에 따른 색상 설정
+        if (judgeResult === 'PASS') {
+          ctx.fillStyle = "lime";
+          ctx.strokeStyle = "darkgreen";
+        } else if (judgeResult === 'NG') {
+          ctx.fillStyle = "red";
+          ctx.strokeStyle = "darkred";
+        } else {
+          ctx.fillStyle = "yellow";
+          ctx.strokeStyle = "black";
+        }
+        
+        // 첫 번째 줄: EEPROM 정보 (상단 중앙)
+        const textX = 10;
+        ctx.strokeText(infoText, textX, 30);
+        ctx.fillText(infoText, textX, 30);
+        
+        // 두 번째 줄: 저항 정보 (있는 경우)
+        if (resistanceText) {
+          ctx.strokeText(resistanceText, textX, 55);
+          ctx.fillText(resistanceText, textX, 55);
+        }
+        
+        // 시간 정보 (오른쪽 상단)
+        ctx.font = "bold 14px Arial";
+        ctx.fillStyle = "yellow";
+        ctx.strokeStyle = "black";
+        const timeMetrics = ctx.measureText(timeText);
+        const timeX = mergedCanvas.width - timeMetrics.width - 10;
+        ctx.strokeText(timeText, timeX, 30);
+        ctx.fillText(timeText, timeX, 30);
+        
+        console.log('✅ 상단 프레임에 통합 정보 표시 완료');
+      }
       
       // 병합된 이미지 데이터 생성
       const mergedDataURL = mergedCanvas.toDataURL('image/png');
