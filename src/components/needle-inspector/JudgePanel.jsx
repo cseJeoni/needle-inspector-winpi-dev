@@ -175,17 +175,27 @@ const JudgePanel = forwardRef(function JudgePanel({ onJudge, isStarted, onReset,
   // 판정 로직을 처리하는 중앙 함수
   const handleJudge = async (result) => {
     try {
-      // 1. EEPROM 데이터 사용 (props로 받은 데이터)
+      // 1. LED 제어 명령 전송 (판정 결과에 따라)
+      if (websocket && isWsConnected) {
+        const ledCommand = {
+          cmd: "led_control",
+          type: result === 'PASS' ? "green" : "red"
+        };
+        console.log(`🔴🟢 프론트엔드 ${result} 버튼 - LED 제어 명령 전송:`, ledCommand);
+        websocket.send(JSON.stringify(ledCommand));
+      }
+
+      // 2. EEPROM 데이터 사용 (props로 받은 데이터)
       console.log('📡 EEPROM 데이터 사용:', eepromData);
       console.log('📡 현재 작업 상태:', workStatus);
 
-      // 2. 캡처 먼저 수행하여 '화면 그대로' 확보
+      // 3. 캡처 먼저 수행하여 '화면 그대로' 확보
       const mergedImageData = await onCaptureMergedImage(result, eepromData);
 
-      // 3. 캡처가 확보되면 즉시 니들 DOWN (작업 대기 시간 최소화)
+      // 4. 캡처가 확보되면 즉시 니들 DOWN (작업 대기 시간 최소화)
       sendNeedleDown();
 
-      // 4. 디스크 저장은 비동기로 진행하여 UI/동작 지연 최소화
+      // 5. 디스크 저장은 비동기로 진행하여 UI/동작 지연 최소화
       //    실패 시 로그만 남김 (필요하다면 재시도 로직 추가 가능)
       saveMergedScreenshotFromData(mergedImageData, result, eepromData).catch(err => {
         console.error('❌ 비동기 병합 이미지 저장 실패:', err);
@@ -194,6 +204,16 @@ const JudgePanel = forwardRef(function JudgePanel({ onJudge, isStarted, onReset,
       // 상태 초기화
       if (onReset) onReset()
       if (onWaitingEepromReadChange) onWaitingEepromReadChange(false) // EEPROM 읽기 대기 상태 초기화
+      
+      // 백엔드 is_started 상태를 판정 완료로 리셋
+      if (websocket && isWsConnected) {
+        const resetCommand = {
+          cmd: "set_start_state",
+          state: false
+        };
+        console.log(`🏁 ${result} 판정 완료 - 백엔드 상태 리셋:`, resetCommand);
+        websocket.send(JSON.stringify(resetCommand));
+      }
       
       // 콜백 호출
       if (onJudge) onJudge(result)
@@ -213,17 +233,6 @@ const JudgePanel = forwardRef(function JudgePanel({ onJudge, isStarted, onReset,
     }
     
     console.log("NG 판정");
-    
-    // [수정] 물리 NG 버튼과 동일하게 RED LED 제어 명령 전송
-    if (websocket && isWsConnected) {
-      const ledCommand = {
-        cmd: "led_control",
-        type: "red"
-      };
-      console.log("🔴 프론트엔드 NG 버튼 - RED LED 제어 명령 전송:", ledCommand);
-      websocket.send(JSON.stringify(ledCommand));
-    }
-    
     handleJudge('NG');
   };
 

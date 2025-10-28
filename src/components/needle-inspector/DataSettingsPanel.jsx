@@ -560,6 +560,16 @@ const DataSettingsPanel = forwardRef(({
       setIsCycleRunning(true)
       console.log('🚀 사이클 시작 - 스타트 버튼 비활성화')
       
+      // 백엔드 is_started 상태를 START로 변경
+      if (websocket && isWsConnected) {
+        const startCommand = {
+          cmd: "set_start_state",
+          state: true
+        };
+        console.log('🚀 백엔드 START 상태 설정:', startCommand);
+        websocket.send(JSON.stringify(startCommand));
+      }
+      
       try {
         // GPIO 5번 쇼트 검사는 EEPROM 처리 후에만 실행
         
@@ -997,6 +1007,16 @@ const DataSettingsPanel = forwardRef(({
       websocket.send(JSON.stringify({ cmd: "move", position: motor2DownPosition, needle_speed: needleSpeed2, motor_id: 2 }))
     } else {
       console.error('WebSocket 연결되지 않음 - 모터 DOWN 명령 실패')
+    }
+    
+    // 백엔드 is_started 상태를 STOP으로 변경
+    if (websocket && isWsConnected) {
+      const stopCommand = {
+        cmd: "set_start_state",
+        state: false
+      };
+      console.log('🛑 백엔드 STOP 상태 설정:', stopCommand);
+      websocket.send(JSON.stringify(stopCommand));
     }
     
     onStartedChange && onStartedChange(false)

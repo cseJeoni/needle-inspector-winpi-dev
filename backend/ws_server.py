@@ -1248,6 +1248,19 @@ async def handler(websocket):
                             "result": result
                         }) + '\n')
 
+                # START/STOP 상태 제어 명령
+                elif data["cmd"] == "set_start_state":
+                    global is_started
+                    new_state = data.get("state", False)  # True: START, False: STOP
+                    is_started = new_state
+                    print(f"[START_STATE] 상태 변경: {'START' if is_started else 'STOP'}")
+                    
+                    async with lock:
+                        await websocket.send(json.dumps({
+                            "type": "start_state",
+                            "result": {"success": True, "is_started": is_started}
+                        }) + '\n')
+
                 else:
                     async with lock:
                         await websocket.send(json.dumps({
