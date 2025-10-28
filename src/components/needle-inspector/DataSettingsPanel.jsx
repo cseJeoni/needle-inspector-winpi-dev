@@ -1017,6 +1017,14 @@ const DataSettingsPanel = forwardRef(({
       };
       console.log('🛑 백엔드 STOP 상태 설정:', stopCommand);
       websocket.send(JSON.stringify(stopCommand));
+      
+      // STOP 버튼 시 니들팁 상태에 따른 LED 제어
+      const ledCommand = {
+        cmd: "led_control",
+        type: needleTipConnected ? "blue" : "all_off"
+      };
+      console.log('💡 STOP 버튼 LED 제어:', ledCommand);
+      websocket.send(JSON.stringify(ledCommand));
     }
     
     onStartedChange && onStartedChange(false)

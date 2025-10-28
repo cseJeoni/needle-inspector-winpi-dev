@@ -417,7 +417,7 @@ async def _on_pass_button_pressed():
         set_led_green_on()
         print("[GPIO13] 스타트 상태 - GREEN LED ON")
     else:
-        print("[GPIO13] 비활성 상태 - LED 제어 무시")
+        print("[GPIO13] 스타트 상태 아님 - LED 제어 안함")
     
     # 디버깅 패널로 GPIO 상태 변경 알림
     gpio_message = {
@@ -1112,10 +1112,7 @@ async def handler(websocket):
                             if read_result.get("success"):
                                 result["data"] = read_result  # 읽은 데이터를 응답에 포함
                                 print(f"[INFO] EEPROM 쓰기 후 읽기 성공: {read_result}")
-                                # LED 제어: 스타트 상태일 때만 EEPROM 저장 완료 시 GREEN LED ON
-                                if is_started:
-                                    set_led_green_on()
-                                    print("[EEPROM] 저장 완료 - GREEN LED ON")
+                                # LED 제어: EEPROM 저장 완료 시 초록불은 켜지 않음 (PASS 판정 시에만 초록불)
                             else:
                                 print(f"[WARN] EEPROM 쓰기 후 읽기 실패: {read_result}")
                                 # LED 제어: 스타트 상태일 때만 EEPROM 읽기 실패 시 RED LED ON
