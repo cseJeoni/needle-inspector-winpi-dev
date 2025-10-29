@@ -141,7 +141,7 @@ const CameraView = forwardRef(({
         return null;
       }
 
-      // 캡처용 캔버스 생성 - 정밀한 크기 분석
+      // 캡처용 캔버스 생성 - 원본 비율 유지
       const captureCanvas = document.createElement("canvas");
       
       // 모든 크기 정보를 정확히 측정
@@ -167,57 +167,26 @@ const CameraView = forwardRef(({
       console.log(`   - 오버레이 캔버스: ${overlayCanvas.width} x ${overlayCanvas.height}`);
       console.log(`   - 오버레이 실제 표시: ${overlayRect.width} x ${overlayRect.height}`);
       
-      captureCanvas.width = displayWidth;
-      captureCanvas.height = displayHeight;
+      // 원본 비율 유지를 위해 naturalWidth/Height 사용
+      captureCanvas.width = naturalWidth;
+      captureCanvas.height = naturalHeight;
       const ctx = captureCanvas.getContext("2d");
 
-      // 1. 카메라 이미지 그리기 (object-fit: cover 시뮬레이션)
+      // 1. 카메라 이미지 그리기 (원본 비율 그대로)
       try {
         await new Promise((resolve, reject) => {
           const tempImg = new Image();
           tempImg.crossOrigin = "anonymous";
           tempImg.onload = () => {
-            // 캡처 캔버스 크기 (컨테이너 크기)
-            const displayWidth = captureCanvas.width;
-            const displayHeight = captureCanvas.height;
+            // 원본 이미지를 캔버스에 1:1로 그리기 (비율 변형 없음)
+            console.log(`🔍 [ORIGINAL RATIO] 원본 이미지를 1:1 비율로 캡처`);
+            console.log(`   - 원본 크기: ${tempImg.naturalWidth} x ${tempImg.naturalHeight}`);
+            console.log(`   - 캔버스 크기: ${captureCanvas.width} x ${captureCanvas.height}`);
 
-            // 원본 이미지 크기
-            const naturalWidth = tempImg.naturalWidth;
-            const naturalHeight = tempImg.naturalHeight;
-
-            // object-fit: cover 계산
-            const imgAspect = naturalWidth / naturalHeight;
-            const containerAspect = displayWidth / displayHeight;
+            // 원본 이미지를 캔버스 전체에 그리기 (비율 유지)
+            ctx.drawImage(tempImg, 0, 0, captureCanvas.width, captureCanvas.height);
             
-            let actualImageWidth, actualImageHeight;
-            let imageOffsetX = 0, imageOffsetY = 0;
-            
-            if (imgAspect > containerAspect) {
-              // 이미지가 더 넓음 → 좌우가 잘림 (높이 기준)
-              actualImageHeight = displayHeight;
-              actualImageWidth = displayHeight * imgAspect;
-              imageOffsetX = (actualImageWidth - displayWidth) / 2;
-            } else {
-              // 이미지가 더 높음 → 상하가 잘림 (너비 기준)
-              actualImageWidth = displayWidth;
-              actualImageHeight = displayWidth / imgAspect;
-              imageOffsetY = (actualImageHeight - displayHeight) / 2;
-            }
-
-            console.log(`🔍 [OBJECT-FIT COVER] 이미지 비율: ${imgAspect.toFixed(4)}, 컨테이너 비율: ${containerAspect.toFixed(4)}`);
-            console.log(`🔍 [OBJECT-FIT COVER] 실제 크기: ${actualImageWidth} x ${actualImageHeight}, 오프셋: ${imageOffsetX}, ${imageOffsetY}`);
-
-            // 9-argument drawImage를 사용하여 object-fit: cover를 정확히 시뮬레이션
-            ctx.drawImage(
-              tempImg,                      // 원본 이미지
-              0, 0,                         // 소스 X, Y (원본 이미지의 0,0)
-              naturalWidth, naturalHeight,  // 소스 Width, Height (원본 이미지 전체)
-              -imageOffsetX, -imageOffsetY, // 대상 X, Y (캔버스에 그릴 위치, 잘림 효과)
-              actualImageWidth,             // 대상 Width (스케일링된 너비)
-              actualImageHeight             // 대상 Height (스케일링된 높이)
-            );
-            
-            console.log('✅ 카메라 이미지 로딩 성공 (object-fit: cover 적용)');
+            console.log('✅ 카메라 이미지 로딩 성공 (원본 비율 유지)');
             resolve();
           };
           tempImg.onerror = (error) => {
@@ -237,7 +206,7 @@ const CameraView = forwardRef(({
         ctx.fillRect(0, 0, captureCanvas.width, captureCanvas.height);
       }
 
-      // 2. 캔버스 오버레이(선들) 그리기 - 이제 이미지와 완벽히 일치
+      // 2. 캔버스 오버레이(선들) 그리기 - 원본 크기에 맞게 스케일링
       const overlayWidth = overlayCanvas.width;
       const overlayHeight = overlayCanvas.height;
       
@@ -245,29 +214,29 @@ const CameraView = forwardRef(({
       console.log(`   - 오버레이 캔버스: ${overlayWidth} x ${overlayHeight}`);
       console.log(`   - 캡처용 캔버스: ${captureCanvas.width} x ${captureCanvas.height}`);
       
-      // 이미지가 이제 object-fit: cover로 정확히 그려졌으므로 오버레이도 동일하게 매핑
-      if (overlayWidth === captureCanvas.width && overlayHeight === captureCanvas.height) {
-        console.log(`✅ 크기 일치 - 1:1 직접 복사`);
-        ctx.drawImage(overlayCanvas, 0, 0);
-      } else {
-        console.log(`⚠️ 크기 불일치 - 스케일링 적용`);
-        ctx.drawImage(
-          overlayCanvas, 
-          0, 0, overlayWidth, overlayHeight,
-          0, 0, captureCanvas.width, captureCanvas.height
-        );
-      }
+      // 오버레이는 표시 크기 기준으로 그려져 있으므로, 원본 크기로 스케일링 필요
+      const scaleX = captureCanvas.width / displayWidth;
+      const scaleY = captureCanvas.height / displayHeight;
+      
+      console.log(`🔍 [OVERLAY] 스케일링 비율: X=${scaleX.toFixed(4)}, Y=${scaleY.toFixed(4)}`);
+      
+      // 스케일링 적용하여 오버레이 그리기
+      ctx.save();
+      ctx.scale(scaleX, scaleY);
+      ctx.drawImage(overlayCanvas, 0, 0);
+      ctx.restore();
 
-      // 3. 카메라 제목만 오른쪽 하단에 표시 (시간 정보는 상단 프레임에서 처리)
-      ctx.font = "bold 16px Arial";
+      // 3. 카메라 제목만 오른쪽 하단에 표시 (원본 크기에 맞게 스케일링)
+      const fontSize = Math.max(16 * scaleX, 12); // 최소 12px, 스케일링 적용
+      ctx.font = `bold ${fontSize}px Arial`;
       ctx.fillStyle = "yellow";
       ctx.strokeStyle = "black";
-      ctx.lineWidth = 1;
+      ctx.lineWidth = Math.max(1 * scaleX, 1);
       
-      // 카메라 제목 오른쪽 하단 위치 계산
+      // 카메라 제목 오른쪽 하단 위치 계산 (스케일링 적용)
       const titleMetrics = ctx.measureText(title);
-      const titleX = captureCanvas.width - titleMetrics.width - 10; // 오른쪽 여백 10px
-      const titleY = captureCanvas.height - 20; // 하단에서 20px 위 (시간 제거로 위치 조정)
+      const titleX = captureCanvas.width - titleMetrics.width - (10 * scaleX); // 오른쪽 여백 스케일링
+      const titleY = captureCanvas.height - (20 * scaleY); // 하단 여백 스케일링
       
       ctx.strokeText(title, titleX, titleY);
       ctx.fillText(title, titleX, titleY);
