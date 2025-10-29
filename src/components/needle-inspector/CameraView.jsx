@@ -376,6 +376,7 @@ const CameraView = forwardRef(({
         )}
         <canvas 
           ref={canvasRef} 
+          id={`canvas-${cameraId}`}
           className="camera-canvas"
           onMouseDown={handlers?.handleMouseDown} 
           onMouseMove={handlers?.handleMouseMove} 
