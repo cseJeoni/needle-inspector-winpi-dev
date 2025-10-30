@@ -169,6 +169,8 @@ def apply_led_state(reason="unknown"):
             set_all_leds_off()
             
         current_led_color = target_color
+    else:
+        print(f"[LED] 색상 변경 없음: {current_led_color} (이유: {reason})")
 
 def determine_needle_state(send_status_update=False):
     """GPIO11과 GPIO5 상태를 읽어서 니들 상태 결정 및 LED 적용
