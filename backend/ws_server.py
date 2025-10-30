@@ -609,15 +609,10 @@ async def _on_pass_button_pressed():
         is_judgment_completed = True
         current_judgment_color = 'green'
         apply_led_state("PASS button pressed")
+        print("[GPIO13] PASS 판정 완료 - GREEN LED ON (유지)")
     else:
-        print("[GPIO13] 스타트 상태 아님 - LED 제어 안함")
-        # 니들팁이 연결되어 있으면 BLUE LED 유지
-        if current_needle_state == "connected":
-            set_led_blue_on()
-            print("[GPIO13] 비활성 상태 - BLUE LED 유지")
-        elif current_needle_state == "needle_short":
-            set_led_red_on()
-            print("[GPIO13] 비활성 상태 - 니들 쇼트로 RED LED 유지")
+        print("[GPIO13] 스타트 상태 아님 - PASS 버튼 무시")
+        # LED 제어하지 않음 (apply_led_state 호출 안함)
     
     # 디버깅 패널로 GPIO 상태 변경 알림
     gpio_message = {
@@ -727,15 +722,10 @@ async def _on_ng_button_pressed():
         is_judgment_completed = True
         current_judgment_color = 'red'
         apply_led_state("NG button pressed")
+        print("[GPIO19] NG 판정 완료 - RED LED ON (유지)")
     else:
-        print("[GPIO19] 비활성 상태 - LED 제어 무시")
-        # 니들팁이 연결되어 있으면 상태에 따라 LED 유지
-        if current_needle_state == "connected":
-            set_led_blue_on()
-            print("[GPIO19] 비활성 상태 - BLUE LED 유지")
-        elif current_needle_state == "needle_short":
-            set_led_red_on()
-            print("[GPIO19] 비활성 상태 - 니들 쇼트로 RED LED 유지")
+        print("[GPIO19] 스타트 상태 아님 - NG 버튼 무시")
+        # LED 제어하지 않음 (apply_led_state 호출 안함)
     
     # 디버깅 패널로 GPIO 상태 변경 알림
     gpio_message = {
