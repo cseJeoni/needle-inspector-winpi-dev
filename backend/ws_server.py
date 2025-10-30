@@ -56,6 +56,7 @@ led_green = None  # GPIO22 - GREEN LED
 
 needle_tip_connected = False  # 니들팁 연결 상태 (전역 변수)
 is_started = False  # 스타트 상태 (전역 변수) - 판정 버튼 활성화 여부
+current_needle_state = "disconnected"  # 현재 니들 상태: "disconnected", "needle_short", "connected"
 last_eeprom_data = {"success": False, "error": "니들팁이 연결되지 않음"}  # 마지막 EEPROM 상태
 
 try:
@@ -234,48 +235,109 @@ def get_led_status():
             return {"blue": False, "red": False, "green": False}
     return {"blue": False, "red": False, "green": False}
 
-# 프로그램 시작 시 니들팁 초기 상태 확인 (LED는 클라이언트 연결 시 설정)
+# 통합 니들 상태 결정 함수
+def determine_needle_state():
+    """GPIO11과 GPIO5 상태를 읽어서 우선순위에 따라 니들 상태 결정"""
+    global needle_tip_connected, current_needle_state
+    
+    if not gpio_available or not pin11 or not pin5:
+        print("[WARN] GPIO 기능이 비활성화되어 있어 니들 상태를 확인할 수 없습니다.")
+        return
+    
+    try:
+        # 현재 두 핀의 상태를 동시에 읽기
+        gpio11_state = pin11.is_active  # True: 니들팁 연결됨, False: 분리됨
+        gpio5_state = pin5.is_active    # True: 쇼트 감지, False: 정상
+        
+        print(f"[GPIO_STATE] GPIO11: {'ON' if gpio11_state else 'OFF'}, GPIO5: {'HIGH' if gpio5_state else 'LOW'}")
+        
+        # 우선순위에 따른 상태 결정
+        if not gpio11_state:
+            # [P1] 니들팁 없음 (GPIO11 OFF): 가장 높은 우선순위
+            new_state = "disconnected"
+            needle_tip_connected = False
+            set_all_leds_off()
+            print("[STATE] P1: 니들팁 없음 - 모든 LED OFF")
+            
+        elif gpio11_state and gpio5_state:
+            # [P2] 니들 쇼트 (GPIO11 ON + GPIO5 HIGH)
+            new_state = "needle_short"
+            needle_tip_connected = True  # 물리적으로는 연결되어 있음
+            if is_started:
+                set_led_red_on()
+                print("[STATE] P2: 니들 쇼트 - RED LED ON")
+            else:
+                set_led_blue_on()  # 시작 전이면 연결 상태 표시
+                print("[STATE] P2: 니들 쇼트 (시작 전) - BLUE LED ON")
+                
+        elif gpio11_state and not gpio5_state:
+            # [P3] 정상 (GPIO11 ON + GPIO5 LOW)
+            new_state = "connected"
+            needle_tip_connected = True
+            set_led_blue_on()
+            print("[STATE] P3: 정상 연결 - BLUE LED ON")
+            
+        else:
+            # 예상치 못한 상태 (이론적으로 발생하지 않음)
+            print(f"[ERROR] 예상치 못한 GPIO 상태: GPIO11={gpio11_state}, GPIO5={gpio5_state}")
+            return
+        
+        # 상태 변경 시에만 로그 출력
+        if current_needle_state != new_state:
+            print(f"[STATE_CHANGE] {current_needle_state} → {new_state}")
+            current_needle_state = new_state
+            
+            # 상태 변경을 모든 클라이언트에게 알림
+            state_message = {
+                "type": "needle_state_change",
+                "data": {
+                    "state": new_state,
+                    "needle_tip_connected": needle_tip_connected,
+                    "gpio11": gpio11_state,
+                    "gpio5": gpio5_state,
+                    "timestamp": time.time()
+                }
+            }
+            
+            for ws, lock in connected_clients.copy().items():
+                try:
+                    asyncio.run_coroutine_threadsafe(
+                        _send_state_message(ws, lock, state_message),
+                        main_event_loop
+                    )
+                except Exception as e:
+                    print(f"[WARN] 상태 변경 알림 전송 실패: {e}")
+                    
+    except Exception as e:
+        print(f"[ERROR] 니들 상태 결정 실패: {e}")
+
+async def _send_state_message(websocket, lock, message):
+    """상태 변경 메시지를 클라이언트에게 전송"""
+    try:
+        async with lock:
+            await websocket.send(json.dumps(message))
+    except Exception as e:
+        print(f"[ERROR] 상태 메시지 전송 실패: {e}")
+        connected_clients.pop(websocket, None)
+
+# 프로그램 시작 시 니들 상태 초기화
 if gpio_available:
-    check_initial_needle_tip_state()
+    determine_needle_state()
 
-# GPIO11 이벤트 핸들러 (gpiozero 방식) - 니들팁 상태만 관리
-def _on_tip_connected():
-    """니들팁 연결 시 호출되는 이벤트 핸들러"""
-    global needle_tip_connected
-    needle_tip_connected = True
-    print("[GPIO11] 니들팁 상태 변경: 연결됨")
-    
-    # LED 제어: 니들팁 연결 시 BLUE LED ON
-    set_led_blue_on()
-    print("[GPIO11] 니들팁 연결 - BLUE LED ON")
+# GPIO 인터럽트 핸들러들 - 모두 통합 상태 결정 함수 호출
+def _on_gpio_change():
+    """GPIO 상태 변경 시 호출되는 통합 핸들러"""
+    print("[GPIO_INTERRUPT] GPIO 상태 변경 감지 - 상태 재평가 시작")
+    determine_needle_state()
 
-def _on_tip_disconnected():
-    """니들팁 분리 시 호출되는 이벤트 핸들러"""
-    global needle_tip_connected
-    needle_tip_connected = False
-    print("[GPIO11] 니들팁 상태 변경: 분리됨")
-    
-    # LED 제어: 니들팁 분리 시 모든 LED OFF
-    set_all_leds_off()
-
-# GPIO5 이벤트 핸들러 (Short 체크)
-async def _on_short_detected():
-    """GPIO5 Short 감지 시 호출되는 이벤트 핸들러"""
-    print("[GPIO5] Short 감지됨 (HIGH 상태)")
-    
-    # LED 제어: 스타트 상태일 때만 Short 감지 시 RED LED ON (NG 상황)
-    if is_started:
-        set_led_red_on()
-        print("[GPIO5] 스타트 상태 - Short 감지 RED LED ON")
-    else:
-        print("[GPIO5] 비활성 상태 - LED 제어 무시")
-    
-    # 디버깅 패널로 GPIO 상태 변경 알림
+# 디버깅 패널용 GPIO 상태 알림 함수
+async def _send_gpio_debug_message(pin, state):
+    """디버깅 패널로 GPIO 상태 변경 알림"""
     gpio_message = {
         "type": "gpio_state_change",
         "data": {
-            "pin": 5,
-            "state": "HIGH",
+            "pin": pin,
+            "state": state,
             "timestamp": time.time()
         }
     }
@@ -285,44 +347,46 @@ async def _on_short_detected():
             async with lock:
                 await ws.send(json.dumps(gpio_message))
         except Exception as e:
-            print(f"[WARN] GPIO5 상태 변경 알림 전송 실패: {e}")
+            print(f"[WARN] GPIO{pin} 상태 변경 알림 전송 실패: {e}")
             connected_clients.pop(ws, None)
 
-async def _on_short_cleared():
-    """GPIO5 Short 해제 시 호출되는 이벤트 핸들러"""
-    print("[GPIO5] Short 해제됨 (LOW 상태)")
+# GPIO5 이벤트 핸들러 (통합 상태 결정 방식)
+async def _on_gpio5_changed():
+    """GPIO5 상태 변경 시 호출되는 이벤트 핸들러"""
+    state = "HIGH" if pin5.is_active else "LOW"
+    print(f"[GPIO5] 상태 변경: {state}")
     
     # 디버깅 패널로 GPIO 상태 변경 알림
-    gpio_message = {
-        "type": "gpio_state_change",
-        "data": {
-            "pin": 5,
-            "state": "LOW",
-            "timestamp": time.time()
-        }
-    }
+    await _send_gpio_debug_message(5, state)
     
-    for ws, lock in connected_clients.copy().items():
-        try:
-            async with lock:
-                await ws.send(json.dumps(gpio_message))
-        except Exception as e:
-            print(f"[WARN] GPIO5 상태 변경 알림 전송 실패: {e}")
-            connected_clients.pop(ws, None)
+    # 통합 상태 결정 함수 호출
+    determine_needle_state()
 
-def _on_short_detected_sync():
-    """GPIO5 Short 감지 동기 래퍼 함수"""
+# GPIO11 이벤트 핸들러 (통합 상태 결정 방식)  
+async def _on_gpio11_changed():
+    """GPIO11 상태 변경 시 호출되는 이벤트 핸들러"""
+    state = "ON" if pin11.is_active else "OFF"
+    print(f"[GPIO11] 상태 변경: {state}")
+    
+    # 디버깅 패널로 GPIO 상태 변경 알림
+    await _send_gpio_debug_message(11, state)
+    
+    # 통합 상태 결정 함수 호출
+    determine_needle_state()
+
+def _on_gpio5_changed_sync():
+    """GPIO5 상태 변경 동기 래퍼 함수"""
     if main_event_loop:
         asyncio.run_coroutine_threadsafe(
-            _on_short_detected(), 
+            _on_gpio5_changed(), 
             main_event_loop
         )
 
-def _on_short_cleared_sync():
-    """GPIO5 Short 해제 동기 래퍼 함수"""
+def _on_gpio11_changed_sync():
+    """GPIO11 상태 변경 동기 래퍼 함수"""
     if main_event_loop:
         asyncio.run_coroutine_threadsafe(
-            _on_short_cleared(), 
+            _on_gpio11_changed(), 
             main_event_loop
         )
 
@@ -573,32 +637,31 @@ def _on_ng_button_released_sync():
     else:
         print("[ERROR] main_event_loop가 설정되지 않았습니다.")
 
-# GPIO5 이벤트 핸들러 설정 (Short 체크)
+# GPIO5 이벤트 핸들러 설정 (통합 상태 결정 방식)
 if gpio_available and pin5:
     try:
         # GPIO5 초기 상태 확인
         initial_short_state = pin5.is_active
         print(f"[GPIO5] 초기 Short 체크 상태: {'SHORT (HIGH)' if initial_short_state else 'NORMAL (LOW)'}")
         
-        # 이벤트 핸들러 할당
-        pin5.when_activated = _on_short_detected_sync    # HIGH 상태 (Short 감지)
-        pin5.when_deactivated = _on_short_cleared_sync   # LOW 상태 (Short 해제)
+        # 통합 이벤트 핸들러 할당 (상태 변경 시 통합 상태 결정)
+        pin5.when_activated = _on_gpio5_changed_sync    # HIGH 상태 (Short 감지)
+        pin5.when_deactivated = _on_gpio5_changed_sync   # LOW 상태 (Short 해제)
         
-        print("[OK] GPIO5 이벤트 핸들러 등록 완료 (gpiozero) - Short 체크")
+        print("[OK] GPIO5 통합 이벤트 핸들러 등록 완료 - 우선순위 기반 상태 결정")
     except Exception as e:
         print(f"[ERROR] GPIO5 이벤트 설정 오류: {e}")
 
-# GPIO11 이벤트 핸들러 설정 (gpiozero 방식)
+# GPIO11 이벤트 핸들러 설정 (통합 상태 결정 방식)
 if gpio_available and pin11:
     try:
-        # 초기 상태는 이미 check_initial_needle_tip_state()에서 설정했으므로 덮어쓰지 않음
         print(f"[GPIO11] 현재 니들팁 상태: {'연결됨' if needle_tip_connected else '분리됨'}")
         
-        # 이벤트 핸들러 할당 (체결: HIGH, 분리: LOW)
-        pin11.when_activated = _on_tip_connected
-        pin11.when_deactivated = _on_tip_disconnected
+        # 통합 이벤트 핸들러 할당 (상태 변경 시 통합 상태 결정)
+        pin11.when_activated = _on_gpio11_changed_sync    # HIGH 상태 (니들팁 연결)
+        pin11.when_deactivated = _on_gpio11_changed_sync  # LOW 상태 (니들팁 분리)
         
-        print("[OK] GPIO11 이벤트 핸들러 등록 완료 (gpiozero) - 니들팁 상태 감지")
+        print("[OK] GPIO11 통합 이벤트 핸들러 등록 완료 - 우선순위 기반 상태 결정")
     except Exception as e:
         print(f"[ERROR] GPIO11 이벤트 설정 오류: {e}")
 
@@ -1265,6 +1328,11 @@ async def handler(websocket):
                     new_state = data.get("state", False)  # True: START, False: STOP
                     is_started = new_state
                     print(f"[START_STATE] 상태 변경: {'START' if is_started else 'STOP'}")
+                    
+                    # STOP 상태로 변경될 때 니들 상태 재평가
+                    if not new_state:
+                        print("[START_STATE] STOP 상태로 변경 - 니들 상태 재평가")
+                        determine_needle_state()  # 현재 GPIO 상태에 따라 올바른 상태로 재설정
                     
                     async with lock:
                         await websocket.send(json.dumps({

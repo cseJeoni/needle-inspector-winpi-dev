@@ -224,11 +224,13 @@ const JudgePanel = forwardRef(function JudgePanel({ onJudge, isStarted, onReset,
   };
 
   const handleNGClick = () => {
-    // 화면 버튼의 disabled 로직과 동일한 검사
-    const isDisabled = !isStarted || !hasNeedleTip || isWaitingEepromRead;
+    // 화면 버튼의 disabled 로직과 동일한 검사 - 오류 상황에서는 NG 버튼도 비활성화
+    const isDisabled = !isStarted || !hasNeedleTip || isWaitingEepromRead || 
+                      isResistanceAbnormal || workStatus === 'needle_short' || 
+                      workStatus === 'write_failed' || workStatus === 'read_failed';
     
     if (isDisabled) {
-      console.log("🔘 [PHYSICAL] NG 버튼 무시 (UI 비활성화 상태)");
+      console.log("🔘 [PHYSICAL] NG 버튼 무시 (UI 비활성화 상태 또는 오류 상황)");
       return; // UI가 비활성화된 상태이므로 물리 버튼 입력 무시
     }
     
@@ -551,21 +553,21 @@ const JudgePanel = forwardRef(function JudgePanel({ onJudge, isStarted, onReset,
                 {/* NG 버튼 */}
         <Button
           onClick={handleNGClick}
-          disabled={!isStarted || !hasNeedleTip || isWaitingEepromRead}
+          disabled={!isStarted || !hasNeedleTip || isWaitingEepromRead || isResistanceAbnormal || workStatus === 'needle_short' || workStatus === 'write_failed' || workStatus === 'read_failed'}
           style={{
             flex: 1,
-            backgroundColor: (isStarted && hasNeedleTip && !isWaitingEepromRead) ? '#C22727' : '#6B7280',
+            backgroundColor: (isStarted && hasNeedleTip && !isWaitingEepromRead && !isResistanceAbnormal && workStatus !== 'needle_short' && workStatus !== 'write_failed' && workStatus !== 'read_failed') ? '#C22727' : '#6B7280',
             color: 'white',
             fontSize: '1.8dvh',
             fontWeight: 'bold',
             border: 'none',
             borderRadius: '0.375rem',
-            cursor: (isStarted && hasNeedleTip && !isWaitingEepromRead) ? 'pointer' : 'not-allowed',
+            cursor: (isStarted && hasNeedleTip && !isWaitingEepromRead && !isResistanceAbnormal && workStatus !== 'needle_short' && workStatus !== 'write_failed' && workStatus !== 'read_failed') ? 'pointer' : 'not-allowed',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             height: '29.5dvh',
-            opacity: (isStarted && hasNeedleTip && !isWaitingEepromRead) ? 1 : 0.6
+            opacity: (isStarted && hasNeedleTip && !isWaitingEepromRead && !isResistanceAbnormal && workStatus !== 'needle_short' && workStatus !== 'write_failed' && workStatus !== 'read_failed') ? 1 : 0.6
           }}
         >
           NG

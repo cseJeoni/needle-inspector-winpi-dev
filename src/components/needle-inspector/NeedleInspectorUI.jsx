@@ -1735,6 +1735,36 @@ useEffect(() => {
           
           // 측정 완료 상태로 변경
           setIsResistanceMeasuring(false)
+        } else if (res.type === "needle_state_change") {
+          // 통합 니들 상태 변경 알림 처리 (우선순위 기반)
+          console.log('🎯 니들 상태 변경:', res.data)
+          
+          if (res.data) {
+            const { state, needle_tip_connected, gpio11, gpio5 } = res.data
+            
+            // 니들팁 연결 상태 업데이트
+            setNeedleTipConnected(needle_tip_connected)
+            
+            // workStatus 업데이트
+            switch (state) {
+              case 'disconnected':
+                setWorkStatus('disconnected')
+                console.log('📍 [P1] 니들팁 없음 상태')
+                break
+              case 'needle_short':
+                setWorkStatus('needle_short')
+                console.log('🚨 [P2] 니들 쇼트 상태')
+                break
+              case 'connected':
+                setWorkStatus('waiting')
+                console.log('✅ [P3] 정상 연결 상태')
+                break
+              default:
+                console.warn(`알 수 없는 니들 상태: ${state}`)
+            }
+            
+            console.log(`🔍 GPIO 상태: GPIO11=${gpio11 ? 'ON' : 'OFF'}, GPIO5=${gpio5 ? 'HIGH' : 'LOW'}`)
+          }
         } else if (res.type === "gpio_state_change") {
           // GPIO 상태 변경 알림 처리 (인터럽트 기반)
           console.log('🔄 GPIO 상태 변경:', res.data)
@@ -1747,42 +1777,7 @@ useEffect(() => {
               case 5:
                 setGpio5State(state)
                 prevGpio5Ref.current = state
-                console.log(`[GPIO5] Short 체크 상태 변경: ${state}`)
-                
-                // 니들 쇼트 감지 시 RED LED 켜기
-                if (state === 'HIGH') {
-                  console.log('🚨 니들 쇼트 감지 - RED LED 켜기')
-                  if (ws && ws.readyState === WebSocket.OPEN) {
-                    ws.send(JSON.stringify({
-                      cmd: "led_control",
-                      type: "red"
-                    }))
-                  }
-                  // workStatus를 needle_short로 변경
-                  setWorkStatus('needle_short')
-                } else if (state === 'LOW') {
-                  console.log('✅ 니들 쇼트 해제 - LED 상태 정상화')
-                  // 니들팁이 연결되어 있으면 BLUE LED, 아니면 모든 LED OFF
-                  if (ws && ws.readyState === WebSocket.OPEN) {
-                    if (needleTipConnected) {
-                      ws.send(JSON.stringify({
-                        cmd: "led_control",
-                        type: "blue"
-                      }))
-                    } else {
-                      ws.send(JSON.stringify({
-                        cmd: "led_control",
-                        type: "all_off"
-                      }))
-                    }
-                  }
-                  // workStatus를 정상 상태로 복원
-                  if (needleTipConnected) {
-                    setWorkStatus('waiting')
-                  } else {
-                    setWorkStatus('disconnected')
-                  }
-                }
+                console.log(`[GPIO5] Short 체크 상태 변경: ${state} (상태는 needle_state_change에서 통합 관리)`)
                 break
               case 6:
                 setGpio6State(state)
