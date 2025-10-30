@@ -426,17 +426,19 @@ async def _on_start_button_pressed():
     is_started = not is_started
     print(f"[GPIO6] START 버튼 스위치 눌림 - 스타트 상태: {'활성화' if is_started else '비활성화'}")
     
-    # LED 제어: 니들 상태에 따라 적절한 LED 설정
-    if current_needle_state == "needle_short":
-        if is_started:
+    # LED 제어: START 상태와 니들 상태에 따라 적절한 LED 설정
+    if is_started:
+        # START 상태일 때: 니들 쇼트이면 RED, 정상이면 BLUE
+        if current_needle_state == "needle_short":
             set_led_red_on()
-            print("[GPIO6] START 버튼 - 니들 쇼트 상태로 RED LED ON")
+            print("[GPIO6] START 활성화 - 니들 쇼트 상태로 RED LED ON")
         else:
             set_led_blue_on()
-            print("[GPIO6] START 버튼 - 니들 쇼트 해제 상태로 BLUE LED ON")
+            print("[GPIO6] START 활성화 - 정상 연결 상태로 BLUE LED ON")
     else:
+        # STOP 상태일 때: 니들 상태에 관계없이 BLUE (연결되어 있으므로)
         set_led_blue_on()
-        print("[GPIO6] START 버튼 - BLUE LED ON (정상 연결 상태)")
+        print("[GPIO6] START 비활성화 - BLUE LED ON (니들팁 연결 상태)")
     
     # 디버깅 패널로 GPIO 상태 변경 알림
     gpio_message = {
