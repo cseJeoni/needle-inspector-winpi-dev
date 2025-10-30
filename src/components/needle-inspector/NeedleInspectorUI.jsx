@@ -59,6 +59,7 @@ export default function NeedleInspectorUI() {
   const prevGpio5Ref = useRef('LOW') // 이전 GPIO 상태 추적용 (useRef로 즉시 업데이트)
   
   // GPIO 6번, 13번, 19번 상태 (디버깅용)
+  const [gpio11State, setGpio11State] = useState('UNKNOWN') // 니들팁 연결 상태
   const [gpio6State, setGpio6State] = useState('UNKNOWN') // START 버튼
   const [gpio13State, setGpio13State] = useState('UNKNOWN') // PASS 버튼
   const [gpio19State, setGpio19State] = useState('UNKNOWN') // NG 버튼

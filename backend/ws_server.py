@@ -1079,6 +1079,16 @@ def read_eeprom_mtr40():
                 try: bus.close()
                 except: pass
 
+def handle_judgment_reset():
+    """판정 완료 상태를 명시적으로 리셋하는 함수"""
+    global is_judgment_completed, is_needle_short_fixed
+    is_judgment_completed = False
+    is_needle_short_fixed = False
+    print("[JUDGMENT_RESET] 판정 완료 상태 및 니들 쇼트 고정 상태 해제")
+    
+    # 현재 니들 상태에 따라 LED 재설정
+    determine_needle_state(send_status_update=True)
+
 async def handler(websocket):
     global is_started
     print("[INFO] 클라이언트 연결됨")
@@ -1491,6 +1501,15 @@ async def handler(websocket):
                         await websocket.send(json.dumps({
                             "type": "needle_short_fixed",
                             "result": {"success": True, "is_fixed": is_needle_short_fixed}
+                        }) + '\n')
+
+                # 판정 리셋 명령 (JudgePanel에서 판정 완료 후 호출)
+                elif data["cmd"] == "judgment_reset":
+                    handle_judgment_reset()
+                    async with lock:
+                        await websocket.send(json.dumps({
+                            "type": "judgment_reset",
+                            "result": {"success": True, "message": "판정 상태 리셋 완료"}
                         }) + '\n')
 
                 else:

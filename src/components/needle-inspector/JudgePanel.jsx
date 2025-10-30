@@ -201,7 +201,15 @@ const JudgePanel = forwardRef(function JudgePanel({ onJudge, isStarted, onReset,
         console.error('❌ 비동기 병합 이미지 저장 실패:', err);
       });
       
-      // 상태 초기화
+      // 상태 초기화 - 판정 완료 상태 리셋 명령 추가
+      if (websocket && isWsConnected) {
+        const resetCommand = {
+          cmd: "judgment_reset"
+        };
+        console.log('🔄 판정 완료 후 상태 리셋 명령 전송:', resetCommand);
+        websocket.send(JSON.stringify(resetCommand));
+      }
+
       if (onReset) onReset()
       if (onWaitingEepromReadChange) onWaitingEepromReadChange(false) // EEPROM 읽기 대기 상태 초기화
       
