@@ -1737,28 +1737,28 @@ useEffect(() => {
           // 측정 완료 상태로 변경
           setIsResistanceMeasuring(false)
         } else if (res.type === "needle_state_change") {
-          // 통합 니들 상태 변경 알림 처리 (우선순위 기반)
-          console.log('🎯 니들 상태 변경:', res.data)
+          // START 버튼 시에만 Status Panel 상태 업데이트 (실시간 업데이트 제거)
+          console.log('🎯 니들 상태 변경 (START 버튼 시에만):', res.data)
           
           if (res.data) {
             const { state, needle_tip_connected, gpio11, gpio5 } = res.data
             
-            // 니들팁 연결 상태 업데이트
+            // 니들팁 연결 상태 업데이트 (항상 필요)
             setNeedleTipConnected(needle_tip_connected)
             
-            // workStatus 업데이트
+            // workStatus 업데이트 (START 버튼 시에만)
             switch (state) {
               case 'disconnected':
                 setWorkStatus('disconnected')
-                console.log('📍 [P1] 니들팁 없음 상태')
+                console.log('📍 [P1] 니들팁 없음 상태 (START 버튼)')
                 break
               case 'needle_short':
                 setWorkStatus('needle_short')
-                console.log('🚨 [P2] 니들 쇼트 상태')
+                console.log('🚨 [P2] 니들 쇼트 상태 (START 버튼)')
                 break
               case 'connected':
                 setWorkStatus('waiting')
-                console.log('✅ [P3] 정상 연결 상태')
+                console.log('✅ [P3] 정상 연결 상태 (START 버튼)')
                 break
               default:
                 console.warn(`알 수 없는 니들 상태: ${state}`)

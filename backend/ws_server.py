@@ -237,8 +237,12 @@ def get_led_status():
     return {"blue": False, "red": False, "green": False}
 
 # 통합 니들 상태 결정 함수
-def determine_needle_state():
-    """GPIO11과 GPIO5 상태를 읽어서 우선순위에 따라 니들 상태 결정"""
+def determine_needle_state(send_status_update=False):
+    """GPIO11과 GPIO5 상태를 읽어서 우선순위에 따라 니들 상태 결정
+    
+    Args:
+        send_status_update (bool): True이면 상태 변경을 클라이언트에게 알림 (START 버튼 시에만)
+    """
     global needle_tip_connected, current_needle_state
     
     if not gpio_available or not pin11 or not pin5:
@@ -300,26 +304,31 @@ def determine_needle_state():
             print(f"[STATE_CHANGE] {current_needle_state} → {new_state}")
             current_needle_state = new_state
             
-            # 상태 변경을 모든 클라이언트에게 알림
-            state_message = {
-                "type": "needle_state_change",
-                "data": {
-                    "state": new_state,
-                    "needle_tip_connected": needle_tip_connected,
-                    "gpio11": gpio11_state,
-                    "gpio5": gpio5_state,
-                    "timestamp": time.time()
+            # START 버튼 시에만 상태 변경을 클라이언트에게 알림
+            if send_status_update:
+                state_message = {
+                    "type": "needle_state_change",
+                    "data": {
+                        "state": new_state,
+                        "needle_tip_connected": needle_tip_connected,
+                        "gpio11": gpio11_state,
+                        "gpio5": gpio5_state,
+                        "timestamp": time.time()
+                    }
                 }
-            }
-            
-            for ws, lock in connected_clients.copy().items():
-                try:
-                    asyncio.run_coroutine_threadsafe(
-                        _send_state_message(ws, lock, state_message),
-                        main_event_loop
-                    )
-                except Exception as e:
-                    print(f"[WARN] 상태 변경 알림 전송 실패: {e}")
+                
+                for ws, lock in connected_clients.copy().items():
+                    try:
+                        asyncio.run_coroutine_threadsafe(
+                            _send_state_message(ws, lock, state_message),
+                            main_event_loop
+                        )
+                    except Exception as e:
+                        print(f"[WARN] 상태 변경 알림 전송 실패: {e}")
+                        
+                print(f"[STATUS_UPDATE] Status Panel에 상태 변경 알림: {new_state}")
+            else:
+                print(f"[NO_STATUS_UPDATE] 실시간 상태 변경 - Status Panel 알림 없음: {new_state}")
                     
     except Exception as e:
         print(f"[ERROR] 니들 상태 결정 실패: {e}")
@@ -1441,7 +1450,7 @@ async def handler(websocket):
                     # START 또는 STOP 상태 변경 시, 즉시 니들 상태 재평가
                     # (START 시 쇼트가 감지되면 RED, 정상이면 BLUE로 즉시 변경)
                     print(f"[START_STATE] {'START' if new_state else 'STOP'} 수신 - 니들 상태 및 LED 즉시 재평가")
-                    determine_needle_state()  # 현재 GPIO 상태에 따라 올바른 상태로 재설정
+                    determine_needle_state(send_status_update=True)  # Status Panel에 상태 알림 포함
                     # ★★★ ----------------- ★★★
                     
                     async with lock:
@@ -1457,8 +1466,8 @@ async def handler(websocket):
                     is_needle_short_fixed = new_fixed_state
                     print(f"[NEEDLE_SHORT_FIXED] 상태 변경: {'고정' if is_needle_short_fixed else '해제'}")
                     
-                    # 상태 변경 후 니들 상태 재평가 (LED 제어 포함)
-                    determine_needle_state()
+                    # 상태 변경 후 니들 상태 재평가 (LED 제어만, Status Panel 업데이트 없음)
+                    determine_needle_state(send_status_update=False)
                     
                     async with lock:
                         await websocket.send(json.dumps({
