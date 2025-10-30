@@ -135,13 +135,21 @@ def is_needle_short():
     return pin5.is_active
 
 def determine_led_color():
-    """우선순위에 따라 LED 색상 결정"""
+    """우선순위에 따라 LED 색상 결정
+    
+    우선순위:
+    1. 니들 연결 안됨 → OFF
+    2. 판정 완료 상태 → 판정 결과 색상 유지 (최우선!)
+    3. 니들 쇼트 → RED
+    4. 기본 상태 → BLUE
+    """
     # 우선순위 1: 니들 연결 안됨
     if not needle_tip_connected:
         return 'off'
     
-    # 우선순위 2: 판정 완료 상태 (최우선)
+    # 우선순위 2: 판정 완료 상태 (최우선 - START 전까지 유지)
     if is_judgment_completed and current_judgment_color:
+        print(f"[LED] 판정 완료 상태 유지: {current_judgment_color.upper()}")
         return current_judgment_color
     
     # 우선순위 3: 니들 쇼트
@@ -450,7 +458,7 @@ def _on_gpio11_changed_sync():
 # GPIO6 이벤트 핸들러 (START 버튼 스위치)
 async def _on_start_button_pressed():
     """GPIO6 START 버튼 스위치가 눌렸을 때 호출되는 이벤트 핸들러"""
-    global is_started
+    global is_started, is_judgment_completed, current_judgment_color
     
     # 니들팁 연결 상태 확인 - 니들팁이 없으면 동작 차단
     if not needle_tip_connected or current_needle_state == "disconnected":
@@ -482,6 +490,12 @@ async def _on_start_button_pressed():
     # 스타트 상태 토글
     is_started = not is_started
     print(f"[GPIO6] START 버튼 스위치 눌림 - 스타트 상태: {'활성화' if is_started else '비활성화'}")
+    
+    # 🎯 START 버튼 누를 때마다 판정 완료 상태 초기화 (새 작업 시작)
+    if is_started:
+        is_judgment_completed = False
+        current_judgment_color = None
+        print("[GPIO6] 판정 상태 초기화 - 새 작업 시작")
     
     # LED 제어는 determine_needle_state()에서 통합 관리하므로 여기서는 상태 재평가만 수행 (Status Panel 업데이트 없음)
     determine_needle_state(send_status_update=False)
