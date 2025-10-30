@@ -103,6 +103,10 @@ export default function NeedleInspectorUI() {
   // 명령어 큐 상태 (디버깅용)
   const [commandQueueSize, setCommandQueueSize] = useState(0)
 
+  // 카메라 관련
+  const [referenceNaturalWidth1, setReferenceNaturalWidth1] = useState(1920);
+  const [referenceNaturalWidth2, setReferenceNaturalWidth2] = useState(1920);
+
   // 니들팁 연결 상태에 따른 작업 상태 업데이트
   useEffect(() => {
     if (needleTipConnected) {
@@ -422,7 +426,7 @@ export default function NeedleInspectorUI() {
   }
 
 
-const drawLineWithInfo = (ctx, line, color, showText, calibrationValue = 19.8, isSelected = false, referenceWidth = 640) => {
+const drawLineWithInfo = (ctx, line, color, showText, calibrationValue = 19.8, isSelected = false, imageNaturalWidth = 1920) => {
   const canvas = ctx.canvas;
   if (!canvas) {
     console.error("drawLineWithInfo: 캔버스 객체를 찾을 수 없습니다.", ctx);
@@ -430,12 +434,10 @@ const drawLineWithInfo = (ctx, line, color, showText, calibrationValue = 19.8, i
   }
 
   // 현재 캔버스 크기와 기준 크기의 비율 계산
-  const scaleRatio = canvas.width / referenceWidth;
+  const scaleRatio = canvas.width / imageNaturalWidth;
   // 조정된 캘리브레이션 값 계산
   const adjustedCalibration = calibrationValue * scaleRatio;
   
-  console.log(`📐 캘리브레이션 조정: 원본 ${calibrationValue}px/mm → 조정 ${adjustedCalibration.toFixed(2)}px/mm (비율: ${scaleRatio.toFixed(2)})`);
-
   const { relX1, relY1, relX2, relY2, relLabelX, relLabelY } = line;
   const isRelative = relX1 !== undefined;
 
@@ -1063,12 +1065,12 @@ const drawLineWithInfo = (ctx, line, color, showText, calibrationValue = 19.8, i
     }
   }
 
-const drawLines = (ctx, lines, selectedIndex, calibrationValue, referenceWidth) => {
+const drawLines = (ctx, lines, selectedIndex, calibrationValue, imageNaturalWidth) => {
   lines.forEach((line, index) => {
     const isSelected = index === selectedIndex;
     const lineColor = line.color || 'red';
     ctx.lineWidth = isSelected ? 3 : 2;
-    drawLineWithInfo(ctx, line, lineColor, true, calibrationValue, isSelected, referenceWidth);
+    drawLineWithInfo(ctx, line, lineColor, true, calibrationValue, isSelected, imageNaturalWidth);
   });
 };
 
@@ -1080,7 +1082,12 @@ const redrawCanvas1 = () => {
   if (!ctx) return;
   
   ctx.clearRect(0, 0, canvas.width, canvas.height);
-  drawLines(ctx, lines1, selectedIndex1, calibrationValue1, referenceCanvasWidth1);
+  
+  // 이미지 원본 크기 가져오기
+  const img = videoContainerRef1.current?.querySelector('.camera-image');
+  const naturalWidth = img?.naturalWidth || referenceNaturalWidth1;
+  
+  drawLines(ctx, lines1, selectedIndex1, calibrationValue1, naturalWidth);
 };
 
 const redrawCanvas2 = () => {
@@ -1091,7 +1098,12 @@ const redrawCanvas2 = () => {
   if (!ctx) return;
   
   ctx.clearRect(0, 0, canvas.width, canvas.height);
-  drawLines(ctx, lines2, selectedIndex2, calibrationValue2, referenceCanvasWidth2);
+  
+  // 이미지 원본 크기 가져오기
+  const img = videoContainerRef2.current?.querySelector('.camera-image');
+  const naturalWidth = img?.naturalWidth || referenceNaturalWidth2;
+  
+  drawLines(ctx, lines2, selectedIndex2, calibrationValue2, naturalWidth);
 };
 
 const resizeCanvas = (canvas, container, img) => {
@@ -1268,21 +1280,23 @@ const resizeCanvas = (canvas, container, img) => {
   }, []);
 
 // 카메라 선 정보 저장 함수
+// 캘리브레이션 저장 시 이미지의 natural 크기 사용
 const saveCameraLinesData = async (cameraId, lines, calibrationValue, selectedLineColor) => {
   try {
     if (window.electronAPI && window.electronAPI.saveCameraLines) {
-      // 현재 캔버스 크기 가져오기
-      const canvas = cameraId === 1 ? canvasRef1.current : canvasRef2.current;
-      const referenceWidth = canvas ? canvas.width : 640; // 기본값 640
+      // 이미지의 natural 크기 가져오기
+      const container = cameraId === 1 ? videoContainerRef1.current : videoContainerRef2.current;
+      const img = container?.querySelector('.camera-image');
+      const referenceNaturalWidth = img ? img.naturalWidth : 1920; // 이미지 원본 크기
       
       const linesData = {
         lines: lines,
         calibrationValue: calibrationValue,
-        referenceCanvasWidth: referenceWidth, // 캘리브레이션 시점의 캔버스 너비 저장
+        referenceNaturalWidth: referenceNaturalWidth, // 이미지 원본 크기 기준
         selectedLineColor: selectedLineColor
       };
       
-      console.log(`📐 캘리브레이션 저장 - 값: ${calibrationValue}px/mm, 기준 너비: ${referenceWidth}px`);
+      console.log(`📐 캘리브레이션 저장 - 값: ${calibrationValue}px/mm, 이미지 원본 너비: ${referenceNaturalWidth}px`);
       
       const result = await window.electronAPI.saveCameraLines(cameraId, linesData);
       if (!result.success) {
@@ -1336,31 +1350,45 @@ const loadCameraLinesData = async (cameraId) => {
 const handleCalibrationChange1 = (newValue) => {
   setCalibrationValue1(newValue);
   
-  // 현재 캔버스 크기를 새로운 기준으로 설정
-  const canvas = canvasRef1.current;
-  if (canvas) {
-    setReferenceCanvasWidth1(canvas.width);
-    console.log(`📐 Camera 1 새 캘리브레이션 기준: ${canvas.width}px`);
+  // 이미지의 natural 크기를 기준으로 설정
+  const img = videoContainerRef1.current?.querySelector('.camera-image');
+  if (img && img.naturalWidth > 0) {
+    const naturalWidth = img.naturalWidth;
+    setReferenceNaturalWidth1(naturalWidth);
+    
+    // 현재 캔버스 크기에서 이미지 원본 크기 기준으로 변환
+    const canvas = canvasRef1.current;
+    if (canvas) {
+      const currentToNaturalRatio = naturalWidth / canvas.width;
+      const naturalBasedCalibration = newValue * currentToNaturalRatio;
+      
+      setTimeout(() => {
+        saveCameraLinesData(1, lines1, naturalBasedCalibration, selectedLineColor1);
+      }, 500);
+    }
   }
-  
-  setTimeout(() => {
-    saveCameraLinesData(1, lines1, newValue, selectedLineColor1);
-  }, 500);
 };
 
 const handleCalibrationChange2 = (newValue) => {
   setCalibrationValue2(newValue);
   
-  // 현재 캔버스 크기를 새로운 기준으로 설정
-  const canvas = canvasRef2.current;
-  if (canvas) {
-    setReferenceCanvasWidth2(canvas.width);
-    console.log(`📐 Camera 2 새 캘리브레이션 기준: ${canvas.width}px`);
+  // 이미지의 natural 크기를 기준으로 설정
+  const img = videoContainerRef2.current?.querySelector('.camera-image');
+  if (img && img.naturalWidth > 0) {
+    const naturalWidth = img.naturalWidth;
+    setReferenceNaturalWidth2(naturalWidth);
+    
+    // 현재 캔버스 크기에서 이미지 원본 크기 기준으로 변환
+    const canvas = canvasRef2.current;
+    if (canvas) {
+      const currentToNaturalRatio = naturalWidth / canvas.width;
+      const naturalBasedCalibration = newValue * currentToNaturalRatio;
+      
+      setTimeout(() => {
+        saveCameraLinesData(2, lines2, naturalBasedCalibration, selectedLineColor2);
+      }, 500);
+    }
   }
-  
-  setTimeout(() => {
-    saveCameraLinesData(2, lines2, newValue, selectedLineColor2);
-  }, 500);
 };
 
   // 선 색상 변경 및 저장 함수들
@@ -1386,17 +1414,18 @@ useEffect(() => {
       if (camera1Data.lines && camera1Data.lines.length > 0) {
         if (camera1Data.lines[0].relX1 !== undefined) {
           setLines1([...camera1Data.lines]);
-        } else {
-          console.warn("[Camera 1] 구 좌표 형식 데이터 발견");
-          setLines1([]);
-        }
+        } 
       }
       if (camera1Data.calibrationValue) {
         setCalibrationValue1(camera1Data.calibrationValue);
       }
-      if (camera1Data.referenceCanvasWidth) {
-        setReferenceCanvasWidth1(camera1Data.referenceCanvasWidth);
-        console.log(`📐 Camera 1 기준 너비 로드: ${camera1Data.referenceCanvasWidth}px`);
+      if (camera1Data.referenceNaturalWidth) {
+        setReferenceCanvasWidth1(camera1Data.referenceNaturalWidth);
+      } else {
+        const img = videoContainerRef1.current?.querySelector('.camera-image');
+        if (img && img.naturalWidth > 0) {
+          setReferenceNaturalWidth1(img.naturalWidth);
+        }
       }
       if (camera1Data.selectedLineColor) {
         setSelectedLineColor1(camera1Data.selectedLineColor);
@@ -1407,18 +1436,22 @@ useEffect(() => {
       if (camera2Data.lines && camera2Data.lines.length > 0) {
         if (camera2Data.lines[0].relX1 !== undefined) {
           setLines2([...camera2Data.lines]);
-        } else {
-          console.warn("[Camera 2] 구 좌표 형식 데이터 발견");
-          setLines2([]);
-        }
+        } 
       }
       if (camera2Data.calibrationValue) {
         setCalibrationValue2(camera2Data.calibrationValue);
       }
-      if (camera2Data.referenceCanvasWidth) {
-        setReferenceCanvasWidth2(camera2Data.referenceCanvasWidth);
-        console.log(`📐 Camera 2 기준 너비 로드: ${camera2Data.referenceCanvasWidth}px`);
+      if (camera2Data.referenceNaturalWidth) {
+        setReferenceNaturalWidth2(camera2Data.referenceNaturalWidth);
+      } else {
+        const img = videoContainerRef2.current?.querySelector('.camera-image');
+        if (img && img.naturalWidth > 0) {
+          setReferenceNaturalWidth2(img.naturalWidth);
+        }
       }
+
+
+
       if (camera2Data.selectedLineColor) {
         setSelectedLineColor2(camera2Data.selectedLineColor);
       }
@@ -1715,6 +1748,41 @@ useEffect(() => {
                 setGpio5State(state)
                 prevGpio5Ref.current = state
                 console.log(`[GPIO5] Short 체크 상태 변경: ${state}`)
+                
+                // 니들 쇼트 감지 시 RED LED 켜기
+                if (state === 'HIGH') {
+                  console.log('🚨 니들 쇼트 감지 - RED LED 켜기')
+                  if (ws && ws.readyState === WebSocket.OPEN) {
+                    ws.send(JSON.stringify({
+                      cmd: "led_control",
+                      type: "red"
+                    }))
+                  }
+                  // workStatus를 needle_short로 변경
+                  setWorkStatus('needle_short')
+                } else if (state === 'LOW') {
+                  console.log('✅ 니들 쇼트 해제 - LED 상태 정상화')
+                  // 니들팁이 연결되어 있으면 BLUE LED, 아니면 모든 LED OFF
+                  if (ws && ws.readyState === WebSocket.OPEN) {
+                    if (needleTipConnected) {
+                      ws.send(JSON.stringify({
+                        cmd: "led_control",
+                        type: "blue"
+                      }))
+                    } else {
+                      ws.send(JSON.stringify({
+                        cmd: "led_control",
+                        type: "all_off"
+                      }))
+                    }
+                  }
+                  // workStatus를 정상 상태로 복원
+                  if (needleTipConnected) {
+                    setWorkStatus('waiting')
+                  } else {
+                    setWorkStatus('disconnected')
+                  }
+                }
                 break
               case 6:
                 setGpio6State(state)
