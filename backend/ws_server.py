@@ -57,6 +57,7 @@ led_green = None  # GPIO22 - GREEN LED
 needle_tip_connected = False  # 니들팁 연결 상태 (전역 변수)
 is_started = False  # 스타트 상태 (전역 변수) - 판정 버튼 활성화 여부
 current_needle_state = "disconnected"  # 현재 니들 상태: "disconnected", "needle_short", "connected"
+is_needle_short_fixed = False  # START 시점 니들 쇼트 고정 상태 (LED RED 유지용)
 last_eeprom_data = {"success": False, "error": "니들팁이 연결되지 않음"}  # 마지막 EEPROM 상태
 
 try:
@@ -264,18 +265,30 @@ def determine_needle_state():
             new_state = "needle_short"
             needle_tip_connected = True  # 물리적으로는 연결되어 있음
             
-            # ★★★ 로직 수정 ★★★
-            # 쇼트는 is_started 상태와 관계없이 항상 RED
-            set_led_red_on()
-            print("[STATE] P2: 니들 쇼트 - RED LED ON")
-            # ★★★ ----------------- ★★★
+            # START 시점 니들 쇼트 고정 상태 확인
+            if is_needle_short_fixed:
+                # 니들 쇼트 고정 상태이면 RED LED 유지
+                set_led_red_on()
+                print("[STATE] P2: 니들 쇼트 + 고정 상태 - RED LED 유지")
+            else:
+                # 실시간 니들 쇼트 감지 시에는 LED 변경하지 않음 (START 버튼에서만 제어)
+                print("[STATE] P2: 니들 쇼트 감지 - LED 변경 없음 (START 버튼에서만 제어)")
+                # 현재 LED 상태 유지
                 
         elif gpio11_state and not gpio5_state:
             # [P3] 정상 (GPIO11 ON + GPIO5 LOW)
             new_state = "connected"
             needle_tip_connected = True
-            set_led_blue_on()
-            print("[STATE] P3: 정상 연결 - BLUE LED ON")
+            
+            # START 시점 니들 쇼트 고정 상태 확인
+            if is_needle_short_fixed:
+                # 니들 쇼트 고정 상태이면 RED LED 유지 (쇼트가 해제되어도)
+                set_led_red_on()
+                print("[STATE] P3: 정상 연결이지만 START 시점 쇼트 고정으로 RED LED 유지")
+            else:
+                # 정상 상태이면 BLUE LED
+                set_led_blue_on()
+                print("[STATE] P3: 정상 연결 - BLUE LED ON")
             
         else:
             # 예상치 못한 상태 (이론적으로 발생하지 않음)
@@ -1435,6 +1448,22 @@ async def handler(websocket):
                         await websocket.send(json.dumps({
                             "type": "start_state",
                             "result": {"success": True, "is_started": is_started}
+                        }) + '\n')
+
+                # 니들 쇼트 고정 상태 제어 명령
+                elif data["cmd"] == "set_needle_short_fixed":
+                    global is_needle_short_fixed
+                    new_fixed_state = data.get("state", False)  # True: 고정, False: 해제
+                    is_needle_short_fixed = new_fixed_state
+                    print(f"[NEEDLE_SHORT_FIXED] 상태 변경: {'고정' if is_needle_short_fixed else '해제'}")
+                    
+                    # 상태 변경 후 니들 상태 재평가 (LED 제어 포함)
+                    determine_needle_state()
+                    
+                    async with lock:
+                        await websocket.send(json.dumps({
+                            "type": "needle_short_fixed",
+                            "result": {"success": True, "is_fixed": is_needle_short_fixed}
                         }) + '\n')
 
                 else:

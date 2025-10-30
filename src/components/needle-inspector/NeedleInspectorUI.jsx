@@ -90,6 +90,7 @@ export default function NeedleInspectorUI() {
   const [decelerationSpeed, setDecelerationSpeed] = useState(100) // 감속 스피드
   const [resistanceThreshold, setResistanceThreshold] = useState(100) // 저항 임계값 (정상값)
   const [isResistanceAbnormal, setIsResistanceAbnormal] = useState(false) // 저항 이상 여부
+  const [isNeedleShortFixed, setIsNeedleShortFixed] = useState(false) // START 시점 니들 쇼트 고정 상태
   const [motor2TargetPosition, setMotor2TargetPosition] = useState(0) // 모터2 목표 위치 (감속 로직용)
   const [hasDecelerated, setHasDecelerated] = useState(false) // 감속 실행 여부
 
@@ -2353,6 +2354,8 @@ useEffect(() => {
             decelerationSpeed={decelerationSpeed} // 감속 스피드 전달
             resistanceThreshold={resistanceThreshold} // 저항 임계값 전달
             onResistanceAbnormalChange={setIsResistanceAbnormal} // 저항 이상 상태 변경 함수 전달
+            isNeedleShortFixed={isNeedleShortFixed} // START 시점 니들 쇼트 고정 상태 전달
+            onNeedleShortFixedChange={setIsNeedleShortFixed} // START 시점 니들 쇼트 고정 상태 변경 함수 전달
             onResistance1Change={setResistance1} // 저항1 값 변경 함수 전달
             onResistance2Change={setResistance2} // 저항2 값 변경 함수 전달
             onResistance1StatusChange={setResistance1Status} // 저항1 상태 변경 함수 전달
@@ -2436,6 +2439,7 @@ useEffect(() => {
             isWaitingEepromRead={isWaitingEepromRead} // EEPROM 읽기 대기 상태 전달
             onWaitingEepromReadChange={setIsWaitingEepromRead} // EEPROM 읽기 대기 상태 변경 함수 전달
             isResistanceAbnormal={isResistanceAbnormal} // 저항 이상 상태 전달
+            isNeedleShortFixed={isNeedleShortFixed} // START 시점 니들 쇼트 고정 상태 전달
             needleOffset1={needleOffset1} // 모터 1 초기 위치 전달
             needleOffset2={needleOffset2} // 모터 2 초기 위치 전달
             needleSpeed1={needleSpeed1} // 모터 1 속도 전달

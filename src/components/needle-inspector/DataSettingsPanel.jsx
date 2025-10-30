@@ -42,6 +42,8 @@ const DataSettingsPanel = forwardRef(({
   decelerationSpeed, // 감속 스피드
   resistanceThreshold,
   onResistanceAbnormalChange,
+  isNeedleShortFixed, // START 시점 니들 쇼트 고정 상태
+  onNeedleShortFixedChange, // START 시점 니들 쇼트 고정 상태 변경 함수
   onResistance1Change,
   onResistance2Change,
   onResistance1StatusChange,
@@ -616,6 +618,21 @@ const DataSettingsPanel = forwardRef(({
         if (gpio5State === 'HIGH') {
           console.log('🚨 GPIO5 니들 쇼트 감지 - 로직 중단 (EEPROM 데이터는 정상 저장됨)')
           console.log('🔍 현재 EEPROM 데이터 상태:', readEepromData)
+          
+          // START 시점 니들 쇼트 고정 상태 설정 (저항 비정상과 동일한 방식)
+          onNeedleShortFixedChange && onNeedleShortFixedChange(true)
+          console.log('🔒 START 시점 니들 쇼트 상태 고정 - STOP 버튼까지 유지')
+          
+          // 백엔드에 니들 쇼트 고정 상태 알림 (LED RED 유지용)
+          if (websocket && isWsConnected) {
+            const fixedCommand = {
+              cmd: "set_needle_short_fixed",
+              state: true
+            };
+            console.log('🔴 백엔드 니들 쇼트 고정 상태 설정:', fixedCommand);
+            websocket.send(JSON.stringify(fixedCommand));
+          }
+          
           onWorkStatusChange && onWorkStatusChange('needle_short')
           onStartedChange && onStartedChange(true) // START 상태 유지 (저장 실패와 동일)
           return
@@ -947,6 +964,21 @@ const DataSettingsPanel = forwardRef(({
       if (gpio5State === 'HIGH') {
         console.log('🚨 GPIO5 니들 쇼트 감지 - 로직 중단 (EEPROM 데이터는 정상 저장됨)')
         console.log('🔍 현재 EEPROM 데이터 상태:', readEepromData)
+        
+        // START 시점 니들 쇼트 고정 상태 설정 (저항 비정상과 동일한 방식)
+        onNeedleShortFixedChange && onNeedleShortFixedChange(true)
+        console.log('🔒 START 시점 니들 쇼트 상태 고정 - STOP 버튼까지 유지')
+        
+        // 백엔드에 니들 쇼트 고정 상태 알림 (LED RED 유지용)
+        if (websocket && isWsConnected) {
+          const fixedCommand = {
+            cmd: "set_needle_short_fixed",
+            state: true
+          };
+          console.log('🔴 백엔드 니들 쇼트 고정 상태 설정:', fixedCommand);
+          websocket.send(JSON.stringify(fixedCommand));
+        }
+        
         onWorkStatusChange && onWorkStatusChange('needle_short')
         onStartedChange && onStartedChange(true) // START 상태 유지 (저장 실패와 동일)
         return
@@ -996,6 +1028,21 @@ const DataSettingsPanel = forwardRef(({
     onResistance1StatusChange && onResistance1StatusChange('IDLE')
     onResistance2StatusChange && onResistance2StatusChange('IDLE')
     console.log('✅ STOP 버튼 - 저항 값 데이터 초기화 완료')
+    
+    // START 시점 고정 상태들 해제 (STOP 버튼 클릭 시)
+    onResistanceAbnormalChange && onResistanceAbnormalChange(false)
+    onNeedleShortFixedChange && onNeedleShortFixedChange(false)
+    console.log('🔓 STOP 버튼 - START 시점 고정 상태들 해제 완료 (저항 비정상, 니들 쇼트)')
+    
+    // 백엔드에 니들 쇼트 고정 상태 해제 알림 (LED 정상 제어 복원)
+    if (websocket && isWsConnected) {
+      const fixedCommand = {
+        cmd: "set_needle_short_fixed",
+        state: false
+      };
+      console.log('🔵 백엔드 니들 쇼트 고정 상태 해제:', fixedCommand);
+      websocket.send(JSON.stringify(fixedCommand));
+    }
     
     // 모터1, 모터2 모두 DOWN 명령 전송 (초기 위치로) (메인 WebSocket 사용)
     if (websocket && isWsConnected) {
