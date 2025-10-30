@@ -170,6 +170,92 @@ def apply_led_state(reason="unknown"):
             
         current_led_color = target_color
 
+def determine_needle_state(send_status_update=False):
+    """GPIO11과 GPIO5 상태를 읽어서 니들 상태 결정 및 LED 적용
+    
+    Args:
+        send_status_update (bool): True이면 상태 변경을 클라이언트에게 알림
+    """
+    global needle_tip_connected, current_needle_state
+    
+    if not gpio_available or not pin11 or not pin5:
+        print("[WARN] GPIO 기능이 비활성화되어 있어 니들 상태를 확인할 수 없습니다.")
+        return
+    
+    try:
+        # 현재 두 핀의 상태를 동시에 읽기
+        gpio11_state = pin11.is_active  # True: 니들팁 연결됨, False: 분리됨
+        gpio5_state = pin5.is_active    # True: 쇼트 감지, False: 정상
+        
+        print(f"[GPIO_STATE] GPIO11: {'ON' if gpio11_state else 'OFF'}, GPIO5: {'HIGH' if gpio5_state else 'LOW'}")
+        
+        # 상태 결정 (LED 제어는 apply_led_state에서 우선순위 기반으로 처리)
+        if not gpio11_state:
+            # [P1] 니들팁 없음
+            new_state = "disconnected"
+            needle_tip_connected = False
+            apply_led_state("needle disconnected")
+            
+        elif gpio11_state and gpio5_state:
+            # [P2] 니들 쇼트
+            new_state = "needle_short"
+            needle_tip_connected = True
+            apply_led_state("needle short detected")
+                
+        elif gpio11_state and not gpio5_state:
+            # [P3] 정상 연결
+            new_state = "connected"
+            needle_tip_connected = True
+            apply_led_state("needle connected normally")
+            
+        else:
+            # 예상치 못한 상태
+            print(f"[ERROR] 예상치 못한 GPIO 상태: GPIO11={gpio11_state}, GPIO5={gpio5_state}")
+            return
+        
+        # 상태 변경 시에만 로그 출력
+        if current_needle_state != new_state:
+            print(f"[STATE_CHANGE] {current_needle_state} → {new_state}")
+            current_needle_state = new_state
+            
+            # START 버튼 시에만 상태 변경을 클라이언트에게 알림
+            if send_status_update:
+                state_message = {
+                    "type": "needle_state_change",
+                    "data": {
+                        "state": new_state,
+                        "needle_tip_connected": needle_tip_connected,
+                        "gpio11": gpio11_state,
+                        "gpio5": gpio5_state,
+                        "timestamp": time.time()
+                    }
+                }
+                
+                for ws, lock in connected_clients.copy().items():
+                    try:
+                        asyncio.run_coroutine_threadsafe(
+                            _send_state_message(ws, lock, state_message),
+                            main_event_loop
+                        )
+                    except Exception as e:
+                        print(f"[WARN] 상태 변경 알림 전송 실패: {e}")
+                        
+                print(f"[STATUS_UPDATE] Status Panel에 상태 변경 알림: {new_state}")
+            else:
+                print(f"[NO_STATUS_UPDATE] 실시간 상태 변경 - Status Panel 알림 없음: {new_state}")
+                    
+    except Exception as e:
+        print(f"[ERROR] 니들 상태 결정 실패: {e}")
+
+async def _send_state_message(websocket, lock, message):
+    """상태 변경 메시지를 클라이언트에게 전송"""
+    try:
+        async with lock:
+            await websocket.send(json.dumps(message))
+    except Exception as e:
+        print(f"[ERROR] 상태 메시지 전송 실패: {e}")
+        connected_clients.pop(websocket, None)
+
 # LED 제어 함수들
 def set_led_blue_on():
     """BLUE LED만 켜고 나머지는 끄기"""
