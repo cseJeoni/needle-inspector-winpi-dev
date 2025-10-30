@@ -1784,6 +1784,10 @@ useEffect(() => {
                 setGpio6State(state)
                 console.log(`[GPIO6] START 버튼 상태 변경: ${state}`)
                 break
+              case 11:
+                setGpio11State(state)
+                console.log(`[GPIO11] 니들팁 연결 상태 변경: ${state}`)
+                break
               case 13:
                 setGpio13State(state)
                 console.log(`[GPIO13] PASS 버튼 상태 변경: ${state}`)
