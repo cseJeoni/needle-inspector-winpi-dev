@@ -395,13 +395,48 @@ async def _on_start_button_pressed():
     """GPIO6 START 버튼 스위치가 눌렸을 때 호출되는 이벤트 핸들러"""
     global is_started
     
+    # 니들팁 연결 상태 확인 - 니들팁이 없으면 동작 차단
+    if not needle_tip_connected or current_needle_state == "disconnected":
+        print("[GPIO6] START 버튼 차단 - 니들팁이 연결되지 않음")
+        # LED 모두 OFF 유지
+        set_all_leds_off()
+        print("[GPIO6] 니들팁 없음 - 모든 LED OFF")
+        
+        # 디버깅 패널로만 GPIO 상태 변경 알림 (기능은 차단)
+        gpio_message = {
+            "type": "gpio_state_change",
+            "data": {
+                "pin": 6,
+                "state": "HIGH",
+                "timestamp": time.time()
+            }
+        }
+        
+        for ws, lock in connected_clients.copy().items():
+            try:
+                async with lock:
+                    await ws.send(json.dumps(gpio_message))
+            except Exception as e:
+                print(f"[WARN] GPIO6 디버깅 신호 전송 실패: {e}")
+                connected_clients.pop(ws, None)
+        return
+    
+    # 니들팁이 연결된 경우에만 정상 동작
     # 스타트 상태 토글
     is_started = not is_started
     print(f"[GPIO6] START 버튼 스위치 눌림 - 스타트 상태: {'활성화' if is_started else '비활성화'}")
     
-    # LED 제어: START 버튼을 누를 수 있다는 것은 니들팁이 체결되어 있다는 의미이므로 BLUE LED ON
-    set_led_blue_on()
-    print("[GPIO6] START 버튼 - BLUE LED ON (니들팁 체결 상태)")
+    # LED 제어: 니들 상태에 따라 적절한 LED 설정
+    if current_needle_state == "needle_short":
+        if is_started:
+            set_led_red_on()
+            print("[GPIO6] START 버튼 - 니들 쇼트 상태로 RED LED ON")
+        else:
+            set_led_blue_on()
+            print("[GPIO6] START 버튼 - 니들 쇼트 해제 상태로 BLUE LED ON")
+    else:
+        set_led_blue_on()
+        print("[GPIO6] START 버튼 - BLUE LED ON (정상 연결 상태)")
     
     # 디버깅 패널로 GPIO 상태 변경 알림
     gpio_message = {
@@ -478,12 +513,46 @@ async def _on_pass_button_pressed():
     """GPIO13 PASS 버튼 스위치가 눌렸을 때 호출되는 이벤트 핸들러"""
     print("[GPIO13] PASS 버튼 스위치 눌림")
     
+    # 니들팁 연결 상태 확인 - 니들팁이 없으면 동작 차단
+    if not needle_tip_connected or current_needle_state == "disconnected":
+        print("[GPIO13] PASS 버튼 차단 - 니들팁이 연결되지 않음")
+        # LED 모두 OFF 유지
+        set_all_leds_off()
+        print("[GPIO13] 니들팁 없음 - 모든 LED OFF")
+        
+        # 디버깅 패널로만 GPIO 상태 변경 알림 (기능은 차단)
+        gpio_message = {
+            "type": "gpio_state_change",
+            "data": {
+                "pin": 13,
+                "state": "HIGH",
+                "timestamp": time.time()
+            }
+        }
+        
+        for ws, lock in connected_clients.copy().items():
+            try:
+                async with lock:
+                    await ws.send(json.dumps(gpio_message))
+            except Exception as e:
+                print(f"[WARN] GPIO13 디버깅 신호 전송 실패: {e}")
+                connected_clients.pop(ws, None)
+        return
+    
+    # 니들팁이 연결된 경우에만 정상 동작
     # LED 제어: 스타트 상태일 때만 GREEN LED ON
     if is_started:
         set_led_green_on()
         print("[GPIO13] 스타트 상태 - GREEN LED ON")
     else:
         print("[GPIO13] 스타트 상태 아님 - LED 제어 안함")
+        # 니들팁이 연결되어 있으면 BLUE LED 유지
+        if current_needle_state == "connected":
+            set_led_blue_on()
+            print("[GPIO13] 비활성 상태 - BLUE LED 유지")
+        elif current_needle_state == "needle_short":
+            set_led_red_on()
+            print("[GPIO13] 비활성 상태 - 니들 쇼트로 RED LED 유지")
     
     # 디버깅 패널로 GPIO 상태 변경 알림
     gpio_message = {
@@ -495,7 +564,7 @@ async def _on_pass_button_pressed():
         }
     }
     
-    # 모든 연결된 클라이언트에게 PASS 신호 전송
+    # 모든 연결된 클라이언트에게 PASS 신호 전송 (니들팁 연결된 경우에만)
     pass_message = {
         "type": "gpio_pass_button",
         "data": {
@@ -560,12 +629,46 @@ async def _on_ng_button_pressed():
     """GPIO19 NG 버튼 스위치가 눌렸을 때 호출되는 이벤트 핸들러"""
     print("[GPIO19] NG 버튼 스위치 눌림")
     
+    # 니들팁 연결 상태 확인 - 니들팁이 없으면 동작 차단
+    if not needle_tip_connected or current_needle_state == "disconnected":
+        print("[GPIO19] NG 버튼 차단 - 니들팁이 연결되지 않음")
+        # LED 모두 OFF 유지
+        set_all_leds_off()
+        print("[GPIO19] 니들팁 없음 - 모든 LED OFF")
+        
+        # 디버깅 패널로만 GPIO 상태 변경 알림 (기능은 차단)
+        gpio_message = {
+            "type": "gpio_state_change",
+            "data": {
+                "pin": 19,
+                "state": "HIGH",
+                "timestamp": time.time()
+            }
+        }
+        
+        for ws, lock in connected_clients.copy().items():
+            try:
+                async with lock:
+                    await ws.send(json.dumps(gpio_message))
+            except Exception as e:
+                print(f"[WARN] GPIO19 디버깅 신호 전송 실패: {e}")
+                connected_clients.pop(ws, None)
+        return
+    
+    # 니들팁이 연결된 경우에만 정상 동작
     # LED 제어: 스타트 상태일 때만 RED LED ON
     if is_started:
         set_led_red_on()
         print("[GPIO19] 스타트 상태 - RED LED ON")
     else:
         print("[GPIO19] 비활성 상태 - LED 제어 무시")
+        # 니들팁이 연결되어 있으면 상태에 따라 LED 유지
+        if current_needle_state == "connected":
+            set_led_blue_on()
+            print("[GPIO19] 비활성 상태 - BLUE LED 유지")
+        elif current_needle_state == "needle_short":
+            set_led_red_on()
+            print("[GPIO19] 비활성 상태 - 니들 쇼트로 RED LED 유지")
     
     # 디버깅 패널로 GPIO 상태 변경 알림
     gpio_message = {
@@ -577,7 +680,7 @@ async def _on_ng_button_pressed():
         }
     }
     
-    # 모든 연결된 클라이언트에게 NG 신호 전송
+    # 모든 연결된 클라이언트에게 NG 신호 전송 (니들팁 연결된 경우에만)
     ng_message = {
         "type": "gpio_ng_button",
         "data": {
