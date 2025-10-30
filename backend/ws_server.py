@@ -204,19 +204,31 @@ def determine_needle_state(send_status_update=False):
             # [P1] 니들팁 없음
             new_state = "disconnected"
             needle_tip_connected = False
-            apply_led_state("needle disconnected")
+            # 판정 완료 상태가 아닐 때만 LED 제어
+            if not is_judgment_completed:
+                apply_led_state("needle disconnected")
+            else:
+                print("[LED] 판정 완료 상태 - LED 변경 무시 (disconnected)")
             
         elif gpio11_state and gpio5_state:
             # [P2] 니들 쇼트
             new_state = "needle_short"
             needle_tip_connected = True
-            apply_led_state("needle short detected")
+            # 판정 완료 상태가 아닐 때만 LED 제어
+            if not is_judgment_completed:
+                apply_led_state("needle short detected")
+            else:
+                print("[LED] 판정 완료 상태 - LED 변경 무시 (short)")
                 
         elif gpio11_state and not gpio5_state:
             # [P3] 정상 연결
             new_state = "connected"
             needle_tip_connected = True
-            apply_led_state("needle connected normally")
+            # 판정 완료 상태가 아닐 때만 LED 제어
+            if not is_judgment_completed:
+                apply_led_state("needle connected normally")
+            else:
+                print("[LED] 판정 완료 상태 - LED 변경 무시 (connected)")
             
         else:
             # 예상치 못한 상태
@@ -491,11 +503,10 @@ async def _on_start_button_pressed():
     is_started = not is_started
     print(f"[GPIO6] START 버튼 스위치 눌림 - 스타트 상태: {'활성화' if is_started else '비활성화'}")
     
-    # 🎯 START 버튼 누를 때마다 판정 완료 상태 초기화 (새 작업 시작)
-    if is_started:
-        is_judgment_completed = False
-        current_judgment_color = None
-        print("[GPIO6] 판정 상태 초기화 - 새 작업 시작")
+    # 🎯 판정 완료 상태 초기화 (START 버튼 누를 때마다 항상 초기화)
+    is_judgment_completed = False
+    current_judgment_color = None
+    print("[GPIO6] 🔄 판정 상태 초기화 완료")
     
     # LED 제어는 determine_needle_state()에서 통합 관리하므로 여기서는 상태 재평가만 수행 (Status Panel 업데이트 없음)
     determine_needle_state(send_status_update=False)
@@ -609,10 +620,9 @@ async def _on_pass_button_pressed():
         is_judgment_completed = True
         current_judgment_color = 'green'
         apply_led_state("PASS button pressed")
-        print("[GPIO13] PASS 판정 완료 - GREEN LED ON (유지)")
+        print("[GPIO13] ✅ PASS 판정 완료 - GREEN LED ON (유지)")
     else:
-        print("[GPIO13] 스타트 상태 아님 - PASS 버튼 무시")
-        # LED 제어하지 않음 (apply_led_state 호출 안함)
+        print("[GPIO13] ⚠️ 스타트 상태 아님 - PASS 버튼 무시")
     
     # 디버깅 패널로 GPIO 상태 변경 알림
     gpio_message = {
@@ -722,10 +732,9 @@ async def _on_ng_button_pressed():
         is_judgment_completed = True
         current_judgment_color = 'red'
         apply_led_state("NG button pressed")
-        print("[GPIO19] NG 판정 완료 - RED LED ON (유지)")
+        print("[GPIO19] ❌ NG 판정 완료 - RED LED ON (유지)")
     else:
-        print("[GPIO19] 스타트 상태 아님 - NG 버튼 무시")
-        # LED 제어하지 않음 (apply_led_state 호출 안함)
+        print("[GPIO19] ⚠️ 스타트 상태 아님 - NG 버튼 무시")
     
     # 디버깅 패널로 GPIO 상태 변경 알림
     gpio_message = {
