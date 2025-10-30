@@ -1030,7 +1030,8 @@ def handle_judgment_reset():
     determine_needle_state(send_status_update=True)
 
 async def handler(websocket):
-    global is_started
+    global is_started, is_judgment_completed, current_judgment_color, is_needle_short_fixed
+
     print("[INFO] 클라이언트 연결됨")
     connected_clients[websocket] = asyncio.Lock()  # Lock 객체 할당
     lock = connected_clients[websocket]  # Lock 변수 가져오기
@@ -1361,7 +1362,6 @@ async def handler(websocket):
                 # LED 제어 명령
                 elif data["cmd"] == "led_control":
                     led_type = data.get("type")
-                    global current_judgment_color, is_judgment_completed
                     
                     if led_type == "red":
                         # NG 판정
@@ -1379,8 +1379,7 @@ async def handler(websocket):
                 elif data["cmd"] == "set_start_state":
                     new_state = data.get("state", False)
                     is_started = new_state
-                    
-                    global is_judgment_completed, current_judgment_color
+                
                     
                     if new_state:  # START 상태
                         # 새로운 사이클 시작 - 이전 판정 결과 클리어
@@ -1393,7 +1392,6 @@ async def handler(websocket):
 
                 # 니들 쇼트 고정 상태 제어 명령
                 elif data["cmd"] == "set_needle_short_fixed":
-                    global is_needle_short_fixed
                     new_fixed_state = data.get("state", False)  # True: 고정, False: 해제
                     is_needle_short_fixed = new_fixed_state
                     print(f"[NEEDLE_SHORT_FIXED] 상태 변경: {'고정' if is_needle_short_fixed else '해제'}")
