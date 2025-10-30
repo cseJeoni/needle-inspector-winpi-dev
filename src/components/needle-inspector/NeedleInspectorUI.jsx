@@ -1106,77 +1106,75 @@ export default function NeedleInspectorUI() {
     drawLines(ctx, lines2, selectedIndex2, calibrationValue2)
   }
 
-  const resizeCanvas = (canvas, container, img) => {
-    // 캔버스, 컨테이너가 준비되어야 함
-    if (!canvas || !container) return;
+const resizeCanvas = (canvas, container, img) => {
+  if (!canvas || !container) return;
 
-    // ★ 중요: 이미지가 아직 로드되지 않았으면 스킵
-    if (!img || img.naturalWidth === 0) {
-      console.log(`⏳ [resizeCanvas] 이미지 아직 로드 안됨, 대기...`);
-      return; // 이미지 load 이벤트를 기다림
-    }
-
-    // 이미지가 완전히 로드된 경우에만 실행
-    const containerWidth = container.offsetWidth;
-    const containerHeight = container.offsetHeight;
-    const naturalWidth = img.naturalWidth;
-    const naturalHeight = img.naturalHeight;
-
-    console.log(`📐 [resizeCanvas] 크기 계산 시작:
-      - 컨테이너: ${containerWidth} x ${containerHeight}
-      - 이미지 원본: ${naturalWidth} x ${naturalHeight}`);
-
-    // object-fit: contain 계산 로직
-    const imgAspect = naturalWidth / naturalHeight;
-    const containerAspect = containerWidth / containerHeight;
-
-    let renderedImgWidth, renderedImgHeight, offsetX, offsetY;
-
-    if (imgAspect > containerAspect) {
-      // 이미지가 컨테이너보다 넓음 (너비에 맞춤, 상하 여백)
-      renderedImgWidth = containerWidth;
-      renderedImgHeight = renderedImgWidth / imgAspect;
-      offsetX = 0;
-      offsetY = (containerHeight - renderedImgHeight) / 2;
-    } else {
-      // 이미지가 컨테이너보다 높음 (높이에 맞춤, 좌우 여백)
-      renderedImgHeight = containerHeight;
-      renderedImgWidth = renderedImgHeight * imgAspect;
-      offsetX = (containerWidth - renderedImgWidth) / 2;
-      offsetY = 0;
-    }
-
-    console.log(`📐 [resizeCanvas] 계산 결과:
-      - 렌더링 크기: ${renderedImgWidth.toFixed(1)} x ${renderedImgHeight.toFixed(1)}
-      - 오프셋: (${offsetX.toFixed(1)}, ${offsetY.toFixed(1)})`);
-
-    // 1. 캔버스 해상도(width/height)를 렌더링된 이미지 크기로 설정
-    const prevWidth = canvas.width;
-    const prevHeight = canvas.height;
-    canvas.width = renderedImgWidth;
-    canvas.height = renderedImgHeight;
-
-    // 2. 캔버스 위치(style)를 여백(offset)만큼 밀어서 이미지와 일치시킴
-    canvas.style.left = `${offsetX}px`;
-    canvas.style.top = `${offsetY}px`;
-    
-    // 3. 캔버스의 CSS 크기(style.width/height)도 해상도와 동일하게 설정
-    canvas.style.width = `${renderedImgWidth}px`;
-    canvas.style.height = `${renderedImgHeight}px`;
-
-    // ★ 캔버스 크기가 변경되었으면 로그 출력
-    if (prevWidth !== canvas.width || prevHeight !== canvas.height) {
-      console.log(`✅ [resizeCanvas] 캔버스 크기 변경됨: 
-        ${prevWidth}x${prevHeight} → ${canvas.width}x${canvas.height}`);
-    }
-
-    // ★★★ 중요: 캔버스 크기 설정 후 여기서 바로 다시 그립니다. ★★★
-    if (canvas.id === 'canvas-1') {
-      redrawCanvas1();
-    } else if (canvas.id === 'canvas-2') {
-      redrawCanvas2();
-    }
+  // 이미지가 로드되지 않았으면 스킵
+  if (!img || img.naturalWidth === 0) {
+    console.log(`⏳ [resizeCanvas] 이미지 아직 로드 안됨, 대기...`);
+    return;
   }
+
+  // 이전 캔버스 내용 저장
+  const tempCanvas = document.createElement('canvas');
+  const tempCtx = tempCanvas.getContext('2d');
+  tempCanvas.width = canvas.width;
+  tempCanvas.height = canvas.height;
+  
+  // 현재 캔버스 내용을 임시 캔버스에 복사
+  if (canvas.width > 0 && canvas.height > 0) {
+    tempCtx.drawImage(canvas, 0, 0);
+  }
+
+  const containerWidth = container.offsetWidth;
+  const containerHeight = container.offsetHeight;
+  const naturalWidth = img.naturalWidth;
+  const naturalHeight = img.naturalHeight;
+
+  // object-fit: contain 계산
+  const imgAspect = naturalWidth / naturalHeight;
+  const containerAspect = containerWidth / containerHeight;
+
+  let renderedImgWidth, renderedImgHeight, offsetX, offsetY;
+
+  if (imgAspect > containerAspect) {
+    renderedImgWidth = containerWidth;
+    renderedImgHeight = renderedImgWidth / imgAspect;
+    offsetX = 0;
+    offsetY = (containerHeight - renderedImgHeight) / 2;
+  } else {
+    renderedImgHeight = containerHeight;
+    renderedImgWidth = renderedImgHeight * imgAspect;
+    offsetX = (containerWidth - renderedImgWidth) / 2;
+    offsetY = 0;
+  }
+
+  // 캔버스 크기 설정
+  const prevWidth = canvas.width;
+  const prevHeight = canvas.height;
+  canvas.width = renderedImgWidth;
+  canvas.height = renderedImgHeight;
+
+  // 캔버스 위치 설정
+  canvas.style.left = `${offsetX}px`;
+  canvas.style.top = `${offsetY}px`;
+  canvas.style.width = `${renderedImgWidth}px`;
+  canvas.style.height = `${renderedImgHeight}px`;
+
+  // 크기가 변경되었으면 선 다시 그리기
+  if (prevWidth !== canvas.width || prevHeight !== canvas.height) {
+    console.log(`✅ [resizeCanvas] 캔버스 크기 변경됨: ${prevWidth}x${prevHeight} → ${canvas.width}x${canvas.height}`);
+    
+    // requestAnimationFrame을 사용하여 다음 프레임에서 그리기
+    requestAnimationFrame(() => {
+      if (canvas.id === 'canvas-1') {
+        redrawCanvas1();
+      } else if (canvas.id === 'canvas-2') {
+        redrawCanvas2();
+      }
+    });
+  }
+}
 
   // resizeAll 함수는 이제 "어떤 캔버스를 리사이즈 할지" 결정만 합니다.
   const resizeAll = () => {
@@ -1369,56 +1367,70 @@ export default function NeedleInspectorUI() {
     }, 100);
   };
 
-  // 프로그램 시작시 저장된 선 정보 로드
-  useEffect(() => {
-    const loadAllSavedLines = async () => {
-      try {
-        
-        // 카메라 1 선 정보 로드
-        const camera1Data = await loadCameraLinesData(1);
-        // 1. 데이터 형식 검사 (relX1이 있는지 확인)
-        if (camera1Data.lines && camera1Data.lines.length > 0) {
-          if (camera1Data.lines[0].relX1 !== undefined) {
-            setLines1([...camera1Data.lines]); // 새 형식, 정상 로드
-          } else {
-            console.warn("[Camera 1] 구(절대) 좌표 형식의 선 데이터가 발견되었습니다. 리사이징을 지원하기 위해 선을 다시 그려주세요.");
-            setLines1([]); // 구 형식 데이터 버리기
-          }
+// 프로그램 시작시 저장된 선 정보 로드 부분 수정
+useEffect(() => {
+  const loadAllSavedLines = async () => {
+    try {
+      // 카메라 1 선 정보 로드
+      const camera1Data = await loadCameraLinesData(1);
+      if (camera1Data.lines && camera1Data.lines.length > 0) {
+        if (camera1Data.lines[0].relX1 !== undefined) {
+          setLines1([...camera1Data.lines]);
+        } else {
+          console.warn("[Camera 1] 구 좌표 형식 데이터 발견");
+          setLines1([]);
         }
-        if (camera1Data.calibrationValue) {
-          setCalibrationValue1(camera1Data.calibrationValue);
-        }
-        if (camera1Data.selectedLineColor) {
-          setSelectedLineColor1(camera1Data.selectedLineColor);
-        }
-
-        // 카메라 2 선 정보 로드
-        const camera2Data = await loadCameraLinesData(2);
-        // 2. 데이터 형식 검사
-        if (camera2Data.lines && camera2Data.lines.length > 0) {
-          if (camera2Data.lines[0].relX1 !== undefined) {
-            setLines2([...camera2Data.lines]); // 새 형식, 정상 로드
-          } else {
-            console.warn("[Camera 2] 구(절대) 좌표 형식의 선 데이터가 발견되었습니다. 리사이징을 지원하기 위해 선을 다시 그려주세요.");
-            setLines2([]); // 구 형식 데이터 버리기
-          }
-        }
-        if (camera2Data.calibrationValue) {
-          setCalibrationValue2(camera2Data.calibrationValue);
-        }
-        if (camera2Data.selectedLineColor) {
-          setSelectedLineColor2(camera2Data.selectedLineColor);
-        }
-
-
-        
-      } catch (error) {
-        console.error('❌ 저장된 카메라 선 정보 로드 실패:', error);
       }
-    };
+      if (camera1Data.calibrationValue) {
+        setCalibrationValue1(camera1Data.calibrationValue);
+      }
+      if (camera1Data.selectedLineColor) {
+        setSelectedLineColor1(camera1Data.selectedLineColor);
+      }
 
-    loadAllSavedLines();
-  }, []); // 컴포넌트 마운트시 한 번만 실행
+      // 카메라 2 선 정보 로드
+      const camera2Data = await loadCameraLinesData(2);
+      if (camera2Data.lines && camera2Data.lines.length > 0) {
+        if (camera2Data.lines[0].relX1 !== undefined) {
+          setLines2([...camera2Data.lines]);
+        } else {
+          console.warn("[Camera 2] 구 좌표 형식 데이터 발견");
+          setLines2([]);
+        }
+      }
+      if (camera2Data.calibrationValue) {
+        setCalibrationValue2(camera2Data.calibrationValue);
+      }
+      if (camera2Data.selectedLineColor) {
+        setSelectedLineColor2(camera2Data.selectedLineColor);
+      }
+
+      // 데이터 로드 후 강제로 캔버스 초기화 및 그리기
+      setTimeout(() => {
+        const img1 = videoContainerRef1.current?.querySelector('.camera-image');
+        const img2 = videoContainerRef2.current?.querySelector('.camera-image');
+        
+        if (img1 && img1.complete) {
+          resizeCanvas(canvasRef1.current, videoContainerRef1.current, img1);
+        }
+        if (img2 && img2.complete) {
+          resizeCanvas(canvasRef2.current, videoContainerRef2.current, img2);
+        }
+        
+        // 명시적으로 다시 그리기
+        requestAnimationFrame(() => {
+          redrawCanvas1();
+          redrawCanvas2();
+        });
+      }, 100);
+      
+    } catch (error) {
+      console.error('❌ 저장된 카메라 선 정보 로드 실패:', error);
+    }
+  };
+
+  loadAllSavedLines();
+}, []);
 
 
   // WebSocket 자동 연결 (컴포넌트 마운트 시)
@@ -1445,34 +1457,6 @@ export default function NeedleInspectorUI() {
       }
     }
   }, []) // 컴포넌트 마운트시 한 번만 실행
-
-  // DOM 렌더링 완료 후 캔버스 초기화 (중복 실행 방지)
-  useLayoutEffect(() => {
-    // 로드 중이면 실행하지 않음 (중복 방지)
-    if (lines1.length === 0 && lines2.length === 0) {
-      return;
-    }
-
-    const initializeCanvas = () => {
-      const canvas1 = canvasRef1.current;
-      const canvas2 = canvasRef2.current;
-      const container1 = videoContainerRef1.current;
-      const container2 = videoContainerRef2.current;
-      
-      if (canvas1 && canvas2 && container1 && container2) {
-        // 캔버스 크기 설정
-        resizeCanvas(canvas1, container1);
-        resizeCanvas(canvas2, container2);
-        
-        // 즉시 그리기 시도
-        redrawCanvas1();
-        redrawCanvas2();
-      }
-    };
-
-    // DOM이 완전히 렌더링된 후 실행
-    initializeCanvas();
-  }, [lines1.length, lines2.length]); // 선 개수가 변경될 때만 실행
 
   // 프로그램 종료시 선 정보 자동 저장을 위한 beforeunload 이벤트
   useEffect(() => {
@@ -1967,62 +1951,76 @@ export default function NeedleInspectorUI() {
     }
   }
 
-  useEffect(() => {
-    const img1 = document.querySelector('#camera-feed-1 img')
-    const img2 = document.querySelector('#camera-feed-2 img')
+useEffect(() => {
+  const img1 = document.querySelector('#camera-feed-1 img');
+  const img2 = document.querySelector('#camera-feed-2 img');
 
-    // ★ 이미지 로드 이벤트 핸들러
-    const handleImageLoad = (e) => {
-      console.log(`🖼️ [이미지 로드] ${e.target.alt} 로드 완료`);
-      resizeAll();
-    }
-
-    // ★ 윈도우 리사이즈 핸들러
-    const handleWindowResize = () => {
-      console.log(`🔄 [윈도우 리사이즈] 이벤트 발생`);
-      // 디바운싱을 위한 타이머
-      clearTimeout(window.resizeTimer);
-      window.resizeTimer = setTimeout(() => {
-        console.log(`⏱️ [윈도우 리사이즈] 디바운스 후 resizeAll 실행`);
-        resizeAll();
-      }, 100);
-    }
-
-    // 이벤트 리스너 등록
-    window.addEventListener('resize', handleWindowResize);
+  const handleImageLoad = (e) => {
+    console.log(`🖼️ [이미지 로드] ${e.target.alt} 로드 완료`);
     
-    if (img1) {
-      img1.addEventListener('load', handleImageLoad);
-      // 이미 로드된 경우 즉시 실행
-      if (img1.complete && img1.naturalWidth > 0) {
-        console.log(`✅ [초기화] Camera 1 이미지 이미 로드됨`);
-        resizeCanvas(canvasRef1.current, videoContainerRef1.current, img1);
+    // 이미지 로드 완료 후 캔버스 리사이징 및 선 그리기
+    requestAnimationFrame(() => {
+      if (e.target.alt === 'Camera 1') {
+        resizeCanvas(canvasRef1.current, videoContainerRef1.current, e.target);
+        redrawCanvas1();
+      } else if (e.target.alt === 'Camera 2') {
+        resizeCanvas(canvasRef2.current, videoContainerRef2.current, e.target);
+        redrawCanvas2();
       }
-    }
-    
-    if (img2) {
-      img2.addEventListener('load', handleImageLoad);
-      // 이미 로드된 경우 즉시 실행
-      if (img2.complete && img2.naturalWidth > 0) {
-        console.log(`✅ [초기화] Camera 2 이미지 이미 로드됨`);
-        resizeCanvas(canvasRef2.current, videoContainerRef2.current, img2);
-      }
-    }
+    });
+  };
 
-    // 초기 실행 (이미지가 캐시되어 있을 수 있음)
-    setTimeout(() => {
-      console.log(`⏱️ [초기화] 100ms 후 초기 resizeAll 실행`);
+  const handleWindowResize = () => {
+    clearTimeout(window.resizeTimer);
+    window.resizeTimer = setTimeout(() => {
+      console.log(`⏱️ [윈도우 리사이즈] 디바운스 후 resizeAll 실행`);
       resizeAll();
+      
+      // 리사이즈 후 명시적으로 다시 그리기
+      requestAnimationFrame(() => {
+        redrawCanvas1();
+        redrawCanvas2();
+      });
     }, 100);
+  };
 
-    // 클린업
-    return () => {
-      window.removeEventListener('resize', handleWindowResize);
-      if (img1) img1.removeEventListener('load', handleImageLoad);
-      if (img2) img2.removeEventListener('load', handleImageLoad);
-      clearTimeout(window.resizeTimer);
+  window.addEventListener('resize', handleWindowResize);
+  
+  if (img1) {
+    img1.addEventListener('load', handleImageLoad);
+    if (img1.complete && img1.naturalWidth > 0) {
+      console.log(`✅ [초기화] Camera 1 이미지 이미 로드됨`);
+      resizeCanvas(canvasRef1.current, videoContainerRef1.current, img1);
+      requestAnimationFrame(() => redrawCanvas1());
     }
-  }, [videoServerUrl]) // videoServerUrl이 변경될 때 다시 실행
+  }
+  
+  if (img2) {
+    img2.addEventListener('load', handleImageLoad);
+    if (img2.complete && img2.naturalWidth > 0) {
+      console.log(`✅ [초기화] Camera 2 이미지 이미 로드됨`);
+      resizeCanvas(canvasRef2.current, videoContainerRef2.current, img2);
+      requestAnimationFrame(() => redrawCanvas2());
+    }
+  }
+
+  // 초기 실행
+  setTimeout(() => {
+    console.log(`⏱️ [초기화] 초기 resizeAll 및 redraw 실행`);
+    resizeAll();
+    requestAnimationFrame(() => {
+      redrawCanvas1();
+      redrawCanvas2();
+    });
+  }, 200);
+
+  return () => {
+    window.removeEventListener('resize', handleWindowResize);
+    if (img1) img1.removeEventListener('load', handleImageLoad);
+    if (img2) img2.removeEventListener('load', handleImageLoad);
+    clearTimeout(window.resizeTimer);
+  };
+}, [videoServerUrl, lines1, lines2]); // lines1, lines2 의존성 추가
 
   return (
     <div className="bg-[#000000] min-h-screen text-white font-sans p-4 flex flex-col gap-4">
