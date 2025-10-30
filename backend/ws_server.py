@@ -263,12 +263,12 @@ def determine_needle_state():
             # [P2] 니들 쇼트 (GPIO11 ON + GPIO5 HIGH)
             new_state = "needle_short"
             needle_tip_connected = True  # 물리적으로는 연결되어 있음
-            if is_started:
-                set_led_red_on()
-                print("[STATE] P2: 니들 쇼트 - RED LED ON")
-            else:
-                set_led_blue_on()  # 시작 전이면 연결 상태 표시
-                print("[STATE] P2: 니들 쇼트 (시작 전) - BLUE LED ON")
+            
+            # ★★★ 로직 수정 ★★★
+            # 쇼트는 is_started 상태와 관계없이 항상 RED
+            set_led_red_on()
+            print("[STATE] P2: 니들 쇼트 - RED LED ON")
+            # ★★★ ----------------- ★★★
                 
         elif gpio11_state and not gpio5_state:
             # [P3] 정상 (GPIO11 ON + GPIO5 LOW)
@@ -1424,10 +1424,12 @@ async def handler(websocket):
                     is_started = new_state
                     print(f"[START_STATE] 상태 변경: {'START' if is_started else 'STOP'}")
                     
-                    # STOP 상태로 변경될 때 니들 상태 재평가
-                    if not new_state:
-                        print("[START_STATE] STOP 상태로 변경 - 니들 상태 재평가")
-                        determine_needle_state()  # 현재 GPIO 상태에 따라 올바른 상태로 재설정
+                    # ★★★ 로직 수정 ★★★
+                    # START 또는 STOP 상태 변경 시, 즉시 니들 상태 재평가
+                    # (START 시 쇼트가 감지되면 RED, 정상이면 BLUE로 즉시 변경)
+                    print(f"[START_STATE] {'START' if new_state else 'STOP'} 수신 - 니들 상태 및 LED 즉시 재평가")
+                    determine_needle_state()  # 현재 GPIO 상태에 따라 올바른 상태로 재설정
+                    # ★★★ ----------------- ★★★
                     
                     async with lock:
                         await websocket.send(json.dumps({
