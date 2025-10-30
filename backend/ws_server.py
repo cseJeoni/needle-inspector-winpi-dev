@@ -349,8 +349,8 @@ if gpio_available:
 # GPIO 인터럽트 핸들러들 - 모두 통합 상태 결정 함수 호출
 def _on_gpio_change():
     """GPIO 상태 변경 시 호출되는 통합 핸들러"""
-    print("[GPIO_INTERRUPT] GPIO 상태 변경 감지 - 상태 재평가 시작")
-    determine_needle_state()
+    print("[GPIO_INTERRUPT] GPIO 상태 변경 감지 - 상태 재평가 시작 (Status Panel 업데이트 없음)")
+    determine_needle_state(send_status_update=False)
 
 # 디버깅 패널용 GPIO 상태 알림 함수
 async def _send_gpio_debug_message(pin, state):
@@ -381,8 +381,8 @@ async def _on_gpio5_changed():
     # 디버깅 패널로 GPIO 상태 변경 알림
     await _send_gpio_debug_message(5, state)
     
-    # 통합 상태 결정 함수 호출
-    determine_needle_state()
+    # 통합 상태 결정 함수 호출 (Status Panel 업데이트 없음)
+    determine_needle_state(send_status_update=False)
 
 # GPIO11 이벤트 핸들러 (통합 상태 결정 방식)  
 async def _on_gpio11_changed():
@@ -393,8 +393,8 @@ async def _on_gpio11_changed():
     # 디버깅 패널로 GPIO 상태 변경 알림
     await _send_gpio_debug_message(11, state)
     
-    # 통합 상태 결정 함수 호출
-    determine_needle_state()
+    # 통합 상태 결정 함수 호출 (Status Panel 업데이트 없음)
+    determine_needle_state(send_status_update=False)
 
 def _on_gpio5_changed_sync():
     """GPIO5 상태 변경 동기 래퍼 함수"""
@@ -448,8 +448,8 @@ async def _on_start_button_pressed():
     is_started = not is_started
     print(f"[GPIO6] START 버튼 스위치 눌림 - 스타트 상태: {'활성화' if is_started else '비활성화'}")
     
-    # LED 제어는 determine_needle_state()에서 통합 관리하므로 여기서는 상태 재평가만 수행
-    determine_needle_state()
+    # LED 제어는 determine_needle_state()에서 통합 관리하므로 여기서는 상태 재평가만 수행 (Status Panel 업데이트 없음)
+    determine_needle_state(send_status_update=False)
     print("[GPIO6] START 상태 변경 후 니들 상태 재평가 완료")
     
     # 디버깅 패널로 GPIO 상태 변경 알림
