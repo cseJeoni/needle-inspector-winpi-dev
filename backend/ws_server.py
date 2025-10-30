@@ -47,7 +47,8 @@ pin13 = None  # GPIO13 객체 (PASS 버튼 스위치용)
 pin19 = None  # GPIO19 객체 (NG 버튼 스위치용)
 
 # LED 상태 관리
-current_led_state = None  # 현재 LED 상태 ('blue', 'red', 'green', 'off')
+current_led_color = 'off'  # 현재 LED 색상
+current_judgment_color = None  # 판정 완료 시 색상
 
 # LED GPIO 핀 (출력용)
 led_blue = None   # GPIO17 - BLUE LED
@@ -126,6 +127,48 @@ def check_initial_needle_tip_state():
             
     except Exception as e:
         print(f"[ERROR] 니들팁 초기 상태 확인 실패: {e}")
+
+def is_needle_short():
+    """현재 니들 쇼트 상태인지 확인"""
+    if not gpio_available or not pin5:
+        return False
+    return pin5.is_active
+
+def determine_led_color():
+    """우선순위에 따라 LED 색상 결정"""
+    # 우선순위 1: 니들 연결 안됨
+    if not needle_tip_connected:
+        return 'off'
+    
+    # 우선순위 2: 판정 완료 상태 (최우선)
+    if is_judgment_completed and current_judgment_color:
+        return current_judgment_color
+    
+    # 우선순위 3: 니들 쇼트
+    if is_needle_short_fixed or is_needle_short():
+        return 'red'
+    
+    # 우선순위 4: 기본 상태 (정상 연결)
+    return 'blue'
+
+def apply_led_state(reason="unknown"):
+    """결정된 색상으로 LED 적용"""
+    global current_led_color
+    target_color = determine_led_color()
+    
+    if target_color != current_led_color:
+        print(f"[LED] 색상 변경: {current_led_color} → {target_color} (이유: {reason})")
+        
+        if target_color == 'blue':
+            set_led_blue_on()
+        elif target_color == 'red':
+            set_led_red_on()
+        elif target_color == 'green':
+            set_led_green_on()
+        else:
+            set_all_leds_off()
+            
+        current_led_color = target_color
 
 # LED 제어 함수들
 def set_led_blue_on():
@@ -236,109 +279,6 @@ def get_led_status():
             print(f"[ERROR] LED 상태 읽기 실패: {e}")
             return {"blue": False, "red": False, "green": False}
     return {"blue": False, "red": False, "green": False}
-
-# 통합 니들 상태 결정 함수
-def determine_needle_state(send_status_update=False):
-    """GPIO11과 GPIO5 상태를 읽어서 우선순위에 따라 니들 상태 결정
-    
-    Args:
-        send_status_update (bool): True이면 상태 변경을 클라이언트에게 알림 (START 버튼 시에만)
-    """
-    global needle_tip_connected, current_needle_state
-    
-    if not gpio_available or not pin11 or not pin5:
-        print("[WARN] GPIO 기능이 비활성화되어 있어 니들 상태를 확인할 수 없습니다.")
-        return
-    
-    try:
-        # 현재 두 핀의 상태를 동시에 읽기
-        gpio11_state = pin11.is_active  # True: 니들팁 연결됨, False: 분리됨
-        gpio5_state = pin5.is_active    # True: 쇼트 감지, False: 정상
-        
-        print(f"[GPIO_STATE] GPIO11: {'ON' if gpio11_state else 'OFF'}, GPIO5: {'HIGH' if gpio5_state else 'LOW'}")
-        
-        # 우선순위에 따른 상태 결정
-        if not gpio11_state:
-            # [P1] 니들팁 없음 (GPIO11 OFF): 가장 높은 우선순위
-            new_state = "disconnected"
-            needle_tip_connected = False
-            set_all_leds_off()
-            print("[STATE] P1: 니들팁 없음 - 모든 LED OFF")
-            
-        elif gpio11_state and gpio5_state:
-            # [P2] 니들 쇼트 (GPIO11 ON + GPIO5 HIGH)
-            new_state = "needle_short"
-            needle_tip_connected = True  # 물리적으로는 연결되어 있음
-            
-            # 판정 완료 상태 확인
-            if is_judgment_completed:
-                print("[STATE] P2: 니들 쇼트 감지 - 판정 완료 상태로 LED 변경 없음")
-                # 판정 완료 상태이면 LED 변경하지 않음
-            elif is_needle_short_fixed:
-                # 니들 쇼트 고정 상태이면 RED LED 유지
-                set_led_red_on()
-                print("[STATE] P2: 니들 쇼트 + 고정 상태 - RED LED 유지")
-            else:
-                # 실시간 니들 쇼트 감지 시에는 LED 변경하지 않음 (START 버튼에서만 제어)
-                print("[STATE] P2: 니들 쇼트 감지 - LED 변경 없음 (START 버튼에서만 제어)")
-                # 현재 LED 상태 유지
-                
-        elif gpio11_state and not gpio5_state:
-            # [P3] 정상 (GPIO11 ON + GPIO5 LOW)
-            new_state = "connected"
-            needle_tip_connected = True
-            
-            # 판정 완료 상태 확인
-            if is_judgment_completed:
-                print("[STATE] P3: 정상 연결 - 판정 완료 상태로 LED 변경 없음")
-                # 판정 완료 상태이면 LED 변경하지 않음
-            elif is_needle_short_fixed:
-                # 니들 쇼트 고정 상태이면 RED LED 유지 (쇼트가 해제되어도)
-                set_led_red_on()
-                print("[STATE] P3: 정상 연결이지만 START 시점 쇼트 고정으로 RED LED 유지")
-            else:
-                # 정상 상태이면 BLUE LED
-                set_led_blue_on()
-                print("[STATE] P3: 정상 연결 - BLUE LED ON")
-            
-        else:
-            # 예상치 못한 상태 (이론적으로 발생하지 않음)
-            print(f"[ERROR] 예상치 못한 GPIO 상태: GPIO11={gpio11_state}, GPIO5={gpio5_state}")
-            return
-        
-        # 상태 변경 시에만 로그 출력
-        if current_needle_state != new_state:
-            print(f"[STATE_CHANGE] {current_needle_state} → {new_state}")
-            current_needle_state = new_state
-            
-            # START 버튼 시에만 상태 변경을 클라이언트에게 알림
-            if send_status_update:
-                state_message = {
-                    "type": "needle_state_change",
-                    "data": {
-                        "state": new_state,
-                        "needle_tip_connected": needle_tip_connected,
-                        "gpio11": gpio11_state,
-                        "gpio5": gpio5_state,
-                        "timestamp": time.time()
-                    }
-                }
-                
-                for ws, lock in connected_clients.copy().items():
-                    try:
-                        asyncio.run_coroutine_threadsafe(
-                            _send_state_message(ws, lock, state_message),
-                            main_event_loop
-                        )
-                    except Exception as e:
-                        print(f"[WARN] 상태 변경 알림 전송 실패: {e}")
-                        
-                print(f"[STATUS_UPDATE] Status Panel에 상태 변경 알림: {new_state}")
-            else:
-                print(f"[NO_STATUS_UPDATE] 실시간 상태 변경 - Status Panel 알림 없음: {new_state}")
-                    
-    except Exception as e:
-        print(f"[ERROR] 니들 상태 결정 실패: {e}")
 
 async def _send_state_message(websocket, lock, message):
     """상태 변경 메시지를 클라이언트에게 전송"""
@@ -563,10 +503,10 @@ async def _on_pass_button_pressed():
     # 니들팁이 연결된 경우에만 정상 동작
     # LED 제어: 스타트 상태일 때만 GREEN LED ON
     if is_started:
-        global is_judgment_completed
-        is_judgment_completed = True  # 판정 완료 상태 설정
-        set_led_green_on()
-        print("[GPIO13] 스타트 상태 - GREEN LED ON + 판정 완료 상태 설정")
+        global is_judgment_completed, current_judgment_color
+        is_judgment_completed = True
+        current_judgment_color = 'green'
+        apply_led_state("PASS button pressed")
     else:
         print("[GPIO13] 스타트 상태 아님 - LED 제어 안함")
         # 니들팁이 연결되어 있으면 BLUE LED 유지
@@ -681,10 +621,10 @@ async def _on_ng_button_pressed():
     # 니들팁이 연결된 경우에만 정상 동작
     # LED 제어: 스타트 상태일 때만 RED LED ON
     if is_started:
-        global is_judgment_completed
-        is_judgment_completed = True  # 판정 완료 상태 설정
-        set_led_red_on()
-        print("[GPIO19] 스타트 상태 - RED LED ON + 판정 완료 상태 설정")
+        global is_judgment_completed, current_judgment_color
+        is_judgment_completed = True
+        current_judgment_color = 'red'
+        apply_led_state("NG button pressed")
     else:
         print("[GPIO19] 비활성 상태 - LED 제어 무시")
         # 니들팁이 연결되어 있으면 상태에 따라 LED 유지
@@ -1421,71 +1361,35 @@ async def handler(websocket):
                 # LED 제어 명령
                 elif data["cmd"] == "led_control":
                     led_type = data.get("type")
-                    print(f"[LED_CONTROL] 명령 수신: {led_type}")
+                    global current_judgment_color, is_judgment_completed
                     
-                    if led_type == "blue":
-                        set_led_blue_on()
-                        result = {"success": True, "message": "BLUE LED ON"}
-                    elif led_type == "red":
-                        print("[LED_CONTROL] RED LED 제어 명령 실행")
-                        set_led_red_on()
-                        result = {"success": True, "message": "RED LED ON"}
+                    if led_type == "red":
+                        # NG 판정
+                        is_judgment_completed = True
+                        current_judgment_color = 'red'
+                        apply_led_state("NG judgment")
+                        
                     elif led_type == "green":
-                        set_led_green_on()
-                        result = {"success": True, "message": "GREEN LED ON"}
-                    elif led_type == "all_off":
-                        set_all_leds_off()
-                        result = {"success": True, "message": "모든 LED OFF"}
-                    elif led_type == "status":
-                        # LED 상태 조회
-                        status = get_led_status()
-                        result = {"success": True, "status": status}
-                    elif led_type == "test_ng":
-                        # NG 버튼 테스트 - 강제로 RED LED만 켜기
-                        print("[LED_CONTROL] NG 버튼 테스트 실행 - 강제 RED LED")
-                        try:
-                            if led_blue: led_blue.off()
-                            if led_red: led_red.on()
-                            if led_green: led_green.off()
-                            print("[LED_CONTROL] 강제 RED LED ON 완료")
-                            result = {"success": True, "message": "강제 RED LED ON 테스트 완료"}
-                        except Exception as e:
-                            print(f"[LED_CONTROL] 강제 RED LED 실패: {e}")
-                            result = {"success": False, "error": str(e)}
-                    else:
-                        result = {"success": False, "error": f"지원하지 않는 LED 타입: {led_type}"}
-                    
-                    async with lock:
-                        await websocket.send(json.dumps({
-                            "type": "led_control",
-                            "result": result
-                        }) + '\n')
+                        # PASS 판정
+                        is_judgment_completed = True
+                        current_judgment_color = 'green'
+                        apply_led_state("PASS judgment")
 
                 # START/STOP 상태 제어 명령
                 elif data["cmd"] == "set_start_state":
-                    new_state = data.get("state", False)  # True: START, False: STOP
+                    new_state = data.get("state", False)
                     is_started = new_state
-                    print(f"[START_STATE] 상태 변경: {'START' if is_started else 'STOP'}")
                     
-                    # ★★★ 로직 수정 ★★★
-                    # START 또는 STOP 상태 변경 시, 즉시 니들 상태 재평가
-                    # (START 시 쇼트가 감지되면 RED, 정상이면 BLUE로 즉시 변경)
+                    global is_judgment_completed, current_judgment_color
                     
-                    # STOP 버튼 시 판정 완료 상태 해제
-                    if not new_state:  # STOP 상태
-                        global is_judgment_completed
+                    if new_state:  # START 상태
+                        # 새로운 사이클 시작 - 이전 판정 결과 클리어
                         is_judgment_completed = False
-                        print("[START_STATE] STOP 수신 - 판정 완료 상태 해제")
-                    
-                    print(f"[START_STATE] {'START' if new_state else 'STOP'} 수신 - 니들 상태 및 LED 즉시 재평가")
-                    determine_needle_state(send_status_update=True)  # Status Panel에 상태 알림 포함
-                    # ★★★ ----------------- ★★★
-                    
-                    async with lock:
-                        await websocket.send(json.dumps({
-                            "type": "start_state",
-                            "result": {"success": True, "is_started": is_started}
-                        }) + '\n')
+                        current_judgment_color = None
+                        determine_needle_state(send_status_update=True)
+                    else:  # STOP 상태
+                        # STOP 시에는 현재 상태 유지 (판정 LED 보존)
+                        print("[START_STATE] STOP 수신 - 현재 상태 유지")
 
                 # 니들 쇼트 고정 상태 제어 명령
                 elif data["cmd"] == "set_needle_short_fixed":
