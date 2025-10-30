@@ -58,6 +58,7 @@ needle_tip_connected = False  # 니들팁 연결 상태 (전역 변수)
 is_started = False  # 스타트 상태 (전역 변수) - 판정 버튼 활성화 여부
 current_needle_state = "disconnected"  # 현재 니들 상태: "disconnected", "needle_short", "connected"
 is_needle_short_fixed = False  # START 시점 니들 쇼트 고정 상태 (LED RED 유지용)
+is_judgment_completed = False  # 판정 완료 상태 (PASS/NG 후 LED 고정용)
 last_eeprom_data = {"success": False, "error": "니들팁이 연결되지 않음"}  # 마지막 EEPROM 상태
 
 try:
@@ -269,8 +270,11 @@ def determine_needle_state(send_status_update=False):
             new_state = "needle_short"
             needle_tip_connected = True  # 물리적으로는 연결되어 있음
             
-            # START 시점 니들 쇼트 고정 상태 확인
-            if is_needle_short_fixed:
+            # 판정 완료 상태 확인
+            if is_judgment_completed:
+                print("[STATE] P2: 니들 쇼트 감지 - 판정 완료 상태로 LED 변경 없음")
+                # 판정 완료 상태이면 LED 변경하지 않음
+            elif is_needle_short_fixed:
                 # 니들 쇼트 고정 상태이면 RED LED 유지
                 set_led_red_on()
                 print("[STATE] P2: 니들 쇼트 + 고정 상태 - RED LED 유지")
@@ -284,8 +288,11 @@ def determine_needle_state(send_status_update=False):
             new_state = "connected"
             needle_tip_connected = True
             
-            # START 시점 니들 쇼트 고정 상태 확인
-            if is_needle_short_fixed:
+            # 판정 완료 상태 확인
+            if is_judgment_completed:
+                print("[STATE] P3: 정상 연결 - 판정 완료 상태로 LED 변경 없음")
+                # 판정 완료 상태이면 LED 변경하지 않음
+            elif is_needle_short_fixed:
                 # 니들 쇼트 고정 상태이면 RED LED 유지 (쇼트가 해제되어도)
                 set_led_red_on()
                 print("[STATE] P3: 정상 연결이지만 START 시점 쇼트 고정으로 RED LED 유지")
@@ -556,8 +563,10 @@ async def _on_pass_button_pressed():
     # 니들팁이 연결된 경우에만 정상 동작
     # LED 제어: 스타트 상태일 때만 GREEN LED ON
     if is_started:
+        global is_judgment_completed
+        is_judgment_completed = True  # 판정 완료 상태 설정
         set_led_green_on()
-        print("[GPIO13] 스타트 상태 - GREEN LED ON")
+        print("[GPIO13] 스타트 상태 - GREEN LED ON + 판정 완료 상태 설정")
     else:
         print("[GPIO13] 스타트 상태 아님 - LED 제어 안함")
         # 니들팁이 연결되어 있으면 BLUE LED 유지
@@ -672,8 +681,10 @@ async def _on_ng_button_pressed():
     # 니들팁이 연결된 경우에만 정상 동작
     # LED 제어: 스타트 상태일 때만 RED LED ON
     if is_started:
+        global is_judgment_completed
+        is_judgment_completed = True  # 판정 완료 상태 설정
         set_led_red_on()
-        print("[GPIO19] 스타트 상태 - RED LED ON")
+        print("[GPIO19] 스타트 상태 - RED LED ON + 판정 완료 상태 설정")
     else:
         print("[GPIO19] 비활성 상태 - LED 제어 무시")
         # 니들팁이 연결되어 있으면 상태에 따라 LED 유지
@@ -1449,6 +1460,13 @@ async def handler(websocket):
                     # ★★★ 로직 수정 ★★★
                     # START 또는 STOP 상태 변경 시, 즉시 니들 상태 재평가
                     # (START 시 쇼트가 감지되면 RED, 정상이면 BLUE로 즉시 변경)
+                    
+                    # STOP 버튼 시 판정 완료 상태 해제
+                    if not new_state:  # STOP 상태
+                        global is_judgment_completed
+                        is_judgment_completed = False
+                        print("[START_STATE] STOP 수신 - 판정 완료 상태 해제")
+                    
                     print(f"[START_STATE] {'START' if new_state else 'STOP'} 수신 - 니들 상태 및 LED 즉시 재평가")
                     determine_needle_state(send_status_update=True)  # Status Panel에 상태 알림 포함
                     # ★★★ ----------------- ★★★
