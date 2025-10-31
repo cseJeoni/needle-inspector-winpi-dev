@@ -138,19 +138,19 @@ def determine_led_color():
     """우선순위에 따라 LED 색상 결정
     
     우선순위:
-    1. 니들 연결 안됨 → OFF
-    2. 판정 완료 상태 → 판정 결과 색상 유지 (최우선!)
+    1. 판정 완료 상태 → 판정 결과 색상 유지 (최우선!)
+    2. 니들 연결 안됨 → OFF
     3. 니들 쇼트 → RED
     4. 기본 상태 → BLUE
     """
-    # 우선순위 1: 니들 연결 안됨
-    if not needle_tip_connected:
-        return 'off'
-    
-    # 우선순위 2: 판정 완료 상태 (최우선 - START 전까지 유지)
+    # 🔑 우선순위 1: 판정 완료 상태 (최우선 - 다른 모든 상태보다 우선)
     if is_judgment_completed and current_judgment_color:
         print(f"[LED] 판정 완료 상태 유지: {current_judgment_color.upper()}")
         return current_judgment_color
+    
+    # 우선순위 2: 니들 연결 안됨
+    if not needle_tip_connected:
+        return 'off'
     
     # 우선순위 3: 니들 쇼트
     if is_needle_short_fixed or is_needle_short():
@@ -204,31 +204,23 @@ def determine_needle_state(send_status_update=False):
             # [P1] 니들팁 없음
             new_state = "disconnected"
             needle_tip_connected = False
-            # 판정 완료 상태가 아닐 때만 LED 제어
-            if not is_judgment_completed:
-                apply_led_state("needle disconnected")
-            else:
-                print("[LED] 판정 완료 상태 - LED 변경 무시 (disconnected)")
+
+            if is_judgement_completed:
+                print("[JUDGEMENT] 니들팁 분리로 판정 상태 리셋")
+                handle_judgment_reset()
+            apply_led_state("needle disconnected")
             
         elif gpio11_state and gpio5_state:
             # [P2] 니들 쇼트
             new_state = "needle_short"
             needle_tip_connected = True
-            # 판정 완료 상태가 아닐 때만 LED 제어
-            if not is_judgment_completed:
-                apply_led_state("needle short detected")
-            else:
-                print("[LED] 판정 완료 상태 - LED 변경 무시 (short)")
+            apply_led_state("needle short detected")
                 
         elif gpio11_state and not gpio5_state:
             # [P3] 정상 연결
             new_state = "connected"
             needle_tip_connected = True
-            # 판정 완료 상태가 아닐 때만 LED 제어
-            if not is_judgment_completed:
-                apply_led_state("needle connected normally")
-            else:
-                print("[LED] 판정 완료 상태 - LED 변경 무시 (connected)")
+            apply_led_state("needle detected")
             
         else:
             # 예상치 못한 상태
