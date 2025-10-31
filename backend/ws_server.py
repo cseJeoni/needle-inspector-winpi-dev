@@ -139,22 +139,35 @@ def determine_led_color():
     
     우선순위:
     1. 판정 완료 상태 → 판정 결과 색상 유지 (최우선!)
-    2. 니들 연결 안됨 → OFF
-    3. 니들 쇼트 → RED
-    4. 기본 상태 → BLUE
+    2. 에러 상태 (쇼트, 저항비정상, EEPROM 실패) → RED
+    3. 니들 연결 안됨 → OFF
+    4. 기본 상태 (정상 연결) → BLUE
     """
     # 🔑 우선순위 1: 판정 완료 상태 (최우선 - 다른 모든 상태보다 우선)
     if is_judgment_completed and current_judgment_color:
         print(f"[LED] 판정 완료 상태 유지: {current_judgment_color.upper()}")
         return current_judgment_color
     
-    # 우선순위 2: 니들 연결 안됨
+    # 우선순위 2: 에러 상태 (니들팁 연결된 상태에서만 체크)
+    if needle_tip_connected:
+        # 니들 쇼트 고정 상태
+        if is_needle_short_fixed:
+            print(f"[LED] 에러 상태: 니들 쇼트 (고정)")
+            return 'red'
+        
+        # 실시간 니들 쇼트 감지
+        if is_needle_short():
+            print(f"[LED] 에러 상태: 니들 쇼트 (실시간)")
+            return 'red'
+        
+        # current_needle_state 기반 에러 체크
+        if current_needle_state in ["needle_short", "resistance_abnormal", "write_failed", "read_failed"]:
+            print(f"[LED] 에러 상태: {current_needle_state}")
+            return 'red'
+    
+    # 우선순위 3: 니들 연결 안됨
     if not needle_tip_connected:
         return 'off'
-    
-    # 우선순위 3: 니들 쇼트
-    if is_needle_short_fixed or is_needle_short():
-        return 'red'
     
     # 우선순위 4: 기본 상태 (정상 연결)
     return 'blue'
@@ -205,9 +218,11 @@ def determine_needle_state(send_status_update=False):
             new_state = "disconnected"
             needle_tip_connected = False
 
-            if is_judgement_completed:
-                print("[JUDGEMENT] 니들팁 분리로 판정 상태 리셋")
+            # 🔑 니들팁 분리 시 판정 상태 리셋
+            if is_judgment_completed:
+                print("[JUDGMENT] 니들팁 분리로 판정 상태 리셋")
                 handle_judgment_reset()
+            
             apply_led_state("needle disconnected")
             
         elif gpio11_state and gpio5_state:
@@ -495,10 +510,11 @@ async def _on_start_button_pressed():
     is_started = not is_started
     print(f"[GPIO6] START 버튼 스위치 눌림 - 스타트 상태: {'활성화' if is_started else '비활성화'}")
     
-    # 🎯 판정 완료 상태 초기화 (START 버튼 누를 때마다 항상 초기화)
+    # 🎯 모든 상태 초기화 (START 버튼 누를 때마다 항상 초기화)
     is_judgment_completed = False
     current_judgment_color = None
-    print("[GPIO6] 🔄 판정 상태 초기화 완료")
+    is_needle_short_fixed = False
+    print("[GPIO6] 🔄 판정 상태 및 에러 상태 초기화 완료")
     
     # LED 제어는 determine_needle_state()에서 통합 관리하므로 여기서는 상태 재평가만 수행 (Status Panel 업데이트 없음)
     determine_needle_state(send_status_update=False)
@@ -1475,13 +1491,19 @@ async def handler(websocket):
                 
                     
                     if new_state:  # START 상태
-                        # 새로운 사이클 시작 - 이전 판정 결과 클리어
+                        # 🔄 새로운 사이클 시작 - 모든 상태 초기화
                         is_judgment_completed = False
                         current_judgment_color = None
+                        is_needle_short_fixed = False
+                        print("[START_STATE] 🔄 새로운 사이클 시작 - 판정 및 에러 상태 초기화")
                         determine_needle_state(send_status_update=True)
                     else:  # STOP 상태
-                        # STOP 시에는 현재 상태 유지 (판정 LED 보존)
-                        print("[START_STATE] STOP 수신 - 현재 상태 유지")
+                        # 🔄 STOP 시 에러 상태 초기화 (판정 LED는 유지하지 않음)
+                        is_needle_short_fixed = False
+                        is_judgment_completed = False
+                        current_judgment_color = None
+                        print("[START_STATE] 🔄 STOP 수신 - 에러 상태 및 판정 상태 초기화")
+                        determine_needle_state(send_status_update=True)
 
                 # 니들 쇼트 고정 상태 제어 명령
                 elif data["cmd"] == "set_needle_short_fixed":
