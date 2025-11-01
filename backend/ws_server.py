@@ -60,6 +60,8 @@ is_started = False  # 스타트 상태 (전역 변수) - 판정 버튼 활성화
 current_needle_state = "disconnected"  # 현재 니들 상태: "disconnected", "needle_short", "connected"
 is_needle_short_fixed = False  # START 시점 니들 쇼트 고정 상태 (LED RED 유지용)
 is_judgment_completed = False  # 판정 완료 상태 (PASS/NG 후 LED 고정용)
+is_resistance_abnormal = False  # 저항 비정상 상태 (LED RED 유지용)
+is_eeprom_failed = False  # EEPROM 실패 상태 (LED RED 유지용)
 last_eeprom_data = {"success": False, "error": "니들팁이 연결되지 않음"}  # 마지막 EEPROM 상태
 
 try:
@@ -150,6 +152,16 @@ def determine_led_color():
     
     # 우선순위 2: 에러 상태 (니들팁 연결된 상태에서만 체크)
     if needle_tip_connected:
+        # 저항 비정상
+        if is_resistance_abnormal:
+            print(f"[LED] 에러 상태: 저항 비정상")
+            return 'red'
+        
+        # EEPROM 실패
+        if is_eeprom_failed:
+            print(f"[LED] 에러 상태: EEPROM 실패")
+            return 'red'
+        
         # 니들 쇼트 고정 상태
         if is_needle_short_fixed:
             print(f"[LED] 에러 상태: 니들 쇼트 (고정)")
@@ -158,11 +170,6 @@ def determine_led_color():
         # 실시간 니들 쇼트 감지
         if is_needle_short():
             print(f"[LED] 에러 상태: 니들 쇼트 (실시간)")
-            return 'red'
-        
-        # current_needle_state 기반 에러 체크
-        if current_needle_state in ["needle_short", "resistance_abnormal", "write_failed", "read_failed"]:
-            print(f"[LED] 에러 상태: {current_needle_state}")
             return 'red'
     
     # 우선순위 3: 니들 연결 안됨
@@ -514,7 +521,9 @@ async def _on_start_button_pressed():
     is_judgment_completed = False
     current_judgment_color = None
     is_needle_short_fixed = False
-    print("[GPIO6] 🔄 판정 상태 및 에러 상태 초기화 완료")
+    is_resistance_abnormal = False
+    is_eeprom_failed = False
+    print("[GPIO6] 🔄 모든 상태 초기화 완료")
     
     # LED 제어는 determine_needle_state()에서 통합 관리하므로 여기서는 상태 재평가만 수행 (Status Panel 업데이트 없음)
     determine_needle_state(send_status_update=False)
@@ -1130,10 +1139,12 @@ def read_eeprom_mtr40():
 
 def handle_judgment_reset():
     """판정 완료 상태를 명시적으로 리셋하는 함수"""
-    global is_judgment_completed, is_needle_short_fixed
+    global is_judgment_completed, is_needle_short_fixed, is_resistance_abnormal, is_eeprom_failed
     is_judgment_completed = False
     is_needle_short_fixed = False
-    print("[JUDGMENT_RESET] 판정 완료 상태 및 니들 쇼트 고정 상태 해제")
+    is_resistance_abnormal = False
+    is_eeprom_failed = False
+    print("[JUDGMENT_RESET] 판정 완료 상태 및 모든 에러 상태 해제")
     
     # 현재 니들 상태에 따라 LED 재설정
     determine_needle_state(send_status_update=True)
@@ -1377,18 +1388,21 @@ async def handler(websocket):
                             if read_result.get("success"):
                                 result["data"] = read_result  # 읽은 데이터를 응답에 포함
                                 print(f"[INFO] EEPROM 쓰기 후 읽기 성공: {read_result}")
+                                is_eeprom_failed = False
                                 # LED 제어: EEPROM 저장 완료 시 초록불은 켜지 않음 (PASS 판정 시에만 초록불)
                             else:
                                 print(f"[WARN] EEPROM 쓰기 후 읽기 실패: {read_result}")
-                                # LED 제어: 스타트 상태일 때만 EEPROM 읽기 실패 시 RED LED ON
+                                is_eeprom_failed = True
+                                # LED 제어: 스타트 상태일 때만 EEPROM 읽기 실패 시 apply_led_state 호출
                                 if is_started:
-                                    set_led_red_on()
-                                    print("[EEPROM] 읽기 실패 - RED LED ON")
+                                    apply_led_state("EEPROM read after write failed")
+                                    print("[EEPROM] 읽기 실패 - apply_led_state 호출")
                         else:
-                            # LED 제어: 스타트 상태일 때만 EEPROM 저장 실패 시 RED LED ON
+                            # LED 제어: 스타트 상태일 때만 EEPROM 저장 실패 시 apply_led_state 호출
+                            is_eeprom_failed = True
                             if is_started:
-                                set_led_red_on()
-                                print("[EEPROM] 저장 실패 - RED LED ON")
+                                apply_led_state("EEPROM write failed")
+                                print("[EEPROM] 저장 실패 - apply_led_state 호출")
                         
                         async with lock:
                             await websocket.send(json.dumps({
@@ -1408,9 +1422,13 @@ async def handler(websocket):
                     else:  # MTR 2.0
                         result = read_eeprom_mtr20(country)
                     
-                    # LED 제어: EEPROM 읽기 실패 시 RED LED ON
+                    # LED 제어: EEPROM 읽기 실패 시 apply_led_state 호출
                     if not result.get("success"):
-                        set_led_red_on()
+                        is_eeprom_failed = True
+                        apply_led_state("EEPROM read failed")
+                        print("[EEPROM] 읽기 실패 - apply_led_state 호출")
+                    else:
+                        is_eeprom_failed = False
                     
                     async with lock:
                         await websocket.send(json.dumps({
@@ -1429,6 +1447,7 @@ async def handler(websocket):
                     resistance_threshold_ohm = data.get("threshold", 100)
                     resistance_threshold_mohm = resistance_threshold_ohm * 1000  # mOhm으로 변환
                     
+                    global is_resistance_abnormal
                     is_abnormal = False
                     
                     if result.get("connected"):
@@ -1446,18 +1465,21 @@ async def handler(websocket):
                             print(f"[LED] 저항 2 비정상 감지 ({res2_mohm}mΩ > {resistance_threshold_mohm}mΩ)")
 
                         if is_abnormal:
+                            is_resistance_abnormal = True
                             if is_started:
-                                set_led_red_on()
-                                print("[LED] 저항 비정상 - RED LED ON")
+                                apply_led_state("resistance abnormal")
+                                print("[LED] 저항 비정상 - apply_led_state 호출")
                         else:
+                            is_resistance_abnormal = False
                             print(f"[LED] 저항 정상 (Threshold: {resistance_threshold_mohm}mΩ)")
                     
                     else:
                         # 저항 측정기 연결 실패
                         is_abnormal = True
+                        is_resistance_abnormal = True
                         if is_started:
-                            set_led_red_on()
-                            print("[LED] 저항 측정기 연결 실패 - RED LED ON")
+                            apply_led_state("resistance meter connection failed")
+                            print("[LED] 저항 측정기 연결 실패 - apply_led_state 호출")
                     
                     # 결과를 요청한 클라이언트에게 전송
                     response = {
@@ -1495,14 +1517,18 @@ async def handler(websocket):
                         is_judgment_completed = False
                         current_judgment_color = None
                         is_needle_short_fixed = False
-                        print("[START_STATE] 🔄 새로운 사이클 시작 - 판정 및 에러 상태 초기화")
+                        is_resistance_abnormal = False
+                        is_eeprom_failed = False
+                        print("[START_STATE] 🔄 새로운 사이클 시작 - 모든 상태 초기화")
                         determine_needle_state(send_status_update=True)
                     else:  # STOP 상태
-                        # 🔄 STOP 시 에러 상태 초기화 (판정 LED는 유지하지 않음)
+                        # 🔄 STOP 시 모든 상태 초기화
                         is_needle_short_fixed = False
                         is_judgment_completed = False
                         current_judgment_color = None
-                        print("[START_STATE] 🔄 STOP 수신 - 에러 상태 및 판정 상태 초기화")
+                        is_resistance_abnormal = False
+                        is_eeprom_failed = False
+                        print("[START_STATE] 🔄 STOP 수신 - 모든 상태 초기화")
                         determine_needle_state(send_status_update=True)
 
                 # 니들 쇼트 고정 상태 제어 명령
