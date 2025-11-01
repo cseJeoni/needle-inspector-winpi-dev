@@ -205,15 +205,6 @@ const JudgePanel = forwardRef(function JudgePanel({ onJudge, isStarted, onReset,
       if (onReset) onReset()
       if (onWaitingEepromReadChange) onWaitingEepromReadChange(false) // EEPROM 읽기 대기 상태 초기화
       
-      // 백엔드 is_started 상태를 판정 완료로 리셋
-      if (websocket && isWsConnected) {
-        const resetCommand = {
-          cmd: "set_start_state",
-          state: false
-        };
-        console.log(`🏁 ${result} 판정 완료 - 백엔드 상태 리셋:`, resetCommand);
-        websocket.send(JSON.stringify(resetCommand));
-      }
       
       // 콜백 호출
       if (onJudge) onJudge(result)
