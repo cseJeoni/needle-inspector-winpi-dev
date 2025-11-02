@@ -3,8 +3,6 @@ import Panel from "./Panel"
 import { Input } from "./Input"
 import { Button } from "./Button"
 import { useAuth } from "../../hooks/useAuth.jsx"
-import successAudio from "../../assets/audio/success.mp3"
-import failAudio from "../../assets/audio/fail.mp3"
 
 export default function StatusPanel({ mode, workStatus = 'waiting', needleTipConnected = false, isWaitingEepromRead = false }) {
   // CSV 기반 Authentication 훅 사용
@@ -16,58 +14,6 @@ export default function StatusPanel({ mode, workStatus = 'waiting', needleTipCon
   const [isLoggingIn, setIsLoggingIn] = useState(false)
   const [loginMessage, setLoginMessage] = useState('')
   
-  // 오디오 객체를 useRef로 캐싱
-  const successAudioRef = useRef(null)
-  const failAudioRef = useRef(null)
-  const previousNeedleTipState = useRef(needleTipConnected)
-  
-  // 오디오 객체 초기화
-  useEffect(() => {
-    successAudioRef.current = new Audio(successAudio)
-    failAudioRef.current = new Audio(failAudio)
-    
-    // 오디오 미리 로드
-    successAudioRef.current.preload = 'auto'
-    failAudioRef.current.preload = 'auto'
-    
-    return () => {
-      // 컴포넌트 언마운트 시 정리
-      if (successAudioRef.current) {
-        successAudioRef.current.pause()
-        successAudioRef.current = null
-      }
-      if (failAudioRef.current) {
-        failAudioRef.current.pause()
-        failAudioRef.current = null
-      }
-    }
-  }, [])
-  
-  // GPIO23 엣지 감지 및 오디오 재생
-  useEffect(() => {
-    const currentState = needleTipConnected
-    const prevState = previousNeedleTipState.current
-    
-    // 엣지 감지: 상태가 변경된 경우에만 실행
-    if (prevState !== currentState) {
-      if (prevState === true && currentState === false) {
-        // HIGH → LOW: 니들팁 분리됨 (fail.MP3 재생)
-        if (failAudioRef.current) {
-          failAudioRef.current.currentTime = 0 // 처음부터 재생
-          failAudioRef.current.play().catch(console.error)
-        }
-      } else if (prevState === false && currentState === true) {
-        // LOW → HIGH: 니들팁 체결됨 (success.MP3 재생)
-        if (successAudioRef.current) {
-          successAudioRef.current.currentTime = 0 // 처음부터 재생
-          successAudioRef.current.play().catch(console.error)
-        }
-      }
-      
-      // 이전 상태 업데이트
-      previousNeedleTipState.current = currentState
-    }
-  }, [needleTipConnected])
 
   // 로그인 처리 함수 (CSV 기반)
   const handleLogin = async () => {
