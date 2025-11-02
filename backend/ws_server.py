@@ -1023,6 +1023,18 @@ def read_eeprom_mtr20(country="CLASSYS"):
 
             # MAKER CODE (offset + 12)
             maker_code = bus.read_byte_data(eeprom_address, offset + 12)
+            
+            # 검사기 코드 (offset + 5)
+            inspector_code = bus.read_byte_data(eeprom_address, offset + 5)
+            inspector_char = chr(inspector_code) if 32 <= inspector_code <= 126 else 'A'
+            
+            # 판정 결과 (offset + 6)
+            judge_result = bus.read_byte_data(eeprom_address, offset + 6)
+            judge_str = 'PASS' if judge_result == 1 else 'NG' if judge_result == 0 else 'UNKNOWN'
+            
+            # 일일 시리얼 번호 (offset + 7=H, offset + 8=L)
+            daily_serial_bytes = bus.read_i2c_block_data(eeprom_address, offset + 7, 2)
+            daily_serial = (daily_serial_bytes[0] << 8) | daily_serial_bytes[1]
 
             return {
                 "success": True,

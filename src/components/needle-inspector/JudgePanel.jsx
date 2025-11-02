@@ -224,8 +224,15 @@ const JudgePanel = forwardRef(function JudgePanel({ onJudge, isStarted, onReset,
   // EEPROM 쓰기 함수 (판정 시 호출)
   const writeEepromWithJudgment = async (judgeResult) => {
     return new Promise((resolve, reject) => {
+      console.log('🔍 writeEepromWithJudgment 디버깅:');
+      console.log('  - websocket:', !!websocket);
+      console.log('  - isWsConnected:', isWsConnected);
+      console.log('  - dataSettings:', dataSettings);
+      
       if (!websocket || !isWsConnected || !dataSettings) {
-        reject(new Error('WebSocket 또는 데이터 설정 없음'));
+        const errorMsg = `WebSocket 또는 데이터 설정 없음 - websocket: ${!!websocket}, connected: ${isWsConnected}, dataSettings: ${!!dataSettings}`;
+        console.error('❌', errorMsg);
+        reject(new Error(errorMsg));
         return;
       }
 
@@ -257,9 +264,12 @@ const JudgePanel = forwardRef(function JudgePanel({ onJudge, isStarted, onReset,
             
             if (response.result && response.result.success) {
               console.log('✅ EEPROM 쓰기 성공 (판정 데이터 포함)');
+              console.log('🔍 백엔드 응답 상세:', response.result);
+              console.log('🔍 response.result.data:', response.result.data);
               // 쓰기 후 읽은 데이터도 함께 반환
               resolve(response.result.data || response.result);
             } else {
+              console.error('❌ EEPROM 쓰기 실패:', response.result);
               reject(new Error(response.result?.error || 'EEPROM 쓰기 실패'));
             }
           }
@@ -281,17 +291,33 @@ const JudgePanel = forwardRef(function JudgePanel({ onJudge, isStarted, onReset,
 
   // TIP TYPE 계산 (DataSettingsPanel과 동일한 로직)
   const calculateTipType = () => {
-    if (!dataSettings) return null;
+    console.log('🔍 calculateTipType 디버깅:');
+    console.log('  - dataSettings:', dataSettings);
+    
+    if (!dataSettings) {
+      console.log('  - dataSettings가 null/undefined');
+      return null;
+    }
     
     const { mtrVersion, selectedCountry, selectedNeedleType } = dataSettings;
-    if (!mtrVersion || !selectedCountry || !selectedNeedleType) return null;
+    console.log('  - mtrVersion:', mtrVersion);
+    console.log('  - selectedCountry:', selectedCountry);
+    console.log('  - selectedNeedleType:', selectedNeedleType);
+    
+    if (!mtrVersion || !selectedCountry || !selectedNeedleType) {
+      console.log('  - 필수 데이터 누락');
+      return null;
+    }
     
     // CSV 캐시에서 ID 조회
     const id = getId(mtrVersion, selectedCountry, selectedNeedleType);
+    console.log('  - CSV에서 조회한 ID:', id);
     
     // ID가 숫자 형태라면 그대로 반환, 아니면 null
     const numericId = parseInt(id);
-    return isNaN(numericId) ? null : numericId;
+    const result = isNaN(numericId) ? null : numericId;
+    console.log('  - 최종 tipType:', result);
+    return result;
   };
 
   // 판정 로직을 처리하는 중앙 함수
