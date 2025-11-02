@@ -27,15 +27,6 @@ except ImportError:
     eeprom_available = False
     print("[ERROR] smbus2 모듈을 찾을 수 없습니다. EEPROM 기능이 비활성화됩니다.")
 
-# MP3 재생 관련 import
-try:
-    import pygame
-    pygame.mixer.init()
-    mp3_available = True
-    print("[OK] MP3 재생 기능 활성화 (pygame)")
-except ImportError:
-    mp3_available = False
-    print("[WARN] pygame 모듈을 찾을 수 없습니다. MP3 재생 기능이 비활성화됩니다.")
 
 # EEPROM 설정
 I2C_BUS = 1
@@ -116,34 +107,6 @@ motor = DualMotorController()
 connected_clients = {}  # 클라이언트별 Lock을 저장하기 위해 dict로 변경
 main_event_loop = None  # 메인 이벤트 루프 저장용
 
-# MP3 파일 경로 설정
-MP3_SUCCESS_PATH = os.path.join(os.path.dirname(__file__), "..", "src", "assets", "audio", "success.mp3")
-MP3_FAIL_PATH = os.path.join(os.path.dirname(__file__), "..", "src", "assets", "audio", "fail.mp3")
-
-def play_mp3(file_path, sound_type="unknown"):
-    """MP3 파일을 재생하는 함수"""
-    if not mp3_available:
-        print(f"[MP3] pygame 미사용 - {sound_type} 사운드 재생 건너뜀")
-        return
-    
-    if not os.path.exists(file_path):
-        print(f"[MP3] 파일 없음: {file_path}")
-        return
-    
-    try:
-        pygame.mixer.music.load(file_path)
-        pygame.mixer.music.play()
-        print(f"[MP3] {sound_type} 사운드 재생: {os.path.basename(file_path)}")
-    except Exception as e:
-        print(f"[MP3] 재생 실패 ({sound_type}): {e}")
-
-def play_success_sound():
-    """PASS 판정 완료 시 success.mp3 재생"""
-    play_mp3(MP3_SUCCESS_PATH, "SUCCESS")
-
-def play_fail_sound():
-    """NG 판정 완료 시 fail.mp3 재생"""
-    play_mp3(MP3_FAIL_PATH, "FAIL")
 
 # 프로그램 시작 시 니들팁 상태 확인 함수
 def check_initial_needle_tip_state():
@@ -1624,16 +1587,12 @@ async def handler(websocket):
                         is_judgment_completed = True
                         current_judgment_color = 'red'
                         apply_led_state("NG judgment")
-                        # NG 판정 완료 후 fail.mp3 재생
-                        play_fail_sound()
                         
                     elif led_type == "green":
                         # PASS 판정
                         is_judgment_completed = True
                         current_judgment_color = 'green'
                         apply_led_state("PASS judgment")
-                        # PASS 판정 완료 후 success.mp3 재생
-                        play_success_sound()
 
                 # START/STOP 상태 제어 명령
                 elif data["cmd"] == "set_start_state":

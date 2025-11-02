@@ -3,14 +3,59 @@ import { Button } from "./Button"
 import { useAuth } from "../../hooks/useAuth.jsx"
 import { useState, useRef, useEffect, forwardRef, useImperativeHandle } from "react"
 import { getId } from '../../utils/csvCache'
+import successAudio from "../../assets/audio/success.mp3"
+import failAudio from "../../assets/audio/fail.mp3"
 
 const JudgePanel = forwardRef(function JudgePanel({ onJudge, isStarted, onReset, camera1Ref, camera2Ref, hasNeedleTip = true, websocket, isWsConnected, onCaptureMergedImage, eepromData, generateUserBasedPath, isWaitingEepromRead = false, onWaitingEepromReadChange, isResistanceAbnormal = false, isNeedleShortFixed = false, needleOffset1, needleOffset2, needleSpeed1, needleSpeed2, workStatus = 'waiting', onDebugModeChange, dataSettings }, ref) {
   // 사용자 정보 가져오기
   const { user, resetUsersCache } = useAuth()
   
+  // 오디오 객체를 useRef로 캐싱
+  const successAudioRef = useRef(null)
+  const failAudioRef = useRef(null)
+  
   // 일일 시리얼 번호 관리
   const [dailySerialNumber, setDailySerialNumber] = useState(1)
   
+  // 오디오 객체 초기화
+  useEffect(() => {
+    successAudioRef.current = new Audio(successAudio)
+    failAudioRef.current = new Audio(failAudio)
+    
+    // 오디오 미리 로드
+    successAudioRef.current.preload = 'auto'
+    failAudioRef.current.preload = 'auto'
+    
+    return () => {
+      // 컴포넌트 언마운트 시 정리
+      if (successAudioRef.current) {
+        successAudioRef.current.pause()
+        successAudioRef.current = null
+      }
+      if (failAudioRef.current) {
+        failAudioRef.current.pause()
+        failAudioRef.current = null
+      }
+    }
+  }, [])
+
+  // MP3 재생 함수들
+  const playSuccessSound = () => {
+    if (successAudioRef.current) {
+      successAudioRef.current.currentTime = 0 // 처음부터 재생
+      successAudioRef.current.play().catch(console.error)
+      console.log('[MP3] PASS 판정 완료 - success.mp3 재생')
+    }
+  }
+
+  const playFailSound = () => {
+    if (failAudioRef.current) {
+      failAudioRef.current.currentTime = 0 // 처음부터 재생
+      failAudioRef.current.play().catch(console.error)
+      console.log('[MP3] NG 판정 완료 - fail.mp3 재생')
+    }
+  }
+
   // 일일 시리얼 번호 초기화 및 관리
   useEffect(() => {
     // 프로그램 시작 시 또는 날짜 변경 시 시리얼 번호 초기화
@@ -346,6 +391,13 @@ const JudgePanel = forwardRef(function JudgePanel({ onJudge, isStarted, onReset,
         };
         console.log(`🔴🟢 EEPROM 처리 완료 후 ${result} LED 제어:`, ledCommand);
         websocket.send(JSON.stringify(ledCommand));
+        
+        // LED 제어 완료 후 MP3 재생
+        if (result === 'PASS') {
+          playSuccessSound();
+        } else {
+          playFailSound();
+        }
       }
 
       // 3. 캡처 먼저 수행하여 '화면 그대로' 확보
