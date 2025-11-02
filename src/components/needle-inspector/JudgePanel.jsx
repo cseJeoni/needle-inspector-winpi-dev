@@ -323,17 +323,7 @@ const JudgePanel = forwardRef(function JudgePanel({ onJudge, isStarted, onReset,
   // 판정 로직을 처리하는 중앙 함수
   const handleJudge = async (result) => {
     try {
-      // 1. LED 제어 명령 전송 (판정 결과에 따라)
-      if (websocket && isWsConnected) {
-        const ledCommand = {
-          cmd: "led_control",
-          type: result === 'PASS' ? "green" : "red"
-        };
-        console.log(`🔴🟢 프론트엔드 ${result} 버튼 - LED 제어 명령 전송:`, ledCommand);
-        websocket.send(JSON.stringify(ledCommand));
-      }
-
-      // 2. EEPROM에 판정 결과와 함께 쓰기/읽기
+      // 1. EEPROM에 판정 결과와 함께 쓰기/읽기 (LED 제어 전에 수행)
       let updatedEepromData = null;
       try {
         console.log('📝 EEPROM 쓰기 시작 (판정 결과 포함)...');
@@ -346,6 +336,16 @@ const JudgePanel = forwardRef(function JudgePanel({ onJudge, isStarted, onReset,
         console.error('❌ EEPROM 처리 실패:', error);
         // EEPROM 실패해도 계속 진행 (기존 데이터 사용)
         updatedEepromData = eepromData;
+      }
+
+      // 2. EEPROM 처리 완료 후 LED 제어 명령 전송
+      if (websocket && isWsConnected) {
+        const ledCommand = {
+          cmd: "led_control",
+          type: result === 'PASS' ? "green" : "red"
+        };
+        console.log(`🔴🟢 EEPROM 처리 완료 후 ${result} LED 제어:`, ledCommand);
+        websocket.send(JSON.stringify(ledCommand));
       }
 
       // 3. 캡처 먼저 수행하여 '화면 그대로' 확보

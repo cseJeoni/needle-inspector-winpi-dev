@@ -631,15 +631,13 @@ async def _on_pass_button_pressed():
         return
     
     # 니들팁이 연결된 경우에만 정상 동작
-    # LED 제어: 스타트 상태일 때만 GREEN LED ON
-    if is_started:
-        global is_judgment_completed, current_judgment_color
-        is_judgment_completed = True
-        current_judgment_color = 'green'
-        apply_led_state("PASS button pressed")
-        print("[GPIO13] ✅ PASS 판정 완료 - GREEN LED ON (유지)")
-    else:
+    # START 상태 확인 - START 상태가 아니면 프론트엔드로 신호 전송하지 않음
+    print(f"[GPIO13] 🔍 START 상태 확인: is_started = {is_started}")
+    if not is_started:
         print("[GPIO13] ⚠️ 스타트 상태 아님 - PASS 버튼 무시")
+        return  # START 상태가 아니면 여기서 종료 (프론트엔드로 신호 전송 안 함)
+    
+    print("[GPIO13] ✅ PASS 버튼 인식됨 - 프론트엔드로 전송 (LED는 EEPROM 처리 후 켜짐)")
     
     # 디버깅 패널로 GPIO 상태 변경 알림
     gpio_message = {
@@ -651,7 +649,7 @@ async def _on_pass_button_pressed():
         }
     }
     
-    # 모든 연결된 클라이언트에게 PASS 신호 전송 (니들팁 연결된 경우에만)
+    # 모든 연결된 클라이언트에게 PASS 신호 전송 (START 상태일 때만)
     pass_message = {
         "type": "gpio_pass_button",
         "data": {
@@ -743,15 +741,13 @@ async def _on_ng_button_pressed():
         return
     
     # 니들팁이 연결된 경우에만 정상 동작
-    # LED 제어: 스타트 상태일 때만 RED LED ON
-    if is_started:
-        global is_judgment_completed, current_judgment_color
-        is_judgment_completed = True
-        current_judgment_color = 'red'
-        apply_led_state("NG button pressed")
-        print("[GPIO19] ❌ NG 판정 완료 - RED LED ON (유지)")
-    else:
+    # START 상태 확인 - START 상태가 아니면 프론트엔드로 신호 전송하지 않음
+    print(f"[GPIO19] 🔍 START 상태 확인: is_started = {is_started}")
+    if not is_started:
         print("[GPIO19] ⚠️ 스타트 상태 아님 - NG 버튼 무시")
+        return  # START 상태가 아니면 여기서 종료 (프론트엔드로 신호 전송 안 함)
+    
+    print("[GPIO19] ✅ NG 버튼 인식됨 - 프론트엔드로 전송 (LED는 EEPROM 처리 후 켜짐)")
     
     # 디버깅 패널로 GPIO 상태 변경 알림
     gpio_message = {
@@ -763,7 +759,7 @@ async def _on_ng_button_pressed():
         }
     }
     
-    # 모든 연결된 클라이언트에게 NG 신호 전송 (니들팁 연결된 경우에만)
+    # 모든 연결된 클라이언트에게 NG 신호 전송 (START 상태일 때만)
     ng_message = {
         "type": "gpio_ng_button",
         "data": {
