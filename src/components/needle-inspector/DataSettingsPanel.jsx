@@ -628,26 +628,15 @@ const DataSettingsPanel = forwardRef(({
     }
   }
   
-  // MTR4 MULTI 니들 로직 (10단계)
+  // MTR4 MULTI 니들 로직 (START 버튼용 - EEPROM 처리 제외)
   const handleMultiNeedleLogic = async () => {
       
     try {
-      console.log('🚀 MTR4 MULTI 로직 시작')
+      console.log('🚀 MTR4 MULTI 로직 시작 (EEPROM 처리는 판정 시 수행)')
         
-        // 1단계: EEPROM 쓰기 완료까지 대기
-        console.log('1️⃣ EEPROM 쓰기 시작 - 응답 대기 중...')
-        await writeToEEPROM()
-        console.log('✅ EEPROM 쓰기 완료')
-        
-        // 2단계: EEPROM 읽기 완료까지 대기
-        console.log('2️⃣ EEPROM 읽기 시작 - 응답 대기 중...')
-        await readFromEEPROM()
-        console.log('✅ EEPROM 읽기 완료')
-        
-        // 2.5단계: GPIO 5번 쇼트 검사 (EEPROM 처리 후)
+        // 1단계: GPIO 5번 쇼트 검사 (니들 연결 확인)
         if (gpio5State === 'HIGH') {
-          console.log('🚨 GPIO5 니들 쇼트 감지 - 로직 중단 (EEPROM 데이터는 정상 저장됨)')
-          console.log('🔍 현재 EEPROM 데이터 상태:', readEepromData)
+          console.log('🚨 GPIO5 니들 쇼트 감지 - 로직 중단')
           
           // START 시점 니들 쇼트 고정 상태 설정 (저항 비정상과 동일한 방식)
           onNeedleShortFixedChange && onNeedleShortFixedChange(true)
@@ -668,12 +657,12 @@ const DataSettingsPanel = forwardRef(({
           return
         }
         
-        // 3단계: 모터 2 UP 명령 전송 (NeedleCheckPanelV4의 오프셋 + 돌출부분 값 사용)
+        // 2단계: 모터 2 UP 명령 전송 (NeedleCheckPanelV4의 오프셋 + 돌출부분 값 사용)
         if (websocket && isWsConnected) {
           // NeedleCheckPanelV4에서 전달받은 모터2 값들 사용
           const motor2TargetPos = Math.round((needleOffset2 - needleProtrusion2) * 40);
           
-          console.log('3️⃣ 모터 2 UP 명령 전송 - 위치:', motor2TargetPos, '(오프셋:', needleOffset2, '- 돌출:', needleProtrusion2, '), 속도:', needleSpeed2)
+          console.log('2️⃣ 모터 2 UP 명령 전송 - 위치:', motor2TargetPos, '(오프셋:', needleOffset2, '- 돌출:', needleProtrusion2, '), 속도:', needleSpeed2)
           const moveCommand = {
             cmd: "move",
             position: motor2TargetPos,
@@ -694,8 +683,8 @@ const DataSettingsPanel = forwardRef(({
           return
         }
         
-        // 4단계: 모터2 이동 완료 대기 (블로킹 대기 제거 - 실시간 감속을 위해)
-        console.log('4️⃣ 모터2 이동 시작 - 실시간 감속 모니터링 활성화')
+        // 3단계: 모터2 이동 완료 대기 (블로킹 대기 제거 - 실시간 감속을 위해)
+        console.log('3️⃣ 모터2 이동 시작 - 실시간 감속 모니터링 활성화')
         
         // 감속 기능이 활성화된 경우 목표 위치 설정 (실시간 모니터링에서 사용)
         if (isDecelerationEnabled) {
@@ -776,8 +765,8 @@ const DataSettingsPanel = forwardRef(({
           throw error // 상위로 에러 전파
         })
         
-        // 5단계: 저항 측정 실행 및 결과 대기
-        console.log('5️⃣ 저항 측정 시작')
+        // 4단계: 저항 측정 실행 및 결과 대기
+        console.log('4️⃣ 저항 측정 시작')
         if (websocket && isWsConnected) {
           const measureMsg = {
             cmd: "measure_resistance",
@@ -830,7 +819,7 @@ const DataSettingsPanel = forwardRef(({
                     onResistanceAbnormalChange && onResistanceAbnormalChange(false);
                     
                     // 저항값 정상 시 다음 단계 진행
-                    console.log('6️⃣ 저항값 정상 - 다음 단계 시작');
+                    console.log('5️⃣ 저항값 정상 - 다음 단계 시작');
                     resolve('normal');
                   }
                 }
@@ -853,11 +842,11 @@ const DataSettingsPanel = forwardRef(({
           return
         }
         
-        // 6단계: 저항값 정상일 때 모터1 UP과 모터2 DOWN 명령을 병렬로 전송
+        // 5단계: 저항값 정상일 때 모터1 UP과 모터2 DOWN 명령을 병렬로 전송
         const motor1UpPosition = Math.round((needleOffset1 + needleProtrusion1) * 125);
         const motor2DownPosition = Math.round(needleOffset2 * 40);
         
-        console.log('7️⃣ 모터1 UP & 모터2 DOWN 병렬 명령 전송');
+        console.log('5️⃣ 모터1 UP & 모터2 DOWN 병렬 명령 전송');
         console.log('   - 모터1 UP 위치:', motor1UpPosition, '(오프셋:', needleOffset1, '+ 돌출:', needleProtrusion1, '), 속도:', needleSpeed1);
         console.log('   - 모터2 DOWN 위치:', motor2DownPosition, '(초기 위치:', needleOffset2, '), 속도:', needleSpeed2);
         
@@ -974,26 +963,15 @@ const DataSettingsPanel = forwardRef(({
   // 일반 니듡 로직 (6단계 - 저항 측정 제외)
   const handleGeneralNeedleLogic = async () => {
     try {
-      console.log('🚀 일반 로직 시작')
+      console.log('🚀 일반 로직 시작 (EEPROM 처리는 판정 시 수행)')
       
       // 저항 이상 상태 초기화 (일반 로직에서는 저항 측정을 하지 않으므로)
       onResistanceAbnormalChange && onResistanceAbnormalChange(false)
       console.log('✅ 저항 이상 상태 초기화 완료')
       
-      // 1단계: EEPROM 쓰기 완료까지 대기
-      console.log('1️⃣ EEPROM 쓰기 시작 - 응답 대기 중...')
-      await writeToEEPROM()
-      console.log('✅ EEPROM 쓰기 완료')
-      
-      // 2단계: EEPROM 읽기 완료까지 대기
-      console.log('2️⃣ EEPROM 읽기 시작 - 응답 대기 중...')
-      await readFromEEPROM()
-      console.log('✅ EEPROM 읽기 완료')
-      
-      // 2.5단계: GPIO 5번 쇼트 검사 (EEPROM 처리 후)
+      // 1단계: GPIO 5번 쇼트 검사 (니들 연결 확인)
       if (gpio5State === 'HIGH') {
-        console.log('🚨 GPIO5 니들 쇼트 감지 - 로직 중단 (EEPROM 데이터는 정상 저장됨)')
-        console.log('🔍 현재 EEPROM 데이터 상태:', readEepromData)
+        console.log('🚨 GPIO5 니들 쇼트 감지 - 로직 중단')
         
         // START 시점 니들 쇼트 고정 상태 설정 (저항 비정상과 동일한 방식)
         onNeedleShortFixedChange && onNeedleShortFixedChange(true)
@@ -1014,9 +992,9 @@ const DataSettingsPanel = forwardRef(({
         return
       }
       
-      // 3단계: 모터 1 UP 명령 전송 (저항 측정 단계 제외, 스피드 모드)
+      // 2단계: 모터 1 UP 명령 전송 (저항 측정 단계 제외, 스피드 모드)
       const motor1UpPosition = Math.round((needleOffset1 + needleProtrusion1) * 125);
-      console.log('3️⃣ 모터 1 UP 명령 전송 (스피드 모드) - 위치:', motor1UpPosition, '(오프셋:', needleOffset1, '+ 돌출:', needleProtrusion1, '), 속도:', needleSpeed1)
+      console.log('2️⃣ 모터 1 UP 명령 전송 (스피드 모드) - 위치:', motor1UpPosition, '(오프셋:', needleOffset1, '+ 돌출:', needleProtrusion1, '), 속도:', needleSpeed1)
       if (websocket && isWsConnected) {
         websocket.send(JSON.stringify({ 
           cmd: "move", 
@@ -1029,11 +1007,11 @@ const DataSettingsPanel = forwardRef(({
         return
       }
       
-      // 4단계: 모터 1 이동 대기 (실시간 모니터링)
-      console.log('4️⃣ 모터 1 이동 대기 (실시간 모니터링) - 캡처 레이스 컨디션 방지');
+      // 3단계: 모터 1 이동 대기 (실시간 모니터링)
+      console.log('3️⃣ 모터 1 이동 대기 (실시간 모니터링) - 캡처 레이스 컨디션 방지');
       await waitForMotor1Up(motor1UpPosition);
       
-      console.log('5️⃣ 모터 시퀀스 완료 - 판정 버튼 활성화');
+      console.log('4️⃣ 모터 시퀀스 완료 - 판정 버튼 활성화');
       onStartedChange && onStartedChange(true);
       
       console.log('🎉 일반 로직 완료 - 판정 버튼 활성화됨')

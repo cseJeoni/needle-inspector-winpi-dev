@@ -157,40 +157,46 @@ const JudgePanel = forwardRef(function JudgePanel({ onJudge, isStarted, onReset,
   const saveMergedScreenshotFromData = async (mergedImageData, judgeResult, eepromData) => {
     try {
       // EEPROM 데이터에서 정보 추출 (읽은 데이터 우선 사용)
-      let serial = '';
+      let inspectorCode = 'A';
+      let manufacturingDate = '';
+      let dailySerial = '';
       let judgment = judgeResult || 'UNKNOWN';
-      let tipType = 'unknown';
-      let workerCode = 'unknown';
+      let tipType = 'T000';
+      let workerBirthday = '0000';
       let workerName = 'unknown';
       
       if (eepromData && eepromData.success) {
         // EEPROM에서 읽은 데이터 사용
-        serial = eepromData.dailySerial || '';
+        inspectorCode = eepromData.inspectorCode || 'A';
+        manufacturingDate = `${String(eepromData.year || 2025).slice(-2)}${String(eepromData.month || 1).padStart(2, '0')}${String(eepromData.day || 1).padStart(2, '0')}`;
+        dailySerial = String(eepromData.dailySerial || dailySerialNumber).padStart(4, '0');
         judgment = eepromData.judgeResult || judgeResult || 'UNKNOWN';
-        tipType = eepromData.tipType || 'unknown';
         
-        // 검사기 코드를 작업자 코드로 사용
-        const inspectorCode = eepromData.inspectorCode || 'A';
+        // 팁타입을 T로 시작하고 3자리 제로패딩 (예: T030)
+        const rawTipType = eepromData.tipType || 0;
+        tipType = `T${String(rawTipType).padStart(3, '0')}`;
         
-        // 작업자 정보 (user 정보와 매칭)
+        // 작업자 정보 (user 정보 우선)
         if (user) {
-          workerCode = user.code || inspectorCode;
+          workerBirthday = user.birthLast4 || '0000'; // 작업자 생일 끝 4자리 (MMDD 형식)
           workerName = user.name || 'unknown';
-        } else {
-          workerCode = inspectorCode;
-          workerName = 'unknown';
         }
       } else {
         // EEPROM 데이터가 없으면 기본값 사용
-        serial = String(dailySerialNumber);
+        inspectorCode = dataSettings?.inspector || 'A';
+        const today = new Date();
+        manufacturingDate = `${String(today.getFullYear()).slice(-2)}${String(today.getMonth() + 1).padStart(2, '0')}${String(today.getDate()).padStart(2, '0')}`;
+        dailySerial = String(dailySerialNumber).padStart(4, '0');
+        
         if (user) {
-          workerCode = user.code || 'unknown';
+          workerBirthday = user.birthLast4 || '0000';
           workerName = user.name || 'unknown';
         }
       }
       
-      // 파일명 생성: [시리얼]-[판정]-[팁타입]-[작업자코드]-[작업자이름].png
-      const fileName = `${serial}-${judgment}-${tipType}-${workerCode}-${workerName}.png`;
+      // 파일명 생성: [검사기코드]-[제조일]-[일일순번]-[판정]-[팁타입]-[작업자생일]-[작업자명].png
+      // 예시: A-251103-0001-PASS-T030-0607-홍길동.png
+      const fileName = `${inspectorCode}-${manufacturingDate}-${dailySerial}-${judgment}-${tipType}-${workerBirthday}-${workerName}.png`;
 
       // 사용자 정보 기반 폴더 경로 생성
       const baseDir = generateUserBasedPath ? await generateUserBasedPath(judgeResult) : 

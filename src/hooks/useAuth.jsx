@@ -21,8 +21,12 @@ export const AuthProvider = ({ children }) => {
         const userData = JSON.parse(savedUser)
         // CSV 기반 로그인 데이터인지 확인 (birthLast4 속성이 있어야 함)
         if (userData && userData.birthLast4 && userData.id) {
+          // name 필드가 없으면 id를 사용
+          if (!userData.name) {
+            userData.name = userData.id;
+          }
           setUser(userData)
-          console.log('[AUTH] 세션에서 CSV 기반 사용자 정보 복원:', userData.id)
+          console.log('[AUTH] 세션에서 CSV 기반 사용자 정보 복원:', userData.id, 'Name:', userData.name)
         } else {
           // 기존 Firebase 세션 데이터는 제거
           console.log('[AUTH] 기존 Firebase 세션 데이터 제거')
@@ -138,11 +142,12 @@ export const AuthProvider = ({ children }) => {
         const userData = { 
           id: id, 
           birth: usersCache[id].birth,
-          birthLast4: usersCache[id].birth ? usersCache[id].birth.slice(-4) : '0000' // birth 끝 4자리
+          birthLast4: usersCache[id].birth ? usersCache[id].birth.slice(-4) : '0000', // birth 끝 4자리
+          name: usersCache[id].name || id // name 필드 추가
         }
         setUser(userData)
         sessionStorage.setItem('user', JSON.stringify(userData))
-        console.log('[AUTH] 로그인 성공:', id, 'Birth 끝4자리:', userData.birthLast4)
+        console.log('[AUTH] 로그인 성공:', id, 'Name:', userData.name, 'Birth 끝4자리:', userData.birthLast4)
         setLoading(false)
         return { success: true, user: userData }
       } else {

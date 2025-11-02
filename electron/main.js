@@ -323,7 +323,7 @@ ipcMain.handle('load-users-csv', async (event) => {
     // CSV 파일이 없으면 기본 사용자 생성
     if (!fs.existsSync(usersPath)) {
       console.log('[INFO] users.csv 파일이 없습니다. 기본 파일을 생성합니다.');
-      const defaultCSV = 'id,pw\nadmin,admin123';
+      const defaultCSV = 'id,pw,birth,name\nadmin,admin123,19900101,관리자';
       await fs.promises.writeFile(usersPath, defaultCSV, 'utf8');
       console.log('[INFO] 기본 관리자 계정 생성: admin/admin123');
     }
@@ -337,16 +337,24 @@ ipcMain.handle('load-users-csv', async (event) => {
       const line = lines[i].trim();
       if (line) {
         const values = line.split(',').map(v => v.trim());
-        if (values.length >= 3) {
+        if (values.length >= 4) {
+          // 새로운 형식: id,pw,birth,name
           const id = values[0];
           const pw = values[1];
           const birth = values[2];
-          users[id] = { pw: pw, birth: birth };
-        } else if (values.length >= 2) {
-          // 기존 호환성 유지 (birth 없는 경우)
+          const name = values[3];
+          users[id] = { pw: pw, birth: birth, name: name };
+        } else if (values.length >= 3) {
+          // 기존 호환성 유지 (name 없는 경우)
           const id = values[0];
           const pw = values[1];
-          users[id] = { pw: pw, birth: '' };
+          const birth = values[2];
+          users[id] = { pw: pw, birth: birth, name: id }; // name이 없으면 id를 name으로 사용
+        } else if (values.length >= 2) {
+          // 기존 호환성 유지 (birth, name 없는 경우)
+          const id = values[0];
+          const pw = values[1];
+          users[id] = { pw: pw, birth: '', name: id };
         }
       }
     }
