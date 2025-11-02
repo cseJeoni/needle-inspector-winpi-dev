@@ -2,10 +2,57 @@ import Panel from "./Panel"
 import { Button } from "./Button"
 import { useAuth } from "../../hooks/useAuth.jsx"
 import { useState, useRef, useEffect, forwardRef, useImperativeHandle } from "react"
+import { getId } from '../../utils/csvCache'
 
-const JudgePanel = forwardRef(function JudgePanel({ onJudge, isStarted, onReset, camera1Ref, camera2Ref, hasNeedleTip = true, websocket, isWsConnected, onCaptureMergedImage, eepromData, generateUserBasedPath, isWaitingEepromRead = false, onWaitingEepromReadChange, isResistanceAbnormal = false, isNeedleShortFixed = false, needleOffset1, needleOffset2, needleSpeed1, needleSpeed2, workStatus = 'waiting', onDebugModeChange }, ref) {
+const JudgePanel = forwardRef(function JudgePanel({ onJudge, isStarted, onReset, camera1Ref, camera2Ref, hasNeedleTip = true, websocket, isWsConnected, onCaptureMergedImage, eepromData, generateUserBasedPath, isWaitingEepromRead = false, onWaitingEepromReadChange, isResistanceAbnormal = false, isNeedleShortFixed = false, needleOffset1, needleOffset2, needleSpeed1, needleSpeed2, workStatus = 'waiting', onDebugModeChange, dataSettings }, ref) {
   // 사용자 정보 가져오기
   const { user, resetUsersCache } = useAuth()
+  
+  // 일일 시리얼 번호 관리
+  const [dailySerialNumber, setDailySerialNumber] = useState(1)
+  
+  // 일일 시리얼 번호 초기화 및 관리
+  useEffect(() => {
+    // 프로그램 시작 시 또는 날짜 변경 시 시리얼 번호 초기화
+    const loadDailySerial = async () => {
+      const today = new Date().toISOString().split('T')[0]
+      const storageKey = `dailySerial_${today}`
+      
+      try {
+        // electron-store에서 오늘 날짜의 시리얼 번호 로드
+        const savedSerial = await window.electronAPI.getStoredValue(storageKey)
+        if (savedSerial) {
+          setDailySerialNumber(savedSerial)
+        } else {
+          // 오늘 날짜의 첫 번째 시리얼
+          setDailySerialNumber(1)
+          await window.electronAPI.setStoredValue(storageKey, 1)
+        }
+      } catch (error) {
+        console.error('일일 시리얼 번호 로드 실패:', error)
+        setDailySerialNumber(1)
+      }
+    }
+    
+    loadDailySerial()
+  }, [])
+  
+  // 일일 시리얼 번호 증가 함수
+  const incrementDailySerial = async () => {
+    const newSerial = dailySerialNumber + 1
+    setDailySerialNumber(newSerial)
+    
+    const today = new Date().toISOString().split('T')[0]
+    const storageKey = `dailySerial_${today}`
+    
+    try {
+      await window.electronAPI.setStoredValue(storageKey, newSerial)
+    } catch (error) {
+      console.error('일일 시리얼 번호 저장 실패:', error)
+    }
+    
+    return dailySerialNumber // 현재 번호 반환 (증가 전)
+  }
   
   // 관리자 패널 상태
   const [isAdminMode, setIsAdminMode] = useState(false)
@@ -109,45 +156,41 @@ const JudgePanel = forwardRef(function JudgePanel({ onJudge, isStarted, onReset,
   // '이미 캡처된' 병합 이미지 데이터(URL)를 받아 파일로 저장하는 함수
   const saveMergedScreenshotFromData = async (mergedImageData, judgeResult, eepromData) => {
     try {
-      // 파일명 생성: 캡쳐날짜_캡쳐시각_팁타입_제조일자_작업자코드_작업자이름 (로컬 시간 기준)
-      const date = new Date();
-      const captureDate = `${String(date.getFullYear()).slice(-2)}${String(date.getMonth() + 1).padStart(2, '0')}${String(date.getDate()).padStart(2, '0')}`;
-      const captureTime = `${String(date.getHours()).padStart(2, '0')}${String(date.getMinutes()).padStart(2, '0')}${String(date.getSeconds()).padStart(2, '0')}`;
-      
-      // EEPROM 데이터에서 팁타입과 제조일자 추출
-      let tipType = 'T000';
-      let mfgDate = '000000';
-      
-      if (eepromData && eepromData.tipType) {
-        tipType = `T${String(eepromData.tipType).padStart(3, '0')}`;
-      }
-      
-      if (eepromData && eepromData.year && eepromData.month && eepromData.day) {
-        mfgDate = `${String(eepromData.year).slice(-2)}${String(eepromData.month).padStart(2, '0')}${String(eepromData.day).padStart(2, '0')}`;
-      }
-      
-      // 사용자 정보 추출 (CSV 기반 로그인 시스템)
-      let workerCode = 'unkn';
+      // EEPROM 데이터에서 정보 추출 (읽은 데이터 우선 사용)
+      let serial = '';
+      let judgment = judgeResult || 'UNKNOWN';
+      let tipType = 'unknown';
+      let workerCode = 'unknown';
       let workerName = 'unknown';
       
-      // 직접 사용자 정보 사용
-      console.log('🔍 JudgePanel 사용자 정보 디버깅:', {
-        user: user,
-        userType: typeof user,
-        hasBirthLast4: user?.birthLast4,
-        hasId: user?.id,
-        userKeys: user ? Object.keys(user) : 'null'
-      });
-      
-      if (user && user.birthLast4 && user.id) {
-        workerCode = user.birthLast4; // birth 끝 4자리
-        workerName = user.id;         // CSV의 id 값
-        console.log(`👤 JudgePanel 사용자 정보 - 코드: ${workerCode}, 이름: ${workerName}`);
+      if (eepromData && eepromData.success) {
+        // EEPROM에서 읽은 데이터 사용
+        serial = eepromData.dailySerial || '';
+        judgment = eepromData.judgeResult || judgeResult || 'UNKNOWN';
+        tipType = eepromData.tipType || 'unknown';
+        
+        // 검사기 코드를 작업자 코드로 사용
+        const inspectorCode = eepromData.inspectorCode || 'A';
+        
+        // 작업자 정보 (user 정보와 매칭)
+        if (user) {
+          workerCode = user.code || inspectorCode;
+          workerName = user.name || 'unknown';
+        } else {
+          workerCode = inspectorCode;
+          workerName = 'unknown';
+        }
       } else {
-        console.warn('⚠️ JudgePanel에서 사용자 정보를 찾을 수 없습니다.');
+        // EEPROM 데이터가 없으면 기본값 사용
+        serial = String(dailySerialNumber);
+        if (user) {
+          workerCode = user.code || 'unknown';
+          workerName = user.name || 'unknown';
+        }
       }
       
-      const fileName = `${captureDate}_${captureTime}_${tipType}_${mfgDate}_${workerCode}_${workerName}.png`;
+      // 파일명 생성: [시리얼]-[판정]-[팁타입]-[작업자코드]-[작업자이름].png
+      const fileName = `${serial}-${judgment}-${tipType}-${workerCode}-${workerName}.png`;
 
       // 사용자 정보 기반 폴더 경로 생성
       const baseDir = generateUserBasedPath ? await generateUserBasedPath(judgeResult) : 
@@ -172,6 +215,79 @@ const JudgePanel = forwardRef(function JudgePanel({ onJudge, isStarted, onReset,
     }
   };
 
+  // EEPROM 쓰기 함수 (판정 시 호출)
+  const writeEepromWithJudgment = async (judgeResult) => {
+    return new Promise((resolve, reject) => {
+      if (!websocket || !isWsConnected || !dataSettings) {
+        reject(new Error('WebSocket 또는 데이터 설정 없음'));
+        return;
+      }
+
+      // 현재 일일 시리얼 번호 사용
+      const currentSerial = dailySerialNumber;
+      
+      const eepromWriteData = {
+        cmd: "eeprom_write",
+        tipType: calculateTipType(), // DataSettingsPanel과 동일한 로직 필요
+        shotCount: 0,
+        year: parseInt(dataSettings.selectedYear),
+        month: parseInt(dataSettings.selectedMonth),
+        day: parseInt(dataSettings.selectedDay),
+        makerCode: parseInt(dataSettings.manufacturer) || 4,
+        mtrVersion: dataSettings.mtrVersion,
+        country: dataSettings.selectedCountry,
+        inspectorCode: dataSettings.inspector || 'A',
+        judgeResult: judgeResult,
+        dailySerial: currentSerial
+      };
+
+      console.log('📝 EEPROM 쓰기 (판정 데이터 포함):', eepromWriteData);
+
+      const handleResponse = (event) => {
+        try {
+          const response = JSON.parse(event.data);
+          if (response.type === 'eeprom_write') {
+            websocket.removeEventListener('message', handleResponse);
+            
+            if (response.result && response.result.success) {
+              console.log('✅ EEPROM 쓰기 성공 (판정 데이터 포함)');
+              // 쓰기 후 읽은 데이터도 함께 반환
+              resolve(response.result.data || response.result);
+            } else {
+              reject(new Error(response.result?.error || 'EEPROM 쓰기 실패'));
+            }
+          }
+        } catch (err) {
+          console.error('EEPROM 응답 파싱 오류:', err);
+        }
+      };
+
+      websocket.addEventListener('message', handleResponse);
+      websocket.send(JSON.stringify(eepromWriteData));
+
+      // 타임아웃
+      setTimeout(() => {
+        websocket.removeEventListener('message', handleResponse);
+        reject(new Error('EEPROM 쓰기 타임아웃'));
+      }, 5000);
+    });
+  };
+
+  // TIP TYPE 계산 (DataSettingsPanel과 동일한 로직)
+  const calculateTipType = () => {
+    if (!dataSettings) return null;
+    
+    const { mtrVersion, selectedCountry, selectedNeedleType } = dataSettings;
+    if (!mtrVersion || !selectedCountry || !selectedNeedleType) return null;
+    
+    // CSV 캐시에서 ID 조회
+    const id = getId(mtrVersion, selectedCountry, selectedNeedleType);
+    
+    // ID가 숫자 형태라면 그대로 반환, 아니면 null
+    const numericId = parseInt(id);
+    return isNaN(numericId) ? null : numericId;
+  };
+
   // 판정 로직을 처리하는 중앙 함수
   const handleJudge = async (result) => {
     try {
@@ -185,19 +301,30 @@ const JudgePanel = forwardRef(function JudgePanel({ onJudge, isStarted, onReset,
         websocket.send(JSON.stringify(ledCommand));
       }
 
-      // 2. EEPROM 데이터 사용 (props로 받은 데이터)
-      console.log('📡 EEPROM 데이터 사용:', eepromData);
-      console.log('📡 현재 작업 상태:', workStatus);
+      // 2. EEPROM에 판정 결과와 함께 쓰기/읽기
+      let updatedEepromData = null;
+      try {
+        console.log('📝 EEPROM 쓰기 시작 (판정 결과 포함)...');
+        updatedEepromData = await writeEepromWithJudgment(result);
+        console.log('✅ EEPROM 쓰기/읽기 완료:', updatedEepromData);
+        
+        // 일일 시리얼 번호 증가 (다음 판정을 위해)
+        await incrementDailySerial();
+      } catch (error) {
+        console.error('❌ EEPROM 처리 실패:', error);
+        // EEPROM 실패해도 계속 진행 (기존 데이터 사용)
+        updatedEepromData = eepromData;
+      }
 
       // 3. 캡처 먼저 수행하여 '화면 그대로' 확보
-      const mergedImageData = await onCaptureMergedImage(result, eepromData);
+      const mergedImageData = await onCaptureMergedImage(result, updatedEepromData || eepromData);
 
       // 4. 캡처가 확보되면 즉시 니들 DOWN (작업 대기 시간 최소화)
       sendNeedleDown();
 
       // 5. 디스크 저장은 비동기로 진행하여 UI/동작 지연 최소화
-      //    실패 시 로그만 남김 (필요하다면 재시도 로직 추가 가능)
-      saveMergedScreenshotFromData(mergedImageData, result, eepromData).catch(err => {
+      //    EEPROM에서 읽은 데이터를 사용하여 파일명 생성
+      saveMergedScreenshotFromData(mergedImageData, result, updatedEepromData || eepromData).catch(err => {
         console.error('❌ 비동기 병합 이미지 저장 실패:', err);
       });
       
@@ -566,6 +693,6 @@ const JudgePanel = forwardRef(function JudgePanel({ onJudge, isStarted, onReset,
       </div>
     </Panel>
   )
-});
+})
 
-export default JudgePanel;
+export default JudgePanel

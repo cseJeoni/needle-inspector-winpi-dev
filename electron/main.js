@@ -664,6 +664,36 @@ ipcMain.handle('camera-led-set-state', async (event, deviceIndex, ledState) => {
   }
 });
 
+// 일일 시리얼 번호 저장 IPC 핸들러
+ipcMain.handle('set-stored-value', async (event, key, value) => {
+  try {
+    console.log(`[INFO] 값 저장: ${key} = ${value}`);
+    store.set(key, value);
+    return {
+      success: true,
+      message: '값이 성공적으로 저장되었습니다.'
+    };
+  } catch (error) {
+    console.error('[ERROR] 값 저장 실패:', error);
+    return {
+      success: false,
+      error: error.message
+    };
+  }
+});
+
+// 일일 시리얼 번호 로드 IPC 핸들러
+ipcMain.handle('get-stored-value', async (event, key) => {
+  try {
+    const value = store.get(key);
+    console.log(`[INFO] 값 로드: ${key} = ${value}`);
+    return value;
+  } catch (error) {
+    console.error('[ERROR] 값 로드 실패:', error);
+    return null;
+  }
+});
+
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
 if (require('electron-squirrel-startup')) {
   app.quit();

@@ -67,6 +67,9 @@ export default function NeedleInspectorUI() {
   // StatusPanel 상태 관리
   const [workStatus, setWorkStatus] = useState('waiting') // waiting, connected, disconnected, write_success, write_failed, needle_short
   
+  // 데이터 설정 상태 (판정 시 EEPROM 쓰기를 위해 필요)
+  const [dataSettings, setDataSettings] = useState(null)
+  
   // DataSettingsPanel 상태 관리
   const [isStarted, setIsStarted] = useState(false) // START/STOP 상태
   const [readEepromData, setReadEepromData] = useState(null) // EEPROM 읽기 데이터
@@ -2348,6 +2351,7 @@ useEffect(() => {
             onMtrVersionChange={setMtrVersion} // MTR 버전 변경 콜백 함수 전달
             selectedNeedleType={selectedNeedleType} // 선택된 니들 타입 전달
             onSelectedNeedleTypeChange={setSelectedNeedleType} // 선택된 니들 타입 변경 콜백 함수 전달
+            onDataSettingsChange={setDataSettings} // 데이터 설정 변경 콜백 추가
             needleOffset1={needleOffset1} // 모터 1 니들 오프셋 전달
             needleProtrusion1={needleProtrusion1} // 모터 1 니들 돌출부분 전달
             needleSpeed1={needleSpeed1} // 모터 1 니들 속도 전달
@@ -2435,10 +2439,10 @@ useEffect(() => {
             onReset={handleJudgeReset}
             camera1Ref={cameraViewRef1} // camera1Ref 전달
             camera2Ref={cameraViewRef2} // camera2Ref 전달
-            hasNeedleTip={needleTipConnected} // GPIO23 기반 니들팁 연결 상태 전달
+            hasNeedleTip={needleTipConnected} // GPIO23 기반 니들팸 연결 상태 전달
             websocket={ws} // WebSocket 연결 전달
             isWsConnected={isWsConnected} // WebSocket 연결 상태 전달
-            onCaptureMergedImage={captureMergedImage} // 병합 캡처 함수 전달
+            onCaptureMergedImage={captureMergedImage} // 병합 캐처 함수 전달
             eepromData={readEepromData} // EEPROM 데이터 전달
             generateUserBasedPath={generateUserBasedPath} // 사용자 기반 폴더 경로 생성 함수 전달
             isWaitingEepromRead={isWaitingEepromRead} // EEPROM 읽기 대기 상태 전달
@@ -2451,6 +2455,7 @@ useEffect(() => {
             needleSpeed2={needleSpeed2} // 모터 2 속도 전달
             workStatus={workStatus} // 작업 상태 전달 (니들 쇼트 포함)
             onDebugModeChange={setIsDebugMode} // 디버깅 모드 변경 콜백 전달
+            dataSettings={dataSettings} // 데이터 설정 전달
             />
           </div>
         </div>

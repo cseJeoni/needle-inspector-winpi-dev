@@ -120,6 +120,15 @@ contextBridge.exposeInMainWorld('electronAPI', {
   
   setCameraLED: (deviceIndex, ledState) => {
     return ipcRenderer.invoke('camera-led-set-state', deviceIndex, ledState);
+  },
+  
+  // 일일 시리얼 번호 저장/로드 API
+  setStoredValue: (key, value) => {
+    return ipcRenderer.invoke('set-stored-value', key, value);
+  },
+  
+  getStoredValue: (key) => {
+    return ipcRenderer.invoke('get-stored-value', key);
   }
 });
 

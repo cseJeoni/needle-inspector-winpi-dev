@@ -16,41 +16,26 @@ import {
   resetAndInitializeCache
 } from '../../utils/csvCache';
 
-const DataSettingsPanel = forwardRef(({
-  makerCode,
-  onWorkStatusChange,
-  isStarted,
-  onStartedChange,
-  readEepromData,
-  onReadEepromDataChange,
-  needleTipConnected,
-  websocket, // 메인 WebSocket 연결
-  isWsConnected, // WebSocket 연결 상태
-  onWaitingEepromReadChange, // EEPROM 읽기 대기 상태 변경 함수
-  calculatedMotorPosition, // 계산된 모터 위치
-  onMtrVersionChange, // MTR 버전 변경 콜백 함수
-  selectedNeedleType, // 선택된 니들 타입 (상위에서 전달)
-  onSelectedNeedleTypeChange, // 선택된 니들 타입 변경 콜백 함수
-  needleOffset1, // 모터 1 니들 오프셋
-  needleProtrusion1, // 모터 1 니들 돌출부분
-  needleSpeed1, // 모터 1 니들 속도
-  needleOffset2,
-  needleProtrusion2,
-  needleSpeed2, // 모터 2 니들 속도
-  isDecelerationEnabled, // 감속 활성화 여부
-  decelerationPosition, // 감속 위치
-  decelerationSpeed, // 감속 스피드
+const DataSettingsPanel = forwardRef(({ 
+  makerCode, onWorkStatusChange, isStarted, onStartedChange, readEepromData, 
+  onReadEepromDataChange, needleTipConnected, websocket, isWsConnected, 
+  onWaitingEepromReadChange, calculatedMotorPosition, onMtrVersionChange,
+  selectedNeedleType, onSelectedNeedleTypeChange, 
+  needleOffset1, needleProtrusion1, needleSpeed1, 
+  needleOffset2, needleProtrusion2, needleSpeed2, 
+  isDecelerationEnabled, decelerationPosition, decelerationSpeed, 
   resistanceThreshold,
-  onResistanceAbnormalChange,
-  isNeedleShortFixed, // START 시점 니들 쇼트 고정 상태
-  onNeedleShortFixedChange, // START 시점 니들 쇼트 고정 상태 변경 함수
-  onResistance1Change,
+  onResistanceAbnormalChange, 
+  isNeedleShortFixed, 
+  onNeedleShortFixedChange, 
+  onResistance1Change, 
   onResistance2Change,
+  onDataSettingsChange, // 데이터 설정 변경 콜백 추가
   onResistance1StatusChange,
   onResistance2StatusChange,
-  gpio5State, // GPIO 5번 쇼트 체크 상태
-  motor2Position, // 실시간 모터2 위치
-  motor1Position  // 실시간 모터1 위치
+  gpio5State, 
+  motor2Position, 
+  motor1Position  
 }, ref) => {
   // isStarted와 readEepromData는 이제 props로 받아서 사용
   const [selectedYear, setSelectedYear] = useState("")
@@ -421,6 +406,51 @@ const DataSettingsPanel = forwardRef(({
 
     return () => clearTimeout(timeoutId);
   }, [selectedCountry, selectedNeedleType, manufacturer, mtrVersion, inspector]) // 날짜만 제외
+
+  useEffect(() => {
+    // 초기 렌더링 또는 캐시가 준비되지 않았을 때는 저장하지 않음
+    if (!cacheReady || !selectedCountry || !selectedNeedleType) return;
+    
+    const timeoutId = setTimeout(() => {
+      window.electronAPI.getParameters().then(result => {
+        const currentParams = result.data || {};
+        const updatedParams = {
+          ...currentParams,
+          dataSettings: {
+            selectedCountry,
+            selectedNeedleType,
+            manufacturer,
+            mtrVersion,
+            inspector
+          }
+        };
+        
+        window.electronAPI.saveParameters(updatedParams).then(saveResult => {
+          if (saveResult.success) {
+            console.log('✅ 파라미터 자동 저장 완료 (날짜 제외):', updatedParams.dataSettings);
+          } else {
+            console.error('❌ 파라미터 자동 저장 실패:', saveResult.error);
+          }
+        });
+      });
+      
+      // 부모 컴포넌트에 데이터 변경 알림
+      if (onDataSettingsChange) {
+        onDataSettingsChange({
+          selectedCountry,
+          selectedNeedleType,
+          manufacturer,
+          mtrVersion,
+          inspector,
+          selectedYear,
+          selectedMonth,
+          selectedDay
+        });
+      }
+    }, 500); // 500ms 지연
+
+    return () => clearTimeout(timeoutId);
+  }, [selectedCountry, selectedNeedleType, manufacturer, mtrVersion, inspector, selectedYear, selectedMonth, selectedDay]) // 날짜도 포함하여 전달
 
   // EEPROM 읽기 함수 (Promise 기반 동기화)
   const readFromEEPROM = () => {

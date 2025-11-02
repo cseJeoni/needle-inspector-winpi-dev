@@ -895,7 +895,7 @@ if gpio_available and pin19:
 
 
 # EEPROM 관련 함수들 - 간소화된 API
-def write_eeprom_mtr20(tip_type, shot_count, year, month, day, maker_code, country="CLASSYS"):
+def write_eeprom_mtr20(tip_type, shot_count, year, month, day, maker_code, country="CLASSYS", inspector_code=None, judge_result=None, daily_serial=None):
     """
     MTR 2.0용 EEPROM 쓰기 함수
     
@@ -907,15 +907,21 @@ def write_eeprom_mtr20(tip_type, shot_count, year, month, day, maker_code, count
         day: 제조 일
         maker_code: 제조업체 코드 (1바이트)
         country: 국가 ("CLASSYS" 또는 "CUTERA")
+        inspector_code: 검사기 코드 (문자열, 선택적)
+        judge_result: 판정 결과 (PASS=1, NG=0, 선택적)
+        daily_serial: 일일 시리얼 번호 (정수, 선택적)
     
     EEPROM 설정:
         - CLASSYS: 주소 0x50, 오프셋 0x10
         - CUTERA: 주소 0x50, 오프셋 0x80
     
-    데이터 구조 (오프셋 기준):
-        offset + 0: TIP ID (1바이트)
-        offset + 1~2: Shot Count (2바이트, big-endian)
-        offset + 3~8: Reserve (6바이트)
+    레이아웃:
+        offset + 0: TIP TYPE (1바이트)
+        offset + 1~2: SHOT COUNT (2바이트, big-endian)
+        offset + 3~4: Reserved
+        offset + 5: 검사기 코드 (1바이트)
+        offset + 6: 판정 결과 (1바이트: PASS=0x01, NG=0x00)
+        offset + 7~8: 일일 시리얼 번호 (2바이트, big-endian)
         offset + 9~11: 제조 년/월/일 (3바이트)
         offset + 12: 제조업체 (1바이트)
     """
@@ -938,6 +944,25 @@ def write_eeprom_mtr20(tip_type, shot_count, year, month, day, maker_code, count
         time.sleep(0.01)
         bus.write_byte_data(eeprom_address, offset + 2, shot_count & 0xFF)
         time.sleep(0.01)
+
+        # 검사기 코드 (offset + 5) - 문자열을 ASCII 값으로 변환
+        if inspector_code is not None:
+            inspector_byte = ord(inspector_code[0]) if inspector_code else 0x41  # 기본값 'A'
+            bus.write_byte_data(eeprom_address, offset + 5, inspector_byte & 0xFF)
+            time.sleep(0.01)
+
+        # 판정 결과 (offset + 6)
+        if judge_result is not None:
+            judge_byte = 0x01 if judge_result == "PASS" else 0x00
+            bus.write_byte_data(eeprom_address, offset + 6, judge_byte)
+            time.sleep(0.01)
+
+        # 일일 시리얼 번호 (offset + 7~8) - 2바이트 big-endian
+        if daily_serial is not None:
+            bus.write_byte_data(eeprom_address, offset + 7, (daily_serial >> 8) & 0xFF)
+            time.sleep(0.01)
+            bus.write_byte_data(eeprom_address, offset + 8, daily_serial & 0xFF)
+            time.sleep(0.01)
 
         # DATE: offset + 9=YEAR, offset + 10=MONTH, offset + 11=DAY
         bus.write_byte_data(eeprom_address, offset + 9, (year - 2000) & 0xFF)
@@ -1007,6 +1032,9 @@ def read_eeprom_mtr20(country="CLASSYS"):
                 "month": month,
                 "day": day,
                 "makerCode": maker_code,
+                "inspectorCode": inspector_char,
+                "judgeResult": judge_str,
+                "dailySerial": daily_serial,
                 "mtrVersion": "2.0",
                 "country": country,
                 "eepromAddress": f"0x{eeprom_address:02X}",
@@ -1025,7 +1053,7 @@ def read_eeprom_mtr20(country="CLASSYS"):
                 except: pass
 
 
-def write_eeprom_mtr40(tip_type, shot_count, year, month, day, maker_code):
+def write_eeprom_mtr40(tip_type, shot_count, year, month, day, maker_code, inspector_code=None, judge_result=None, daily_serial=None):
     """
     MTR 4.0용 EEPROM 쓰기 함수
     
@@ -1036,8 +1064,21 @@ def write_eeprom_mtr40(tip_type, shot_count, year, month, day, maker_code):
         month: 제조 월
         day: 제조 일
         maker_code: 제조업체 코드 (1바이트)
+        inspector_code: 검사기 코드 (문자열, 선택적)
+        judge_result: 판정 결과 (PASS=1, NG=0, 선택적)
+        daily_serial: 일일 시리얼 번호 (정수, 선택적)
     
     EEPROM 설정: 주소 0x51, 오프셋 0x70
+    
+    레이아웃:
+        offset + 0: TIP TYPE (1바이트)
+        offset + 1~2: SHOT COUNT (2바이트, big-endian)
+        offset + 3~4: Reserved
+        offset + 5: 검사기 코드 (1바이트)
+        offset + 6: 판정 결과 (1바이트: PASS=0x01, NG=0x00)
+        offset + 7~8: 일일 시리얼 번호 (2바이트, big-endian)
+        offset + 9~11: 제조 년/월/일 (3바이트)
+        offset + 12: 제조업체 (1바이트)
     """
     if not eeprom_available:
         return {"success": False, "error": "EEPROM 기능이 비활성화되어 있습니다."}
@@ -1057,6 +1098,25 @@ def write_eeprom_mtr40(tip_type, shot_count, year, month, day, maker_code):
         time.sleep(0.01)
         bus.write_byte_data(eeprom_address, offset + 2, shot_count & 0xFF)
         time.sleep(0.01)
+
+        # 검사기 코드 (offset + 5) - 문자열을 ASCII 값으로 변환
+        if inspector_code is not None:
+            inspector_byte = ord(inspector_code[0]) if inspector_code else 0x41  # 기본값 'A'
+            bus.write_byte_data(eeprom_address, offset + 5, inspector_byte & 0xFF)
+            time.sleep(0.01)
+
+        # 판정 결과 (offset + 6)
+        if judge_result is not None:
+            judge_byte = 0x01 if judge_result == "PASS" else 0x00
+            bus.write_byte_data(eeprom_address, offset + 6, judge_byte)
+            time.sleep(0.01)
+
+        # 일일 시리얼 번호 (offset + 7~8) - 2바이트 big-endian
+        if daily_serial is not None:
+            bus.write_byte_data(eeprom_address, offset + 7, (daily_serial >> 8) & 0xFF)
+            time.sleep(0.01)
+            bus.write_byte_data(eeprom_address, offset + 8, daily_serial & 0xFF)
+            time.sleep(0.01)
 
         # DATE: offset + 9=YEAR, offset + 10=MONTH, offset + 11=DAY
         bus.write_byte_data(eeprom_address, offset + 9, (year - 2000) & 0xFF)
@@ -1103,6 +1163,18 @@ def read_eeprom_mtr40():
             shot = bus.read_i2c_block_data(eeprom_address, offset + 1, 2)
             shot_count = (shot[0] << 8) | shot[1]
 
+            # 검사기 코드 (offset + 5)
+            inspector_code = bus.read_byte_data(eeprom_address, offset + 5)
+            inspector_char = chr(inspector_code) if 32 <= inspector_code <= 126 else 'A'
+
+            # 판정 결과 (offset + 6)
+            judge_result = bus.read_byte_data(eeprom_address, offset + 6)
+            judge_str = "PASS" if judge_result == 0x01 else "NG"
+
+            # 일일 시리얼 번호 (offset + 7~8)
+            serial = bus.read_i2c_block_data(eeprom_address, offset + 7, 2)
+            daily_serial = (serial[0] << 8) | serial[1]
+
             # DATE: offset + 9=YEAR, offset + 10=MONTH, offset + 11=DAY
             year_off = bus.read_byte_data(eeprom_address, offset + 9)
             month = bus.read_byte_data(eeprom_address, offset + 10)
@@ -1120,6 +1192,9 @@ def read_eeprom_mtr40():
                 "month": month,
                 "day": day,
                 "makerCode": maker_code,
+                "inspectorCode": inspector_char,
+                "judgeResult": judge_str,
+                "dailySerial": daily_serial,
                 "mtrVersion": "4.0",
                 "country": "ALL",
                 "eepromAddress": f"0x{eeprom_address:02X}",
@@ -1361,8 +1436,11 @@ async def handler(websocket):
                     maker_code = data.get("makerCode")
                     mtr_version = data.get("mtrVersion", "2.0")  # 기본값: MTR 2.0
                     country = data.get("country", "CLASSYS")    # 기본값: CLASSYS
+                    inspector_code = data.get("inspectorCode")    # 검사기 코드
+                    judge_result = data.get("judgeResult")        # 판정 결과
+                    daily_serial = data.get("dailySerial")        # 일일 시리얼
                     
-                    print(f"[INFO] EEPROM 쓰기 요청: MTR={mtr_version}, 국가={country}, TIP_TYPE={tip_type}, SHOT_COUNT={shot_count}, DATE={year}-{month}-{day}, MAKER={maker_code}")
+                    print(f"[INFO] EEPROM 쓰기 요청: MTR={mtr_version}, 국가={country}, TIP_TYPE={tip_type}, SHOT_COUNT={shot_count}, DATE={year}-{month}-{day}, MAKER={maker_code}, INSPECTOR={inspector_code}, JUDGE={judge_result}, SERIAL={daily_serial}")
                     
                     if tip_type is None or year is None or month is None or day is None or maker_code is None:
                         async with lock:
@@ -1373,9 +1451,9 @@ async def handler(websocket):
                     else:
                         # MTR 버전과 국가에 따라 적절한 함수 선택
                         if mtr_version == "4.0":
-                            result = write_eeprom_mtr40(tip_type, shot_count, year, month, day, maker_code)
+                            result = write_eeprom_mtr40(tip_type, shot_count, year, month, day, maker_code, inspector_code, judge_result, daily_serial)
                         else:  # MTR 2.0
-                            result = write_eeprom_mtr20(tip_type, shot_count, year, month, day, maker_code, country)
+                            result = write_eeprom_mtr20(tip_type, shot_count, year, month, day, maker_code, country, inspector_code, judge_result, daily_serial)
                         
                         # 쓰기 성공 후 바로 읽어서 데이터 포함
                         if result.get("success"):
