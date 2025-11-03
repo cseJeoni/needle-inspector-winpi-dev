@@ -243,8 +243,8 @@ const JudgePanel = forwardRef(function JudgePanel({ onJudge, isStarted, onReset,
       // 예시: A-251103-0001-PASS-T030-0607-홍길동.png
       const fileName = `${inspectorCode}-${manufacturingDate}-${dailySerial}-${judgment}-${tipType}-${workerBirthday}-${workerName}.png`;
 
-      // 사용자 정보 기반 폴더 경로 생성
-      const baseDir = generateUserBasedPath ? await generateUserBasedPath(judgeResult) : 
+      // 사용자 정보 기반 폴더 경로 생성 (EEPROM 데이터 전달)
+      const baseDir = generateUserBasedPath ? await generateUserBasedPath(judgeResult, eepromData) : 
                      (judgeResult === 'NG' ? 'C:\\Inspect\\NG' : 'C:\\Inspect\\PASS');
       
       // 폴더가 없으면 생성 (Electron API 사용)

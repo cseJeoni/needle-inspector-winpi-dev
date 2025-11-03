@@ -390,9 +390,22 @@ export default function NeedleInspectorUI() {
   };
 
   // 사용자 정보 기반 폴더 경로 생성 함수
-  const generateUserBasedPath = async (judgeResult) => {
-    const today = new Date();
-    const workDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`; // YYYY-MM-DD (로컬 시간)
+  const generateUserBasedPath = async (judgeResult, eepromData = null) => {
+    // EEPROM 데이터에서 제조일 추출, 없으면 현재 날짜 사용
+    let workDate;
+    if (eepromData && eepromData.year && eepromData.month && eepromData.day) {
+      // EEPROM의 제조일 사용
+      const year = eepromData.year;
+      const month = String(eepromData.month).padStart(2, '0');
+      const day = String(eepromData.day).padStart(2, '0');
+      workDate = `${year}-${month}-${day}`; // YYYY-MM-DD
+      console.log(`📅 EEPROM 제조일 사용: ${workDate}`);
+    } else {
+      // EEPROM 데이터가 없으면 현재 날짜 사용 (fallback)
+      const today = new Date();
+      workDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+      console.log(`📅 EEPROM 데이터 없음, 현재 날짜 사용: ${workDate}`);
+    }
 
     let userFolder;
     // 사용자 정보 확인
