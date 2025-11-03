@@ -585,7 +585,11 @@ const JudgePanel = forwardRef(function JudgePanel({ onJudge, isStarted, onReset,
           <div style={{
           }}>
             <Button
-              onClick={async () => {
+              onClick={async (event) => {
+                // 이벤트가 무효화되기 전에 버튼 참조 미리 저장
+                const button = event.currentTarget;
+                const originalText = button.innerText;
+                
                 try {
                   let hasChanges = false;
                   
@@ -649,15 +653,37 @@ const JudgePanel = forwardRef(function JudgePanel({ onJudge, isStarted, onReset,
                   }
                   
                   if (hasChanges) {
-                    alert('설정이 적용되었습니다.');
-                    // 페이지 새로고침으로 변경사항 반영
-                    window.location.reload();
+                    console.log('✅ 설정이 적용되었습니다.');
+                    // 사용자에게 시각적 피드백 제공 (새로고침 없이)
+                    button.innerText = '적용되었습니다';
+                    button.style.backgroundColor = '#059669';
+                    
+                    // 3초 후에 원래 텍스트로 복구
+                    setTimeout(() => {
+                      button.innerText = originalText;
+                    }, 3000);
                   } else {
-                    alert('적용할 설정이 없습니다.');
+                    // alert 대신 버튼에 임시 메시지 표시
+                    button.innerText = '적용할 설정이 없습니다';
+                    button.style.backgroundColor = '#DC2626';
+                    
+                    // 2초 후 원래대로 복구
+                    setTimeout(() => {
+                      button.innerText = originalText;
+                      button.style.backgroundColor = '#059669';
+                    }, 2000);
                   }
                 } catch (error) {
                   console.error('설정 적용 오류:', error);
-                  alert('설정 적용 중 오류가 발생했습니다.');
+                  // alert 대신 버튼에 오류 메시지 표시
+                  button.innerText = '오류 발생!';
+                  button.style.backgroundColor = '#DC2626';
+                  
+                  // 3초 후 원래대로 복구
+                  setTimeout(() => {
+                    button.innerText = originalText;
+                    button.style.backgroundColor = '#059669';
+                  }, 3000);
                 }
               }}
               style={{
