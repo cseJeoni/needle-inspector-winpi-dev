@@ -1100,10 +1100,6 @@ const DataSettingsPanel = forwardRef(({
     setSelectedDay(value)
   }
 
-  const readTipType = readEepromData?.tipType ?? '';
-  const readShotCount = readEepromData?.shotCount ?? '';
-  const readRawDate = readEepromData ? `Y:${readEepromData.year} M:${readEepromData.month} D:${readEepromData.day}` : '';
-  const readMakerCode = readEepromData?.makerCode ?? '';
 
   return (
     <div style={{ height: '35dvh' }}>
@@ -1278,7 +1274,6 @@ const DataSettingsPanel = forwardRef(({
           </div>
         </div>
       </div>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '1dvh' }}>
 
         <Button
           onClick={handleToggle}
@@ -1300,34 +1295,6 @@ const DataSettingsPanel = forwardRef(({
         >
           {isCycleRunning ? "실행 중..." : (isStarted ? "STOP" : "START")}
         </Button>
-
-
-
-      </div>
-
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5dvh', borderTop: '1px solid #374151' }}>
-          <div style={{ display: 'flex', gap: '2dvw' }}>
-            <div style={{ display: 'flex', alignItems: 'center', flex: 1, gap: '0.5dvw' }}>
-              <label style={{ width: '3.5dvw', fontSize: '1.3dvh', color: '#D1D5DB' }}>TIP TYPE</label>
-              <Input type="text" value={readTipType} readOnly style={{ backgroundColor: '#171C26', border: 'none', width: '9dvw', color: 'white', fontSize: '1.1dvh', height: '3dvh' }} />
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', flex: 1, gap: '1dvw' }}>
-              <label style={{ width: '5dvw', fontSize: '1.3dvh', color: '#D1D5DB' }}>SHOT COUNT</label>
-              <Input type="text" value={readShotCount} readOnly style={{ backgroundColor: '#171C26', width: '5dvw', border: 'none', color: 'white', fontSize: '1.1dvh', height: '3dvh' }} />
-            </div>
-          </div>
-          <div style={{ display: 'flex', gap: '2dvw' }}>
-            <div style={{ display: 'flex', alignItems: 'center', flex: 1, gap: '0.5dvw' }}>
-              <label style={{ width: '3.5dvw', fontSize: '1.3dvh', color: '#D1D5DB' }}>제조일</label>
-              <Input type="text" value={readRawDate} readOnly style={{ backgroundColor: '#171C26', border: 'none', width: '9dvw', color: 'white', fontSize: '1.1dvh', height: '3dvh' }} />
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', flex: 1, gap: '1dvw' }}>
-              <label style={{ width: '5dvw', fontSize: '1.3dvh', color: '#D1D5DB' }}>제조사</label>
-              <Input type="text" value={readMakerCode} readOnly style={{ backgroundColor: '#171C26', width: '5dvw', border: 'none', color: 'white', fontSize: '1.1dvh', height: '3dvh' }} />
-            </div>
-          </div>
-        </div>
-      
       </Panel>
     </div>
   )
