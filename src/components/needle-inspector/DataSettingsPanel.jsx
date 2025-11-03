@@ -1022,8 +1022,18 @@ const DataSettingsPanel = forwardRef(({
       
     } catch (error) {
       console.error('❌ 일반 로직 실패:', error.message)
-      onWorkStatusChange && onWorkStatusChange('write_failed')
-      onStartedChange && onStartedChange(true) // START 상태 유지 (판정 버튼 활성화)
+      
+      // 에러 메시지에 따라 상태 구분
+      if (error.message.includes('모터') || error.message.includes('타임아웃') || error.message.includes('이동 실패')) {
+        // 모터 관련 오류 (타임아웃, 통신 오류 등)
+        onWorkStatusChange && onWorkStatusChange('motor_error')
+        onStartedChange && onStartedChange(true) // START 상태 유지 (모든 판정 버튼 비활성화)
+      } else {
+        // 실제 EEPROM 저장 실패나 기타 오류
+        onWorkStatusChange && onWorkStatusChange('write_failed')
+        onStartedChange && onStartedChange(true) // START 상태 유지 (판정 버튼 활성화)
+      }
+      
       return
     }
   }
