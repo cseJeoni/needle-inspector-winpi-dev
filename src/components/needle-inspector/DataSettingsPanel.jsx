@@ -887,6 +887,10 @@ const DataSettingsPanel = forwardRef(({
       if (error.message.includes('저항값 비정상')) {
         // 저항값 비정상으로 인한 실패는 이미 위에서 처리됨 (resistance_abnormal 상태)
         console.log('저항값 비정상으로 인한 사이클 종료 - 상태 유지')
+      } else if (error.message.includes('모터') || error.message.includes('타임아웃') || error.message.includes('이동 실패')) {
+        // 모터 관련 오류 (타임아웃, 통신 오류 등)
+        onWorkStatusChange && onWorkStatusChange('motor_error')
+        onStartedChange && onStartedChange(true) // START 상태 유지 (모든 판정 버튼 비활성화)
       } else {
         // 실제 EEPROM 저장 실패나 기타 오류
         onWorkStatusChange && onWorkStatusChange('write_failed')
