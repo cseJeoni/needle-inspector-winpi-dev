@@ -1471,6 +1471,57 @@ const handleCalibrationChange2 = (newValue) => {
 useEffect(() => {
   const loadAllSavedLines = async () => {
     try {
+      // 이미지가 완전히 로드될 때까지 대기
+      const waitForImages = async () => {
+        const maxAttempts = 20; // 최대 2초 대기 (100ms * 20)
+        let attempts = 0;
+        
+        while (attempts < maxAttempts) {
+          const img1 = videoContainerRef1.current?.querySelector('.camera-image');
+          const img2 = videoContainerRef2.current?.querySelector('.camera-image');
+          
+          // 두 이미지 모두 로드되고 natural 크기가 있는지 확인
+          if (img1?.naturalWidth > 0 && img2?.naturalWidth > 0) {
+            console.log('✅ 이미지 로드 완료 - natural 크기:', {
+              camera1: `${img1.naturalWidth}x${img1.naturalHeight}`,
+              camera2: `${img2.naturalWidth}x${img2.naturalHeight}`
+            });
+            return true;
+          }
+          
+          attempts++;
+          await new Promise(resolve => setTimeout(resolve, 100));
+        }
+        
+        console.warn('⚠️ 이미지 로드 타임아웃 - 기본값으로 진행');
+        return false;
+      };
+      
+      // 이미지 로드 대기
+      await waitForImages();
+      
+      // Canvas 크기 설정 (이미지가 로드된 후)
+      const setupCanvasSize = () => {
+        const img1 = videoContainerRef1.current?.querySelector('.camera-image');
+        const img2 = videoContainerRef2.current?.querySelector('.camera-image');
+        const canvas1 = canvasRef1.current;
+        const canvas2 = canvasRef2.current;
+        
+        if (img1 && canvas1) {
+          canvas1.width = img1.clientWidth;
+          canvas1.height = img1.clientHeight;
+          console.log(`📐 Canvas1 크기 설정: ${canvas1.width}x${canvas1.height}`);
+        }
+        
+        if (img2 && canvas2) {
+          canvas2.width = img2.clientWidth;
+          canvas2.height = img2.clientHeight;
+          console.log(`📐 Canvas2 크기 설정: ${canvas2.width}x${canvas2.height}`);
+        }
+      };
+      
+      setupCanvasSize();
+      
       // 카메라 1 선 정보 로드
       const camera1Data = await loadCameraLinesData(1);
       if (camera1Data.lines && camera1Data.lines.length > 0) {
@@ -1518,7 +1569,12 @@ useEffect(() => {
         setSelectedLineColor2(camera2Data.selectedLineColor);
       }
 
-      // 로드 후 그리기 코드...
+      // 로드 후 그리기 지연 실행 (Canvas가 준비된 후)
+      setTimeout(() => {
+        redrawCanvas1();
+        redrawCanvas2();
+        console.log('✅ 초기 Canvas 그리기 완료');
+      }, 100);
     } catch (error) {
       console.error('❌ 저장된 카메라 선 정보 로드 실패:', error);
     }
@@ -1526,6 +1582,50 @@ useEffect(() => {
 
   loadAllSavedLines();
 }, []);
+
+// Window resize 이벤트 처리
+useEffect(() => {
+  const handleResize = () => {
+    // 이미지가 로드된 상태에서만 처리
+    const img1 = videoContainerRef1.current?.querySelector('.camera-image');
+    const img2 = videoContainerRef2.current?.querySelector('.camera-image');
+    
+    if (img1?.naturalWidth > 0 && img2?.naturalWidth > 0) {
+      // Canvas 크기 재설정
+      const canvas1 = canvasRef1.current;
+      const canvas2 = canvasRef2.current;
+      
+      if (img1 && canvas1) {
+        canvas1.width = img1.clientWidth;
+        canvas1.height = img1.clientHeight;
+      }
+      
+      if (img2 && canvas2) {
+        canvas2.width = img2.clientWidth;
+        canvas2.height = img2.clientHeight;
+      }
+      
+      // 선 다시 그리기
+      redrawCanvas1();
+      redrawCanvas2();
+      console.log('📐 Resize 후 Canvas 재설정 완료');
+    }
+  };
+  
+  // 디바운싱으로 성능 최적화
+  let resizeTimer;
+  const debouncedResize = () => {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(handleResize, 300);
+  };
+  
+  window.addEventListener('resize', debouncedResize);
+  
+  return () => {
+    clearTimeout(resizeTimer);
+    window.removeEventListener('resize', debouncedResize);
+  };
+}, [lines1, lines2]);
 
 
   // WebSocket 자동 연결 (컴포넌트 마운트 시)
