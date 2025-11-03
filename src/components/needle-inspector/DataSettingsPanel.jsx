@@ -760,7 +760,7 @@ const DataSettingsPanel = forwardRef(({
           checkMotorPosition()
         }).catch((error) => {
           console.error('❌ 모터2 이동 실패:', error.message)
-          onWorkStatusChange && onWorkStatusChange('write_failed')
+          onWorkStatusChange && onWorkStatusChange('motor_error')
           onStartedChange && onStartedChange(true)
           throw error // 상위로 에러 전파
         })

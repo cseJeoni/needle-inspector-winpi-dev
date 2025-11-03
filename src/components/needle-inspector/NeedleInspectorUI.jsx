@@ -128,6 +128,20 @@ export default function NeedleInspectorUI() {
     }
   }, [needleTipConnected]); // workStatus 의존성 제거
   
+  // workStatus 변경 시 LED 제어 (모터 오류 시 RED LED)
+  useEffect(() => {
+    if (!ws || !isWsConnected) return;
+    
+    // motor_error 상태일 때 LED RED 켜기
+    if (workStatus === 'motor_error') {
+      console.log('🔴 모터 오류 발생 - LED RED 켜기');
+      ws.send(JSON.stringify({
+        cmd: "led_control",
+        type: "red"
+      }));
+    }
+  }, [workStatus, ws, isWsConnected]);
+  
   // Camera 1 상태
   const [drawMode1, setDrawMode1] = useState(false)
   const [selectedIndex1, setSelectedIndex1] = useState(-1)

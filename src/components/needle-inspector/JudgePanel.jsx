@@ -426,10 +426,10 @@ const JudgePanel = forwardRef(function JudgePanel({ onJudge, isStarted, onReset,
   };
 
   const handleNGClick = () => {
-    // 화면 버튼의 disabled 로직과 동일한 검사 - 오류 상황에서는 NG 버튼도 비활성화
+    // 화면 버튼의 disabled 로직과 동일한 검사 - 모든 오류 상황에서 PASS/NG 버튼 모두 비활성화
     const isDisabled = !isStarted || !hasNeedleTip || isWaitingEepromRead || 
                       isResistanceAbnormal || isNeedleShortFixed || workStatus === 'needle_short' || 
-                      workStatus === 'write_failed' || workStatus === 'read_failed';
+                      workStatus === 'write_failed' || workStatus === 'read_failed' || workStatus === 'motor_error';
     
     if (isDisabled) {
       console.log("🔘 [PHYSICAL] NG 버튼 무시 (UI 비활성화 상태 또는 오류 상황)");
@@ -441,8 +441,8 @@ const JudgePanel = forwardRef(function JudgePanel({ onJudge, isStarted, onReset,
   };
 
   const handlePassClick = () => {
-    // 화면 버튼의 disabled 로직과 동일한 검사
-    const isDisabled = !isStarted || !hasNeedleTip || isWaitingEepromRead || isResistanceAbnormal || isNeedleShortFixed || workStatus === 'needle_short';
+    // 화면 버튼의 disabled 로직과 동일한 검사 - 모든 오류 상황에서 PASS/NG 버튼 모두 비활성화
+    const isDisabled = !isStarted || !hasNeedleTip || isWaitingEepromRead || isResistanceAbnormal || isNeedleShortFixed || workStatus === 'needle_short' || workStatus === 'motor_error';
     
     if (isDisabled) {
       console.log("🔘 [PHYSICAL] PASS 버튼 무시 (UI 비활성화 상태)");
@@ -732,21 +732,21 @@ const JudgePanel = forwardRef(function JudgePanel({ onJudge, isStarted, onReset,
         {/* PASS 버튼 */}
         <Button
           onClick={handlePassClick}
-          disabled={!isStarted || !hasNeedleTip || isWaitingEepromRead || isResistanceAbnormal || isNeedleShortFixed || workStatus === 'needle_short'}
+          disabled={!isStarted || !hasNeedleTip || isWaitingEepromRead || isResistanceAbnormal || isNeedleShortFixed || workStatus === 'needle_short' || workStatus === 'motor_error'}
           style={{
             flex: 1,
-            backgroundColor: (isStarted && hasNeedleTip && !isWaitingEepromRead && !isResistanceAbnormal && !isNeedleShortFixed && workStatus !== 'needle_short') ? '#0CB56C' : '#6B7280',
+            backgroundColor: (isStarted && hasNeedleTip && !isWaitingEepromRead && !isResistanceAbnormal && !isNeedleShortFixed && workStatus !== 'needle_short' && workStatus !== 'motor_error') ? '#0CB56C' : '#6B7280',
             color: 'white',
             fontSize: '1.8dvh',
             fontWeight: 'bold',
             border: 'none',
             borderRadius: '0.375rem',
-            cursor: (isStarted && hasNeedleTip && !isWaitingEepromRead && !isResistanceAbnormal && !isNeedleShortFixed && workStatus !== 'needle_short') ? 'pointer' : 'not-allowed',
+            cursor: (isStarted && hasNeedleTip && !isWaitingEepromRead && !isResistanceAbnormal && !isNeedleShortFixed && workStatus !== 'needle_short' && workStatus !== 'motor_error') ? 'pointer' : 'not-allowed',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             height: '29.5dvh',
-            opacity: (isStarted && hasNeedleTip && !isWaitingEepromRead && !isResistanceAbnormal && !isNeedleShortFixed && workStatus !== 'needle_short') ? 1 : 0.6
+            opacity: (isStarted && hasNeedleTip && !isWaitingEepromRead && !isResistanceAbnormal && !isNeedleShortFixed && workStatus !== 'needle_short' && workStatus !== 'motor_error') ? 1 : 0.6
           }}
         >
           PASS
@@ -755,21 +755,21 @@ const JudgePanel = forwardRef(function JudgePanel({ onJudge, isStarted, onReset,
                 {/* NG 버튼 */}
         <Button
           onClick={handleNGClick}
-          disabled={!isStarted || !hasNeedleTip || isWaitingEepromRead || isResistanceAbnormal || isNeedleShortFixed || workStatus === 'needle_short' || workStatus === 'write_failed' || workStatus === 'read_failed'}
+          disabled={!isStarted || !hasNeedleTip || isWaitingEepromRead || isResistanceAbnormal || isNeedleShortFixed || workStatus === 'needle_short' || workStatus === 'write_failed' || workStatus === 'read_failed' || workStatus === 'motor_error'}
           style={{
             flex: 1,
-            backgroundColor: (isStarted && hasNeedleTip && !isWaitingEepromRead && !isResistanceAbnormal && !isNeedleShortFixed && workStatus !== 'needle_short' && workStatus !== 'write_failed' && workStatus !== 'read_failed') ? '#C22727' : '#6B7280',
+            backgroundColor: (isStarted && hasNeedleTip && !isWaitingEepromRead && !isResistanceAbnormal && !isNeedleShortFixed && workStatus !== 'needle_short' && workStatus !== 'write_failed' && workStatus !== 'read_failed' && workStatus !== 'motor_error') ? '#C22727' : '#6B7280',
             color: 'white',
             fontSize: '1.8dvh',
             fontWeight: 'bold',
             border: 'none',
             borderRadius: '0.375rem',
-            cursor: (isStarted && hasNeedleTip && !isWaitingEepromRead && !isResistanceAbnormal && !isNeedleShortFixed && workStatus !== 'needle_short' && workStatus !== 'write_failed' && workStatus !== 'read_failed') ? 'pointer' : 'not-allowed',
+            cursor: (isStarted && hasNeedleTip && !isWaitingEepromRead && !isResistanceAbnormal && !isNeedleShortFixed && workStatus !== 'needle_short' && workStatus !== 'write_failed' && workStatus !== 'read_failed' && workStatus !== 'motor_error') ? 'pointer' : 'not-allowed',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             height: '29.5dvh',
-            opacity: (isStarted && hasNeedleTip && !isWaitingEepromRead && !isResistanceAbnormal && !isNeedleShortFixed && workStatus !== 'needle_short' && workStatus !== 'write_failed' && workStatus !== 'read_failed') ? 1 : 0.6
+            opacity: (isStarted && hasNeedleTip && !isWaitingEepromRead && !isResistanceAbnormal && !isNeedleShortFixed && workStatus !== 'needle_short' && workStatus !== 'write_failed' && workStatus !== 'read_failed' && workStatus !== 'motor_error') ? 1 : 0.6
           }}
         >
           NG

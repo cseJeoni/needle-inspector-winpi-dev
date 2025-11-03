@@ -79,6 +79,8 @@ export default function StatusPanel({ mode, workStatus = 'waiting', needleTipCon
         return { bg: 'bg-[#F3950F]', text: '니들팁 없음', textColor: 'text-white' }
       case 'write_failed':
         return { bg: 'bg-[#C22727]', text: '저장 실패', textColor: 'text-white' }
+      case 'motor_error':
+        return { bg: 'bg-[#C22727]', text: '모터 오류', textColor: 'text-white' }
       case 'resistance_abnormal':
         return { bg: 'bg-[#C22727]', text: '저항 비정상', textColor: 'text-white' }
       case 'needle_short':
