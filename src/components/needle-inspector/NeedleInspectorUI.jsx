@@ -173,6 +173,10 @@ export default function NeedleInspectorUI() {
   const [draggingLabelIndex2, setDraggingLabelIndex2] = useState(-1)
   const [labelDragOffset1, setLabelDragOffset1] = useState({ x: 0, y: 0 })
   const [labelDragOffset2, setLabelDragOffset2] = useState({ x: 0, y: 0 })
+  
+  // 드래그 중 임시 라인 데이터를 저장하는 ref (리렌더링 방지)
+  const dragTempLines1 = useRef(null)
+  const dragTempLines2 = useRef(null)
 
   // 두 카메라 이미지를 가로로 합쳐서 캡처하는 함수
   const captureMergedImage = async (judgeResult = null, eepromData = null) => {
@@ -724,19 +728,23 @@ const drawLineWithInfo = (ctx, line, color, showText, calibrationValue = 19.8, i
       
       // 라벨 드래그 중인 경우
       if (isDraggingLabel1 && draggingLabelIndex1 >= 0) {
-        const newLines = [...lines1];
+        // 드래그 시작 시 한 번만 임시 배열 생성
+        if (!dragTempLines1.current) {
+          dragTempLines1.current = [...lines1];
+        }
+        
         const newLabelX_abs = currentPos.x - labelDragOffset1.x; // 새 절대 X
         const newLabelY_abs = currentPos.y - labelDragOffset1.y; // 새 절대 Y
         
-        // 5. 라벨 위치를 상대 좌표로 변환하여 저장
-        newLines[draggingLabelIndex1] = {
-          ...newLines[draggingLabelIndex1],
+        // 5. 임시 배열의 라벨 위치만 업데이트
+        dragTempLines1.current[draggingLabelIndex1] = {
+          ...dragTempLines1.current[draggingLabelIndex1],
           relLabelX: newLabelX_abs / canvas.width,
           relLabelY: newLabelY_abs / canvas.height
         };
         
-        setLines1(newLines);
-        redrawCanvas1();
+        // 드래그 중에는 임시 배열로만 그리기 (state 업데이트 없음)
+        redrawCanvas1(dragTempLines1.current);
         return;
       }
       
@@ -772,15 +780,22 @@ const drawLineWithInfo = (ctx, line, color, showText, calibrationValue = 19.8, i
     handleMouseUp: (e) => {
       // 라벨 드래그 종료
       if (isDraggingLabel1) {
+        // 드래그 종료 시 최종 위치를 state에 반영
+        if (dragTempLines1.current) {
+          setLines1(dragTempLines1.current);
+          // 자동 저장은 최종 위치로
+          setTimeout(() => {
+            saveCameraLinesData(1, dragTempLines1.current, calibrationValue1, selectedLineColor1);
+          }, 100);
+          dragTempLines1.current = null; // 임시 데이터 초기화
+        }
+        
         setIsDraggingLabel1(false);
         setDraggingLabelIndex1(-1);
-        
-        // 라벨 위치 변경 후 자동 저장
-        setTimeout(() => {
-          saveCameraLinesData(1, lines1, calibrationValue1, selectedLineColor1);
-        }, 100);
         return;
       }
+      
+      // 기존 라벨 드래그가 아닌 경우의 자동 저장 코드는 제거
       
       if (!drawMode1 || !isDrawing1 || !startPoint1) return;
       
@@ -927,19 +942,23 @@ const drawLineWithInfo = (ctx, line, color, showText, calibrationValue = 19.8, i
       
       // 라벨 드래그 중인 경우
       if (isDraggingLabel2 && draggingLabelIndex2 >= 0) {
-        const newLines = [...lines2];
+        // 드래그 시작 시 한 번만 임시 배열 생성
+        if (!dragTempLines2.current) {
+          dragTempLines2.current = [...lines2];
+        }
+        
         const newLabelX_abs = currentPos.x - labelDragOffset2.x; // 새 절대 X
         const newLabelY_abs = currentPos.y - labelDragOffset2.y; // 새 절대 Y
         
-        // 5. 라벨 위치를 상대 좌표로 변환하여 저장
-        newLines[draggingLabelIndex2] = {
-          ...newLines[draggingLabelIndex2],
+        // 5. 임시 배열의 라벨 위치만 업데이트
+        dragTempLines2.current[draggingLabelIndex2] = {
+          ...dragTempLines2.current[draggingLabelIndex2],
           relLabelX: newLabelX_abs / canvas.width,
           relLabelY: newLabelY_abs / canvas.height
         };
         
-        setLines2(newLines);
-        redrawCanvas2();
+        // 드래그 중에는 임시 배열로만 그리기 (state 업데이트 없음)
+        redrawCanvas2(dragTempLines2.current);
         return;
       }
       
@@ -975,15 +994,22 @@ const drawLineWithInfo = (ctx, line, color, showText, calibrationValue = 19.8, i
     handleMouseUp: (e) => {
       // 라벨 드래그 종료
       if (isDraggingLabel2) {
+        // 드래그 종료 시 최종 위치를 state에 반영
+        if (dragTempLines2.current) {
+          setLines2(dragTempLines2.current);
+          // 자동 저장은 최종 위치로
+          setTimeout(() => {
+            saveCameraLinesData(2, dragTempLines2.current, calibrationValue2, selectedLineColor2);
+          }, 100);
+          dragTempLines2.current = null; // 임시 데이터 초기화
+        }
+        
         setIsDraggingLabel2(false);
         setDraggingLabelIndex2(-1);
-        
-        // 라벨 위치 변경 후 자동 저장
-        setTimeout(() => {
-          saveCameraLinesData(2, lines2, calibrationValue2, selectedLineColor2);
-        }, 100);
         return;
       }
+      
+      // 기존 라벨 드래그가 아닌 경우의 자동 저장 코드는 제거
       
       if (!drawMode2 || !isDrawing2 || !startPoint2) return;
       
@@ -1079,7 +1105,7 @@ const drawLines = (ctx, lines, selectedIndex, calibrationValue, imageNaturalWidt
   });
 };
 
-const redrawCanvas1 = () => {
+const redrawCanvas1 = (customLines = null) => {
   const canvas = canvasRef1.current;
   if (!canvas || canvas.width === 0 || canvas.height === 0) return;
   
@@ -1092,10 +1118,12 @@ const redrawCanvas1 = () => {
   const img = videoContainerRef1.current?.querySelector('.camera-image');
   const naturalWidth = img?.naturalWidth || referenceNaturalWidth1;
   
-  drawLines(ctx, lines1, selectedIndex1, calibrationValue1, naturalWidth);
+  // 드래그 중이면 customLines 사용, 아니면 state의 lines1 사용
+  const linesToDraw = customLines || lines1;
+  drawLines(ctx, linesToDraw, selectedIndex1, calibrationValue1, naturalWidth);
 };
 
-const redrawCanvas2 = () => {
+const redrawCanvas2 = (customLines = null) => {
   const canvas = canvasRef2.current;
   if (!canvas || canvas.width === 0 || canvas.height === 0) return;
   
@@ -1108,7 +1136,9 @@ const redrawCanvas2 = () => {
   const img = videoContainerRef2.current?.querySelector('.camera-image');
   const naturalWidth = img?.naturalWidth || referenceNaturalWidth2;
   
-  drawLines(ctx, lines2, selectedIndex2, calibrationValue2, naturalWidth);
+  // 드래그 중이면 customLines 사용, 아니면 state의 lines2 사용
+  const linesToDraw = customLines || lines2;
+  drawLines(ctx, linesToDraw, selectedIndex2, calibrationValue2, naturalWidth);
 };
 
 const resizeCanvas = (canvas, container, img) => {
