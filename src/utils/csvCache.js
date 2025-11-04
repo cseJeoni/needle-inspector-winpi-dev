@@ -14,8 +14,18 @@ let cache = {
 function buildCache(rowsByVer) {
   const data = {};
   
+  console.log('🔧 buildCache 시작, 데이터:', {
+    '2.0': rowsByVer['2.0']?.length || 0,
+    '4.0': rowsByVer['4.0']?.length || 0
+  });
+  
   for (const ver of ['2.0', '4.0']) {
     const rows = rowsByVer[ver] || [];
+    
+    console.log(`📊 MTR ${ver} 처리 중: ${rows.length}개 행`);
+    if (rows.length > 0) {
+      console.log(`📋 첫 번째 행 구조:`, Object.keys(rows[0]));
+    }
     
     // 1) 회사 목록 (중복 제거 및 정렬)
     // 다양한 컬럼명 패턴 지원
@@ -77,9 +87,12 @@ function buildCache(rowsByVer) {
       }
     }
     
+    console.log(`✅ MTR ${ver} 처리 완료: 국가 ${countries.length}개, 니들맵 ${needlesByCompany.size}개`);
+    
     data[ver] = { countries, needlesByCompany, idByKey };
   }
   
+  console.log('✅ buildCache 완료, cache.ready = true');
   return { ready: true, data };
 }
 
@@ -109,7 +122,9 @@ export function initializeCache(rowsByVer) {
  * @returns {Array} 국가 옵션 배열 [{ value, label }, ...]
  */
 export function getCountryOptions(ver) {
-  if (!cache.ready || !cache.data[ver]) return [];
+  if (!cache.ready || !cache.data[ver]) {
+    return [];
+  }
   return cache.data[ver].countries.map(c => ({ value: c, label: c }));
 }
 
@@ -120,7 +135,9 @@ export function getCountryOptions(ver) {
  * @returns {Array} 니들 옵션 배열 [{ value, label, id }, ...]
  */
 export function getNeedleOptions(ver, company) {
-  if (!cache.ready || !cache.data[ver]) return [];
+  if (!cache.ready || !cache.data[ver]) {
+    return [];
+  }
   return (cache.data[ver].needlesByCompany.get(company) || [])
     .map(n => ({ value: n.value, label: n.label, id: n.id }));
 }

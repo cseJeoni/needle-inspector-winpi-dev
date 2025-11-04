@@ -654,14 +654,14 @@ const JudgePanel = forwardRef(function JudgePanel({ onJudge, isStarted, onReset,
                   
                   if (hasChanges) {
                     console.log('✅ 설정이 적용되었습니다.');
-                    // 사용자에게 시각적 피드백 제공 (새로고침 없이)
-                    button.innerText = '적용되었습니다';
+                    // 사용자에게 시각적 피드백 제공
+                    button.innerText = '적용 완료! 페이지 새로고침 중...';
                     button.style.backgroundColor = '#059669';
                     
-                    // 3초 후에 원래 텍스트로 복구
+                    // 1초 후 페이지 새로고침
                     setTimeout(() => {
-                      button.innerText = originalText;
-                    }, 3000);
+                      window.location.reload();
+                    }, 1000);
                   } else {
                     // alert 대신 버튼에 임시 메시지 표시
                     button.innerText = '적용할 설정이 없습니다';

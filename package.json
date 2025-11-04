@@ -8,6 +8,8 @@
     "dev": "concurrently --kill-others \"npm run dev:react\" \"wait-on tcp:5173 && electron electron/main.js\"",
     "dev:react": "vite",
     "start": "electron electron/main.js",
+    "prebuild:win": "node scripts/check-backend.js",
+    "build:win": "vite build && electron-builder --win",
     "build": "vite build && electron-builder",
     "build:linux": "vite build && electron-builder --linux"
   },
@@ -46,16 +48,40 @@
       "electron/**/*",
       "package.json"
     ],
+    "asarUnpack": [
+      "node_modules/**/*"
+    ],
     "directories": {
-      "output": "dist",
+      "output": "release",
       "buildResources": "assets"
     },
     "extraResources": [
       {
         "from": "backend",
-        "to": "backend"
+        "to": "backend",
+        "filter": [
+          "**/*",
+          "!**/__pycache__",
+          "!**/build",
+          "!**/*.pyc"
+        ]
       }
     ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": ["x64"]
+        }
+      ],
+      "icon": "assets/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
+    },
     "linux": {
       "target": [
         "AppImage"

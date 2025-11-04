@@ -36,12 +36,14 @@ export function Select({ children, defaultValue, value, onValueChange, disabled,
   let selectItems = []
   if (Array.isArray(children)) {
     children.forEach(child => {
-      if (child && child.type && child.type.name === 'SelectContent') {
+      // displayName이나 _isSelectContent로 확인 (프로덕션 빌드 호환)
+      if (child && child.type && (child.type.displayName === 'SelectContent' || child.type._isSelectContent)) {
         if (Array.isArray(child.props.children)) {
           selectItems = child.props.children.filter(item => 
-            item && item.type && item.type.name === 'SelectItem'
+            item && item.type && (item.type.displayName === 'SelectItem' || item.type._isSelectItem)
           )
-        } else if (child.props.children && child.props.children.type && child.props.children.type.name === 'SelectItem') {
+        } else if (child.props.children && child.props.children.type && 
+                  (child.props.children.type.displayName === 'SelectItem' || child.props.children.type._isSelectItem)) {
           selectItems = [child.props.children]
         }
       }
@@ -54,7 +56,7 @@ export function Select({ children, defaultValue, value, onValueChange, disabled,
 
   // children을 수정해서 전달
   const modifiedChildren = Array.isArray(children) ? children.map(child => {
-    if (child && child.type && child.type.name === 'SelectTrigger') {
+    if (child && child.type && (child.type.displayName === 'SelectTrigger' || child.type._isSelectTrigger)) {
       return cloneElement(child, {
         onClick: handleToggle,
         disabled,
@@ -66,7 +68,7 @@ export function Select({ children, defaultValue, value, onValueChange, disabled,
         }
       })
     }
-    if (child && child.type && child.type.name === 'SelectContent') {
+    if (child && child.type && (child.type.displayName === 'SelectContent' || child.type._isSelectContent)) {
       if (!isOpen || disabled) return null
       return cloneElement(child, {
         onSelect: handleSelect,
@@ -116,7 +118,6 @@ export function SelectValue({ value }) {
 
 export function SelectContent({ children, onSelect, position }) {
   const items = Array.isArray(children) ? children : [children]
-  
   
   // position이 제대로 설정되지 않았으면 기본값 사용하지 않고 숨김
   if (!position || position.top === 0 || position.left === 0) {
@@ -183,3 +184,11 @@ export function SelectContent({ children, onSelect, position }) {
 export function SelectItem({ value, children }) {
   return <div data-value={value}>{children}</div>
 }
+
+// 프로덕션 빌드에서도 컴포넌트 식별이 가능하도록 설정
+SelectTrigger.displayName = 'SelectTrigger';
+SelectTrigger._isSelectTrigger = true;
+SelectContent.displayName = 'SelectContent';
+SelectContent._isSelectContent = true;
+SelectItem.displayName = 'SelectItem';
+SelectItem._isSelectItem = true;

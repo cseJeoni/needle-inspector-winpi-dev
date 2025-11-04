@@ -139,13 +139,17 @@ const DataSettingsPanel = forwardRef(({
 
   // 니들 옵션 생성 (CSV 캐시 사용)
   const getNeedleOptionsForUI = () => {
-    if (!cacheReady || !selectedCountry) return [];
+    if (!cacheReady || !selectedCountry) {
+      return [];
+    }
     return getNeedleOptions(mtrVersion, selectedCountry);
   };
   
   // 국가 옵션 생성 (CSV 캐시 사용)
   const getCountryOptionsForUI = () => {
-    if (!cacheReady) return [];
+    if (!cacheReady) {
+      return [];
+    }
     return getCountryOptions(mtrVersion);
   };
 
@@ -164,17 +168,10 @@ const DataSettingsPanel = forwardRef(({
   // CSV 캐시 초기화 (앱 시작 시 1회)
   useEffect(() => {
     const loadCsvDataAsync = async () => {
-      // 이미 캐시가 준비되어 있으면 건너뛰기
+      // 이미 캐시가 준비되어 있으면 상태만 업데이트 (useEffect가 자동 처리)
       if (isCacheReady()) {
+        console.log('✅ 캐시 이미 준비됨, cacheReady 상태 업데이트');
         setCacheReady(true);
-        const countryOptions = getCountryOptions(mtrVersion);
-        if (countryOptions.length > 0) {
-          setSelectedCountry(countryOptions[0].value);
-          const needleOptions = getNeedleOptions(mtrVersion, countryOptions[0].value);
-          if (needleOptions.length > 0 && onSelectedNeedleTypeChange) {
-            onSelectedNeedleTypeChange(needleOptions[0].value);
-          }
-        }
         return;
       }
 
@@ -233,23 +230,40 @@ const DataSettingsPanel = forwardRef(({
       }
       
       // 3. 캐시 초기화 후 UI 업데이트
-      if (csvData && isCacheReady()) {
+      if (csvData) {
+        console.log('✅ CSV 데이터 로드 완료, cacheReady 상태 업데이트');
         setCacheReady(true);
-        const countryOptions = getCountryOptions(mtrVersion);
-        if (countryOptions.length > 0) {
-          setSelectedCountry(countryOptions[0].value);
-          const needleOptions = getNeedleOptions(mtrVersion, countryOptions[0].value);
-          if (needleOptions.length > 0 && onSelectedNeedleTypeChange) {
-            onSelectedNeedleTypeChange(needleOptions[0].value);
-          }
-        }
       } else if (!window.api) {
         console.error('`window.api.loadCsvData` 함수를 찾을 수 없습니다. preload.js를 확인하세요.');
+      } else {
+        console.warn('⚠️ CSV 데이터를 로드하지 못했습니다.');
       }
     };
     
     loadCsvDataAsync();
   }, []); // 빈 배열을 전달하여 컴포넌트 마운트 시 1회만 실행
+
+  // cacheReady 상태 변경 시 콤보박스 초기화 (1회만 실행)
+  useEffect(() => {
+    if (cacheReady && isCacheReady() && !selectedCountry) {
+      console.log('🎉 캐시 준비 완료, 콤보박스 초기화 시작');
+      const countryOptions = getCountryOptions(mtrVersion);
+      console.log(`📋 국가 옵션 ${countryOptions.length}개 로드됨`);
+      
+      if (countryOptions.length > 0) {
+        console.log(`🔧 기본 국가 설정: ${countryOptions[0].value}`);
+        setSelectedCountry(countryOptions[0].value);
+        
+        const needleOptions = getNeedleOptions(mtrVersion, countryOptions[0].value);
+        console.log(`📋 니들 옵션 ${needleOptions.length}개 로드됨`);
+        
+        if (needleOptions.length > 0 && onSelectedNeedleTypeChange) {
+          console.log(`🔧 기본 니들 설정: ${needleOptions[0].value}`);
+          onSelectedNeedleTypeChange(needleOptions[0].value);
+        }
+      }
+    }
+  }, [cacheReady, mtrVersion]); // 필요한 최소 의존성만 포함
 
   // 파라미터 로드 및 초기값 설정
   useEffect(() => {
@@ -260,7 +274,10 @@ const DataSettingsPanel = forwardRef(({
           const params = result.data.dataSettings;
           
           // 저장된 값이 있으면 사용, 없으면 기본값 사용
-          setSelectedCountry(params.selectedCountry || '');
+          // selectedCountry는 캐시에서 초기화되므로, 저장된 값이 있을 때만 설정
+          if (params.selectedCountry && !selectedCountry) {
+            setSelectedCountry(params.selectedCountry);
+          }
           setManufacturer(params.manufacturer || '4');
           setInspector(params.inspector || '');
           
