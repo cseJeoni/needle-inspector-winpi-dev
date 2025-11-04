@@ -6,7 +6,7 @@ import { getId } from '../../utils/csvCache'
 import successAudio from "../../assets/audio/success.mp3"
 import failAudio from "../../assets/audio/fail.mp3"
 
-const JudgePanel = forwardRef(function JudgePanel({ onJudge, isStarted, onReset, camera1Ref, camera2Ref, hasNeedleTip = true, websocket, isWsConnected, onCaptureMergedImage, eepromData, generateUserBasedPath, isWaitingEepromRead = false, onWaitingEepromReadChange, isResistanceAbnormal = false, isNeedleShortFixed = false, needleOffset1, needleOffset2, needleSpeed1, needleSpeed2, workStatus = 'waiting', onDebugModeChange, dataSettings }, ref) {
+const JudgePanel = forwardRef(function JudgePanel({ onJudge, isStarted, onReset, camera1Ref, camera2Ref, hasNeedleTip = true, websocket, isWsConnected, onCaptureMergedImage, eepromData, generateUserBasedPath, isWaitingEepromRead = false, onWaitingEepromReadChange, isResistanceAbnormal = false, isNeedleShortFixed = false, needleOffset1, needleOffset2, needleSpeed1, needleSpeed2, workStatus = 'waiting', onDebugModeChange, dataSettings, onWorkStatusChange }, ref) {
   // 사용자 정보 가져오기
   const { user, resetUsersCache } = useAuth()
   
@@ -379,8 +379,25 @@ const JudgePanel = forwardRef(function JudgePanel({ onJudge, isStarted, onReset,
         await incrementDailySerial();
       } catch (error) {
         console.error('❌ EEPROM 처리 실패:', error);
-        // EEPROM 실패해도 계속 진행 (기존 데이터 사용)
-        updatedEepromData = eepromData;
+        
+        // EEPROM 실패 시 즉시 사이클 중지
+        // 1) LED RED 켜기
+        if (websocket && isWsConnected) {
+          websocket.send(JSON.stringify({
+            cmd: "led_control",
+            type: "red"
+          }));
+          console.log('🔴 EEPROM 실패 - LED RED 켜기');
+        }
+        
+        // 2) WorkStatus를 'write_failed'로 변경하여 판정 버튼 비활성화
+        if (onWorkStatusChange) {
+          onWorkStatusChange('write_failed');
+        }
+        
+        // 3) 에러 로그 및 사이클 즉시 종료 (캡처 진행하지 않음)
+        console.error('⛔ EEPROM 쓰기/읽기 실패로 사이클 중지');
+        return; // early return - 캡처 및 다른 작업 진행하지 않음
       }
 
       // 2. EEPROM 처리 완료 후 LED 제어 명령 전송
@@ -442,7 +459,7 @@ const JudgePanel = forwardRef(function JudgePanel({ onJudge, isStarted, onReset,
 
   const handlePassClick = () => {
     // 화면 버튼의 disabled 로직과 동일한 검사 - 모든 오류 상황에서 PASS/NG 버튼 모두 비활성화
-    const isDisabled = !isStarted || !hasNeedleTip || isWaitingEepromRead || isResistanceAbnormal || isNeedleShortFixed || workStatus === 'needle_short' || workStatus === 'motor_error';
+    const isDisabled = !isStarted || !hasNeedleTip || isWaitingEepromRead || isResistanceAbnormal || isNeedleShortFixed || workStatus === 'needle_short' || workStatus === 'write_failed' || workStatus === 'read_failed' || workStatus === 'motor_error';
     
     if (isDisabled) {
       console.log("🔘 [PHYSICAL] PASS 버튼 무시 (UI 비활성화 상태)");
@@ -758,21 +775,21 @@ const JudgePanel = forwardRef(function JudgePanel({ onJudge, isStarted, onReset,
         {/* PASS 버튼 */}
         <Button
           onClick={handlePassClick}
-          disabled={!isStarted || !hasNeedleTip || isWaitingEepromRead || isResistanceAbnormal || isNeedleShortFixed || workStatus === 'needle_short' || workStatus === 'motor_error'}
+          disabled={!isStarted || !hasNeedleTip || isWaitingEepromRead || isResistanceAbnormal || isNeedleShortFixed || workStatus === 'needle_short' || workStatus === 'write_failed' || workStatus === 'read_failed' || workStatus === 'motor_error'}
           style={{
             flex: 1,
-            backgroundColor: (isStarted && hasNeedleTip && !isWaitingEepromRead && !isResistanceAbnormal && !isNeedleShortFixed && workStatus !== 'needle_short' && workStatus !== 'motor_error') ? '#0CB56C' : '#6B7280',
+            backgroundColor: (isStarted && hasNeedleTip && !isWaitingEepromRead && !isResistanceAbnormal && !isNeedleShortFixed && workStatus !== 'needle_short' && workStatus !== 'write_failed' && workStatus !== 'read_failed' && workStatus !== 'motor_error') ? '#0CB56C' : '#6B7280',
             color: 'white',
             fontSize: '1.8dvh',
             fontWeight: 'bold',
             border: 'none',
             borderRadius: '0.375rem',
-            cursor: (isStarted && hasNeedleTip && !isWaitingEepromRead && !isResistanceAbnormal && !isNeedleShortFixed && workStatus !== 'needle_short' && workStatus !== 'motor_error') ? 'pointer' : 'not-allowed',
+            cursor: (isStarted && hasNeedleTip && !isWaitingEepromRead && !isResistanceAbnormal && !isNeedleShortFixed && workStatus !== 'needle_short' && workStatus !== 'write_failed' && workStatus !== 'read_failed' && workStatus !== 'motor_error') ? 'pointer' : 'not-allowed',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             height: '29.5dvh',
-            opacity: (isStarted && hasNeedleTip && !isWaitingEepromRead && !isResistanceAbnormal && !isNeedleShortFixed && workStatus !== 'needle_short' && workStatus !== 'motor_error') ? 1 : 0.6
+            opacity: (isStarted && hasNeedleTip && !isWaitingEepromRead && !isResistanceAbnormal && !isNeedleShortFixed && workStatus !== 'needle_short' && workStatus !== 'write_failed' && workStatus !== 'read_failed' && workStatus !== 'motor_error') ? 1 : 0.6
           }}
         >
           PASS

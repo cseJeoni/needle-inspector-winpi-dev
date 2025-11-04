@@ -2613,6 +2613,7 @@ useEffect(() => {
             workStatus={workStatus} // 작업 상태 전달 (니들 쇼트 포함)
             onDebugModeChange={setIsDebugMode} // 디버깅 모드 변경 콜백 전달
             dataSettings={dataSettings} // 데이터 설정 전달
+            onWorkStatusChange={setWorkStatus} // 작업 상태 변경 콜백 전달 (EEPROM 실패 시 사용)
             />
           </div>
         </div>
