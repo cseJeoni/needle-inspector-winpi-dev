@@ -58,25 +58,30 @@ const JudgePanel = forwardRef(function JudgePanel({ onJudge, isStarted, onReset,
 
   // 일일 시리얼 번호 초기화 및 관리
   useEffect(() => {
-    // 프로그램 시작 시 또는 날짜 변경 시 시리얼 번호 초기화
+    // 프로그램 시작 시 또는 날짜/검사기 변경 시 시리얼 번호 초기화
     const loadDailySerial = async () => {
+      // 검사기 코드 가져오기 (기본값: 'A')
+      const inspectorCode = dataSettings?.inspector || 'A'
+      
       // 한국 시간(KST) 기준으로 날짜 계산
       const now = new Date()
       const kstOffset = 9 * 60 // 한국은 UTC+9
       const kstTime = new Date(now.getTime() + (kstOffset * 60 * 1000))
       const today = kstTime.toISOString().split('T')[0]
-      const storageKey = `dailySerial_${today}`
+      
+      // 검사기별 + 날짜별로 키 생성
+      const storageKey = `dailySerial_${inspectorCode}_${today}`
       
       try {
-        // electron-store에서 오늘 날짜의 시리얼 번호 로드
-        console.log(`[일일시리얼] 로드 시도: 키=${storageKey}, 한국시간=${today}`)
+        // electron-store에서 검사기별 + 날짜별 시리얼 번호 로드
+        console.log(`[일일시리얼] 로드 시도: 키=${storageKey}, 검사기=${inspectorCode}, 한국시간=${today}`)
         const savedSerial = await window.electronAPI.getStoredValue(storageKey)
         if (savedSerial) {
-          console.log(`[일일시리얼] 기존 값 로드: ${savedSerial}`)
+          console.log(`[일일시리얼] 기존 값 로드: ${savedSerial} (검사기: ${inspectorCode})`)
           setDailySerialNumber(savedSerial)
         } else {
-          // 오늘 날짜의 첫 번째 시리얼
-          console.log(`[일일시리얼] 새로운 날짜, 1번부터 시작`)
+          // 해당 검사기의 오늘 날짜 첫 번째 시리얼
+          console.log(`[일일시리얼] 새로운 검사기 또는 날짜, 1번부터 시작 (검사기: ${inspectorCode})`)
           setDailySerialNumber(1)
           await window.electronAPI.setStoredValue(storageKey, 1)
         }
@@ -87,24 +92,29 @@ const JudgePanel = forwardRef(function JudgePanel({ onJudge, isStarted, onReset,
     }
     
     loadDailySerial()
-  }, [])
+  }, [dataSettings?.inspector]) // 검사기 코드가 변경되면 재로드
   
   // 일일 시리얼 번호 증가 함수
   const incrementDailySerial = async () => {
     const newSerial = dailySerialNumber + 1
     setDailySerialNumber(newSerial)
     
+    // 검사기 코드 가져오기 (기본값: 'A')
+    const inspectorCode = dataSettings?.inspector || 'A'
+    
     // 한국 시간(KST) 기준으로 날짜 계산
     const now = new Date()
     const kstOffset = 9 * 60 // 한국은 UTC+9
     const kstTime = new Date(now.getTime() + (kstOffset * 60 * 1000))
     const today = kstTime.toISOString().split('T')[0]
-    const storageKey = `dailySerial_${today}`
+    
+    // 검사기별 + 날짜별로 키 생성
+    const storageKey = `dailySerial_${inspectorCode}_${today}`
     
     try {
-      console.log(`[일일시리얼] 저장: 키=${storageKey}, 값=${newSerial}`)
+      console.log(`[일일시리얼] 저장: 키=${storageKey}, 값=${newSerial}, 검사기=${inspectorCode}`)
       await window.electronAPI.setStoredValue(storageKey, newSerial)
-      console.log(`[일일시리얼] 저장 완료`)
+      console.log(`[일일시리얼] 저장 완료 (검사기: ${inspectorCode}, 순번: ${newSerial})`)
     } catch (error) {
       console.error('일일 시리얼 번호 저장 실패:', error)
     }

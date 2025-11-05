@@ -214,9 +214,10 @@ const CameraView = forwardRef(({
       console.log(`   - 오버레이 캔버스: ${overlayWidth} x ${overlayHeight}`);
       console.log(`   - 캡처용 캔버스: ${captureCanvas.width} x ${captureCanvas.height}`);
       
-      // 오버레이는 표시 크기 기준으로 그려져 있으므로, 원본 크기로 스케일링 필요
-      const scaleX = captureCanvas.width / displayWidth;
-      const scaleY = captureCanvas.height / displayHeight;
+      // 오버레이 캔버스의 실제 픽셀 크기를 기준으로 스케일링 (displayWidth가 아님!)
+      // 이렇게 해야 화면 크기와 무관하게 정확한 좌표 변환 가능
+      const scaleX = captureCanvas.width / overlayWidth;
+      const scaleY = captureCanvas.height / overlayHeight;
       
       console.log(`🔍 [OVERLAY] 스케일링 비율: X=${scaleX.toFixed(4)}, Y=${scaleY.toFixed(4)}`);
       
