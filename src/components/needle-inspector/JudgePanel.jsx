@@ -6,7 +6,7 @@ import { getId } from '../../utils/csvCache'
 import successAudio from "../../assets/audio/success.mp3"
 import failAudio from "../../assets/audio/fail.mp3"
 
-const JudgePanel = forwardRef(function JudgePanel({ onJudge, isStarted, onReset, camera1Ref, camera2Ref, hasNeedleTip = true, websocket, isWsConnected, onCaptureMergedImage, eepromData, generateUserBasedPath, isWaitingEepromRead = false, onWaitingEepromReadChange, isResistanceAbnormal = false, isNeedleShortFixed = false, needleOffset1, needleOffset2, needleSpeed1, needleSpeed2, workStatus = 'waiting', onDebugModeChange, dataSettings, onWorkStatusChange }, ref) {
+const JudgePanel = forwardRef(function JudgePanel({ onJudge, isStarted, onReset, camera1Ref, camera2Ref, hasNeedleTip = true, websocket, isWsConnected, onCaptureMergedImage, eepromData, generateUserBasedPath, isWaitingEepromRead = false, onWaitingEepromReadChange, isResistanceAbnormal = false, isNeedleShortFixed = false, needleOffset1, needleOffset2, needleSpeed1, needleSpeed2, workStatus = 'waiting', onDebugModeChange, dataSettings, onWorkStatusChange, onResetCameras }, ref) {
   // 사용자 정보 가져오기
   const { user, resetUsersCache } = useAuth()
   
@@ -621,9 +621,34 @@ const JudgePanel = forwardRef(function JudgePanel({ onJudge, isStarted, onReset,
           </div>
 
 
-          {/* 적용하기 버튼 */}
+          {/* 버튼들 */}
           <div style={{
+            display: 'flex',
+            gap: '0.5dvw'
           }}>
+            {/* 카메라 변경 버튼 */}
+            <Button
+              onClick={() => {
+                if (onResetCameras) {
+                  onResetCameras();
+                }
+              }}
+              style={{
+                flex: 1,
+                height: '4dvh',
+                fontSize: '1.3dvh',
+                fontWeight: 'bold',
+                backgroundColor: '#F59E0B',
+                color: 'white',
+                border: 'none',
+                borderRadius: '0.25rem',
+                cursor: 'pointer'
+              }}
+            >
+              📷 카메라 변경
+            </Button>
+            
+            {/* 적용하기 버튼 */}
             <Button
               onClick={async (event) => {
                 // 이벤트가 무효화되기 전에 버튼 참조 미리 저장
@@ -727,7 +752,7 @@ const JudgePanel = forwardRef(function JudgePanel({ onJudge, isStarted, onReset,
                 }
               }}
               style={{
-                width: '100%',
+                flex: 1,
                 height: '4dvh',
                 fontSize: '1.3dvh',
                 fontWeight: 'bold',

@@ -621,45 +621,151 @@ function registerIpcHandlers() {
       return null;
     }
   });
+
+  // 카메라 목록 조회 핸들러
+  ipcMain.handle('list-cameras', async (event) => {
+    try {
+      const backendPath = getBackendPath();
+      const scriptPath = path.join(backendPath, 'camera_list.py');
+      const pythonCmd = await checkPythonAvailability();
+      
+      if (!pythonCmd) {
+        throw new Error('Python을 찾을 수 없습니다.');
+      }
+      
+      console.log('[INFO] 카메라 목록 조회 중...');
+      const { stdout, stderr } = await execFileAsync(pythonCmd, [scriptPath], {
+        cwd: backendPath,
+        timeout: 30000
+      });
+      
+      if (stderr) {
+        console.warn('[WARN] 카메라 목록 조회 경고:', stderr);
+      }
+      
+      const result = JSON.parse(stdout.trim());
+      console.log(`[OK] 카메라 목록 조회 완료: ${result.count}개`);
+      return result;
+    } catch (error) {
+      console.error('[ERROR] 카메라 목록 조회 실패:', error);
+      return {
+        success: false,
+        error: error.message,
+        cameras: [],
+        count: 0
+      };
+    }
+  });
+
+  // 카메라 서버 시작 핸들러 (카메라 인덱스 포함)
+  ipcMain.handle('start-camera-server', async (event, camera1Index, camera2Index) => {
+    try {
+      if (serverProcess) {
+        console.log('[WARN] 카메라 서버가 이미 실행 중입니다. 종료 후 재시작합니다.');
+        try {
+          await axios.post('http://127.0.0.1:5000/shutdown', {}, { timeout: 3000 });
+          await new Promise(resolve => setTimeout(resolve, 2000));
+        } catch (e) {
+          console.warn('[WARN] 기존 서버 종료 실패:', e.message);
+        }
+        serverProcess = null;
+        serverStarted = false;
+      }
+      
+      console.log(`[INFO] 카메라 서버 시작 요청: Camera 1=${camera1Index}, Camera 2=${camera2Index}`);
+      
+      const backendPath = getBackendPath();
+      const serverScriptPath = path.join(backendPath, 'camera_server.py');
+      const pythonCmd = await checkPythonAvailability();
+      
+      if (!pythonCmd) {
+        throw new Error('Python을 찾을 수 없습니다.');
+      }
+      
+      const args = [serverScriptPath, '--camera1', camera1Index.toString(), '--camera2', camera2Index.toString()];
+      
+      serverProcess = spawn(pythonCmd, args, {
+        cwd: backendPath,
+        env: process.env
+      });
+      
+      console.log(`[INFO] 서버 프로세스 PID: ${serverProcess.pid}`);
+
+      serverProcess.stdout.on('data', (data) => {
+        const output = data.toString().trim();
+        console.log(`[FLASK] ${output}`);
+        
+        if (output.includes('Running on http://') || output.includes('* Running on')) {
+          console.log(`[✓✓✓] Flask 서버 LISTENING 시작!`);
+          serverStarted = true;
+          if (win) {
+            win.webContents.send('camera-server-ready');
+          }
+        }
+      });
+
+      serverProcess.stderr.on('data', (data) => {
+        const output = data.toString().trim();
+        if (output.includes('VIDEOIO') || output.includes('WARN:')) {
+          console.log(`[DEBUG] ${output}`);
+        } else {
+          console.log(`[FLASK-ERR] ${output}`);
+        }
+        
+        if (output.includes('Running on http://') || output.includes('* Running on')) {
+          console.log(`[✓✓✓] Flask 서버 LISTENING 시작 (stderr)!`);
+          serverStarted = true;
+          if (win) {
+            win.webContents.send('camera-server-ready');
+          }
+        }
+      });
+
+      serverProcess.on('error', (error) => {
+        console.error(`[ERROR] 카메라 서버 실행 오류:`, error);
+      });
+
+      serverProcess.on('close', (code) => {
+        console.log(`[INFO] 카메라 서버 종료됨 (코드: ${code})`);
+        serverStarted = false;
+        serverProcess = null;
+      });
+      
+      // 서버 시작 대기
+      const startTime = Date.now();
+      const maxWaitTime = 30000;
+      
+      while (Date.now() - startTime < maxWaitTime) {
+        if (serverStarted) {
+          await new Promise(resolve => setTimeout(resolve, 1000));
+          return { success: true, message: '카메라 서버가 시작되었습니다.' };
+        }
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+      
+      return { success: false, error: '카메라 서버 시작 시간 초과' };
+    } catch (error) {
+      console.error('[ERROR] 카메라 서버 시작 실패:', error);
+      return { success: false, error: error.message };
+    }
+  });
 }
 
 async function createWindow() {
   try {
     console.log('[INFO] ========== 앱 시작 ==========');
     console.log(`[INFO] 환경: ${process.env.NODE_ENV || 'production'}`);
-    console.log(`[INFO] 앱 경로: ${app.getAppPath()}`);
+    // ...
     console.log(`[INFO] Packaged: ${app.isPackaged}`);
     
     // IPC 핸들러 등록
     registerIpcHandlers();
     
-    // 백엔드 서버 시작
-    console.log('[STEP 1/3] 백엔드 서버 시작 중...');
-    await startBackendServer();
-    
-    // 서버가 시작될 때까지 대기
-    console.log('[STEP 2/3] 백엔드 서버 준비 대기 중...');
-    const serverReady = await waitForBackend();
-    
-    if (!serverReady) {
-      const result = dialog.showMessageBoxSync({
-        type: 'warning',
-        title: '서버 시작 실패',
-        message: '카메라 서버가 30초 안에 시작되지 않았습니다.',
-        detail: '카메라 초기화에 실패했을 수 있습니다.\n\n계속 진행하시겠습니까?\n(카메라 화면이 보이지 않을 수 있습니다)',
-        buttons: ['계속 진행', '종료'],
-        defaultId: 0,
-        cancelId: 1
-      });
-      
-      if (result === 1) {
-        app.quit();
-        return;
-      }
-    }
+    // 카메라 서버는 사용자가 카메라 선택 후 시작
+    console.log('[INFO] 카메라 서버는 사용자 선택 후 시작됩니다.');
     
     // 브라우저 창 생성
-    console.log('[STEP 3/3] 브라우저 창 생성 중...');
+    console.log('[STEP 1/1] 브라우저 창 생성 중...');
     win = new BrowserWindow({
       width: 1200,
       height: 800,

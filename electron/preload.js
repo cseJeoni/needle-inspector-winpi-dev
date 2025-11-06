@@ -129,6 +129,21 @@ contextBridge.exposeInMainWorld('electronAPI', {
   
   getStoredValue: (key) => {
     return ipcRenderer.invoke('get-stored-value', key);
+  },
+  
+  // 카메라 목록 조회 API
+  listCameras: () => {
+    return ipcRenderer.invoke('list-cameras');
+  },
+  
+  // 카메라 서버 시작 API
+  startCameraServer: (camera1Index, camera2Index) => {
+    return ipcRenderer.invoke('start-camera-server', camera1Index, camera2Index);
+  },
+  
+  // 카메라 서버 준비 이벤트 리스너
+  onCameraServerReady: (callback) => {
+    ipcRenderer.on('camera-server-ready', callback);
   }
 });
 

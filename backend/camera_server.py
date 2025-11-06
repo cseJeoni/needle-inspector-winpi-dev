@@ -9,6 +9,8 @@ import signal
 import platform
 import subprocess
 import os
+import sys
+import argparse
 
 app = Flask(__name__)
 CORS(app)
@@ -16,6 +18,10 @@ CORS(app)
 # 전역 카메라 객체
 cap = None
 cap2 = None
+
+# 카메라 인덱스 (커맨드라인 인수로 받음)
+camera_index_1 = None
+camera_index_2 = None
 
 # 종료 플래그
 shutdown_flag = False
@@ -151,104 +157,83 @@ def find_available_cameras(limit=10):
     return available_cameras
 
 def initialize_cameras():
-    """카메라 초기화 함수"""
-    global cap, cap2
+    """카메라 초기화 함수 - 커맨드라인 인수로 받은 카메라 인덱스 사용"""
+    global cap, cap2, camera_index_1, camera_index_2
     
     print("[INFO] 카메라 초기화 시작...")
+    print(f"[INFO] 지정된 카메라 인덱스: Camera 1={camera_index_1}, Camera 2={camera_index_2}")
     
     # 기존 카메라가 있다면 먼저 해제
     cleanup_cameras()
     
     # 잠시 대기 (리소스 해제 시간)
     time.sleep(1)
-
-    # 디버깅: 모든 카메라 정보 출력
-    print("[DEBUG] 모든 카메라 장치 정보 조회 중...")
-    devices = get_camera_devices()
-    
-    # 디버깅: VID 필터링 테스트
-    print("[DEBUG] VID 필터링 테스트 중...")
-    filtered_cameras = filter_cameras_by_manufacturer()
-    
-    # 필터링된 카메라가 없으면 임시로 모든 카메라 사용
-    if len(filtered_cameras) < 1:
-        print("[WARN] VID 필터링된 카메라가 없습니다. 모든 사용 가능한 카메라를 사용합니다.")
-        available_cameras = find_available_cameras()
-        if len(available_cameras) < 1:
-            print("[ERROR] 사용 가능한 카메라를 찾을 수 없습니다.")
-            cap = None
-            cap2 = None
-            return
-        # 임시로 인덱스만 사용
-        filtered_cameras = [{'index': idx, 'name': f'Camera {idx}', 'manufacturer': 'Unknown'} for idx in available_cameras]
     
     try:
-        # 첫 번째 카메라 초기화 (1번 인덱스 사용 - 0번은 내장 웹캠일 가능성)
-        if len(filtered_cameras) > 1:
-            cam_idx1 = filtered_cameras[1]['index']
-            cam_name1 = filtered_cameras[1]['name']
+        # 첫 번째 카메라 초기화
+        if camera_index_1 is not None:
+            cam_idx1 = camera_index_1
+            print(f"[INFO] 첫 번째 카메라 (인덱스: {cam_idx1}) 초기화 중...")
+            cap = cv2.VideoCapture(cam_idx1, cv2.CAP_DSHOW)
+            if cap.isOpened():
+                # 카메라 설정 적용
+                cap.set(cv2.CAP_PROP_FRAME_WIDTH, 960)
+                cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
+                cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+                cap.set(cv2.CAP_PROP_FPS, 30)  # FPS 설정
+                cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'))  # MJPEG 코덱
+                
+                time.sleep(1.0)  # 카메라 안정화 대기 시간 증가
+                
+                # 워밍업: 몇 개의 더미 프레임 읽기
+                print(f"[INFO] 카메라 {cam_idx1} 워밍업 중...")
+                for i in range(5):
+                    ret, _ = cap.read()
+                    if ret:
+                        print(f"[DEBUG] 카메라 {cam_idx1} 워밍업 프레임 {i+1}/5 성공")
+                    else:
+                        print(f"[WARN] 카메라 {cam_idx1} 워밍업 프레임 {i+1}/5 실패")
+                    time.sleep(0.1)
+                
+                print(f"[OK] 카메라 (인덱스: {cam_idx1}) 초기화 완료")
+            else:
+                print(f"[ERROR] 카메라 (인덱스: {cam_idx1}) 초기화 실패")
+                cap = None
         else:
-            cam_idx1 = filtered_cameras[0]['index']
-            cam_name1 = filtered_cameras[0]['name']
-        print(f"[INFO] 첫 번째 카메라 (인덱스: {cam_idx1}, 이름: {cam_name1}) 초기화 중...")
-        cap = cv2.VideoCapture(cam_idx1, cv2.CAP_DSHOW)
-        if cap.isOpened():
-            # 카메라 설정 적용
-            cap.set(cv2.CAP_PROP_FRAME_WIDTH, 960)
-            cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
-            cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
-            cap.set(cv2.CAP_PROP_FPS, 30)  # FPS 설정
-            cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'))  # MJPEG 코덱
-            
-            time.sleep(1.0)  # 카메라 안정화 대기 시간 증가
-            
-            # 워밍업: 몇 개의 더미 프레임 읽기
-            print(f"[INFO] 카메라 {cam_idx1} 워밍업 중...")
-            for i in range(5):
-                ret, _ = cap.read()
-                if ret:
-                    print(f"[DEBUG] 카메라 {cam_idx1} 워밍업 프레임 {i+1}/5 성공")
-                else:
-                    print(f"[WARN] 카메라 {cam_idx1} 워밍업 프레임 {i+1}/5 실패")
-                time.sleep(0.1)
-            
-            print(f"[OK] 카메라 (인덱스: {cam_idx1}) 초기화 완료")
-        else:
-            print(f"[ERROR] 카메라 (인덱스: {cam_idx1}) 초기화 실패")
+            print("[ERROR] 첫 번째 카메라 인덱스가 지정되지 않았습니다.")
             cap = None
 
-        # 두 번째 카메라 초기화 (2번 인덱스 사용)
-        if len(filtered_cameras) > 2:
-            cam_idx2 = filtered_cameras[2]['index']
-            cam_name2 = filtered_cameras[2]['name']
-            print(f"[INFO] 두 번째 카메라 (인덱스: {cam_idx2}, 이름: {cam_name2}) 초기화 중...")
+        # 두 번째 카메라 초기화
+        if camera_index_2 is not None:
+            cam_idx2 = camera_index_2
+            print(f"[INFO] 두 번째 카메라 (인덱스: {cam_idx2}) 초기화 중...")
             cap2 = cv2.VideoCapture(cam_idx2, cv2.CAP_DSHOW)
+            if cap2.isOpened():
+                # 카메라 설정 적용
+                cap2.set(cv2.CAP_PROP_FRAME_WIDTH, 960)
+                cap2.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
+                cap2.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+                cap2.set(cv2.CAP_PROP_FPS, 30)  # FPS 설정
+                cap2.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'))  # MJPEG 코덱
+                
+                time.sleep(1.0)  # 카메라 안정화 대기 시간 증가
+                
+                # 워밍업: 몇 개의 더미 프레임 읽기
+                print(f"[INFO] 카메라 {cam_idx2} 워밍업 중...")
+                for i in range(5):
+                    ret, _ = cap2.read()
+                    if ret:
+                        print(f"[DEBUG] 카메라 {cam_idx2} 워밍업 프레임 {i+1}/5 성공")
+                    else:
+                        print(f"[WARN] 카메라 {cam_idx2} 워밍업 프레임 {i+1}/5 실패")
+                    time.sleep(0.1)
+                
+                print(f"[OK] 카메라 (인덱스: {cam_idx2}) 초기화 완료")
+            else:
+                print(f"[ERROR] 카메라 (인덱스: {cam_idx2}) 초기화 실패")
+                cap2 = None
         else:
-            print("[INFO] 두 번째 카메라를 찾을 수 없습니다. 첫 번째 카메라만 사용합니다.")
-            cap2 = None
-        if cap2 is not None and cap2.isOpened():
-            # 카메라 설정 적용
-            cap2.set(cv2.CAP_PROP_FRAME_WIDTH, 960)
-            cap2.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
-            cap2.set(cv2.CAP_PROP_BUFFERSIZE, 1)
-            cap2.set(cv2.CAP_PROP_FPS, 30)  # FPS 설정
-            cap2.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'))  # MJPEG 코덱
-            
-            time.sleep(1.0)  # 카메라 안정화 대기 시간 증가
-            
-            # 워밍업: 몇 개의 더미 프레임 읽기
-            print(f"[INFO] 카메라 {cam_idx2} 워밍업 중...")
-            for i in range(5):
-                ret, _ = cap2.read()
-                if ret:
-                    print(f"[DEBUG] 카메라 {cam_idx2} 워밍업 프레임 {i+1}/5 성공")
-                else:
-                    print(f"[WARN] 카메라 {cam_idx2} 워밍업 프레임 {i+1}/5 실패")
-                time.sleep(0.1)
-            
-            print(f"[OK] 카메라 (인덱스: {cam_idx2}) 초기화 완료")
-        else:
-            print(f"[ERROR] 카메라 (인덱스: {cam_idx2}) 초기화 실패")
+            print("[INFO] 두 번째 카메라 인덱스가 지정되지 않았습니다.")
             cap2 = None
             
     except Exception as e:
@@ -314,9 +299,6 @@ signal.signal(signal.SIGTERM, signal_handler)
 
 # 프로그램 종료 시 자동 정리
 atexit.register(cleanup_cameras)
-
-# 카메라 초기화
-initialize_cameras()
 
 def generate_frames():
     global cap, shutdown_flag
@@ -531,8 +513,23 @@ def capture2():
         return jsonify({'error': f'Camera 2 capture error: {str(e)}'}), 500
 
 if __name__ == '__main__':
+    # 커맨드라인 인수 파싱
+    parser = argparse.ArgumentParser(description='Camera Server')
+    parser.add_argument('--camera1', type=int, help='First camera index')
+    parser.add_argument('--camera2', type=int, help='Second camera index')
+    args = parser.parse_args()
+    
+    # 전역 변수에 카메라 인덱스 설정
+    camera_index_1 = args.camera1
+    camera_index_2 = args.camera2
+    
+    print(f"[INFO] 카메라 서버 시작...")
+    print(f"[INFO] 선택된 카메라 인덱스: Camera 1={camera_index_1}, Camera 2={camera_index_2}")
+    
+    # 카메라 초기화
+    initialize_cameras()
+    
     try:
-        print("[INFO] 카메라 서버 시작...")
         # 프로덕션 모드로 실행 (디버그 모드 해제, 자동 재로더 해제)
         # 이렇게 하면 SIGTERM 신호가 제대로 전달되어 정상 종료됩니다
         app.run(host='0.0.0.0', port=5000, debug=False, use_reloader=False, threaded=True)

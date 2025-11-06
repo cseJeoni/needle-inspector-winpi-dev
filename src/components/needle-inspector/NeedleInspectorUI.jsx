@@ -6,6 +6,7 @@ import NeedleCheckPanel from "./NeedleCheckPanel"
 import NeedleCheckPanelV4Multi from "./NeedleCheckPanelV4Multi"
 import ModePanel from "./ModePanel"
 import JudgePanel from "./JudgePanel" // Import JudgePanel
+import CameraSelector from "./CameraSelector" // Import CameraSelector
 import { useAuth } from "../../hooks/useAuth.jsx" // Firebase 사용자 정보
 import "../../css/NeedleInspector.css"
 
@@ -97,6 +98,10 @@ export default function NeedleInspectorUI() {
   const [isNeedleShortFixed, setIsNeedleShortFixed] = useState(false) // START 시점 니들 쇼트 고정 상태
   const [motor2TargetPosition, setMotor2TargetPosition] = useState(0) // 모터2 목표 위치 (감속 로직용)
   const [hasDecelerated, setHasDecelerated] = useState(false) // 감속 실행 여부
+  
+  // 카메라 서버 준비 상태
+  const [isCameraServerReady, setIsCameraServerReady] = useState(false) // 카메라 서버 준비 완료 여부
+  const [showCameraSelector, setShowCameraSelector] = useState(false) // 카메라 선택 UI 표시 여부
 
   // 저항 측정 상태 (MTR 4.0에서만 사용)
   const [resistance1, setResistance1] = useState(NaN)
@@ -1628,10 +1633,13 @@ useEffect(() => {
 }, [lines1, lines2]);
 
 
-  // WebSocket 자동 연결 (컴포넌트 마운트 시)
+  // 컴포넌트 마운트 시 WebSocket 연결 및 카메라 선택 UI 표시
   useEffect(() => {
-    console.log("🚀 컴포넌트 마운트 - WebSocket 자동 연결 시작")
+    console.log("🚀 컴포넌트 마운트 - WebSocket 연결 시작")
     connectWebSocket()
+    
+    console.log("🚀 컴포넌트 마운트 - 카메라 선택 UI 표시")
+    setShowCameraSelector(true)
     
     // 컴포넌트 언마운트 시 정리
     return () => {
@@ -1651,7 +1659,7 @@ useEffect(() => {
         }, 500)
       }
     }
-  }, []) // 컴포넌트 마운트시 한 번만 실행
+  }, [])
 
   // 프로그램 종료시 선 정보 자동 저장을 위한 beforeunload 이벤트
   useEffect(() => {
@@ -2251,8 +2259,27 @@ useEffect(() => {
   };
 }, [videoServerUrl, lines1, lines2]); // lines1, lines2 의존성 추가
 
+  // 카메라 선택 완료 핸들러
+  const handleCamerasSelected = () => {
+    console.log("✅ 카메라 선택 완료 - 카메라 서버 준비 완료")
+    setShowCameraSelector(false)
+    setIsCameraServerReady(true)
+  }
+
+  // 카메라 재선택 함수
+  const handleResetCameras = () => {
+    console.log("🔄 카메라 재설정 - 카메라 선택 UI 표시")
+    setShowCameraSelector(true)
+    setIsCameraServerReady(false)
+    // WebSocket 연결은 유지 (카메라와 무관하게 동작)
+  }
+
   return (
     <div className="bg-[#000000] min-h-screen text-white font-sans p-4 flex flex-col gap-4">
+      {/* 카메라 선택 UI */}
+      {showCameraSelector && (
+        <CameraSelector onCamerasSelected={handleCamerasSelected} />
+      )}
       {/* 디버깅 패널 - 디버깅 모드가 ON일 때만 표시 */}
       {isDebugMode && (
         <div 
@@ -2614,6 +2641,7 @@ useEffect(() => {
             onDebugModeChange={setIsDebugMode} // 디버깅 모드 변경 콜백 전달
             dataSettings={dataSettings} // 데이터 설정 전달
             onWorkStatusChange={setWorkStatus} // 작업 상태 변경 콜백 전달 (EEPROM 실패 시 사용)
+            onResetCameras={handleResetCameras} // 카메라 재설정 함수 전달
             />
           </div>
         </div>

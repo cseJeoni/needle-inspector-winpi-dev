@@ -1,0 +1,594 @@
+/* Overlay */
+.camera-selector-overlay {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  background-color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  padding: 1rem;
+}
+
+/* Loading State */
+.camera-selector-loading {
+  background-color: white;
+  border-radius: 1rem;
+  padding: 3rem;
+  max-width: 28rem;
+  width: 100%;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  border: 1px solid rgb(226, 232, 240);
+}
+
+.loading-spinner-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.5rem;
+  position: relative;
+  width: 4rem;
+  height: 4rem;
+  margin: 0 auto 1.5rem;
+}
+
+.loading-spinner-track {
+  width: 4rem;
+  height: 4rem;
+  border: 4px solid rgb(226, 232, 240);
+  border-radius: 50%;
+}
+
+.loading-spinner {
+  width: 4rem;
+  height: 4rem;
+  border: 4px solid rgb(37, 99, 235);
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  position: absolute;
+  top: 0;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.loading-text {
+  text-align: center;
+}
+
+.loading-title {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: rgb(15, 23, 42);
+  margin-bottom: 0.25rem;
+}
+
+.loading-subtitle {
+  font-size: 0.875rem;
+  color: rgb(100, 116, 139);
+}
+
+/* Error State */
+.camera-selector-error {
+  background-color: white;
+  border-radius: 1rem;
+  padding: 2.5rem;
+  max-width: 28rem;
+  width: 100%;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  border: 1px solid rgb(226, 232, 240);
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.error-icon {
+  width: 3rem;
+  height: 3rem;
+  background-color: rgb(254, 226, 226);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.error-icon .icon {
+  width: 1.5rem;
+  height: 1.5rem;
+  color: rgb(220, 38, 38);
+}
+
+.error-title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: rgb(15, 23, 42);
+  margin-bottom: 0.5rem;
+}
+
+.error-message {
+  font-size: 0.875rem;
+  color: rgb(71, 85, 105);
+}
+
+/* Empty State */
+.camera-selector-empty {
+  background-color: white;
+  border-radius: 1rem;
+  padding: 2.5rem;
+  max-width: 28rem;
+  width: 100%;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  border: 1px solid rgb(226, 232, 240);
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.empty-icon {
+  width: 3rem;
+  height: 3rem;
+  background-color: rgb(254, 243, 199);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.empty-icon .icon {
+  width: 1.5rem;
+  height: 1.5rem;
+  color: rgb(217, 119, 6);
+}
+
+.empty-title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: rgb(15, 23, 42);
+  margin-bottom: 0.5rem;
+}
+
+.empty-message {
+  font-size: 0.875rem;
+  color: rgb(71, 85, 105);
+}
+
+/* Modal */
+.camera-selector-modal {
+  background-color: white;
+  border-radius: 1rem;
+  padding: 2rem;
+  max-width: 56rem;
+  width: 100%;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  max-height: 90vh;
+  overflow-y: auto;
+  border: 1px solid rgb(226, 232, 240);
+}
+
+/* Header */
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 2rem;
+}
+
+.header-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: rgb(15, 23, 42);
+  margin-bottom: 0.25rem;
+}
+
+.header-subtitle {
+  font-size: 0.875rem;
+  color: rgb(100, 116, 139);
+}
+
+.close-button {
+  color: rgb(148, 163, 184);
+  padding: 0.5rem;
+  border: none;
+  background: none;
+  cursor: pointer;
+  border-radius: 0.5rem;
+  transition: all 0.2s;
+}
+
+.close-button:hover {
+  color: rgb(71, 85, 105);
+  background-color: rgb(241, 245, 249);
+}
+
+.close-button .icon {
+  width: 1.5rem;
+  height: 1.5rem;
+}
+
+/* Demo Banner */
+.demo-banner {
+  margin-bottom: 1.5rem;
+  background-color: rgb(254, 252, 232);
+  border: 1px solid rgb(254, 240, 138);
+  border-radius: 0.5rem;
+  padding: 1rem;
+}
+
+.demo-banner-content {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+}
+
+.demo-icon {
+  width: 1.25rem;
+  height: 1.25rem;
+  color: rgb(217, 119, 6);
+  flex-shrink: 0;
+  margin-top: 0.125rem;
+}
+
+.demo-title {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: rgb(120, 53, 15);
+  margin-bottom: 0.25rem;
+}
+
+.demo-subtitle {
+  font-size: 0.75rem;
+  color: rgb(161, 98, 7);
+}
+
+/* Camera Info Bar */
+.camera-info-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1.5rem;
+}
+
+.camera-count-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  background-color: rgb(239, 246, 255);
+  color: rgb(29, 78, 216);
+  padding: 0.5rem 1rem;
+  border-radius: 0.5rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.camera-count-badge .icon {
+  width: 1rem;
+  height: 1rem;
+}
+
+.refresh-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  background-color: rgb(241, 245, 249);
+  color: rgb(51, 65, 85);
+  padding: 0.5rem 1rem;
+  border-radius: 0.5rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  border: none;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.refresh-button:hover {
+  background-color: rgb(226, 232, 240);
+}
+
+.refresh-button .icon {
+  width: 1rem;
+  height: 1rem;
+}
+
+/* Camera Section */
+.camera-section {
+  margin-bottom: 1.5rem;
+}
+
+.section-label {
+  display: block;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: rgb(51, 65, 85);
+  margin-bottom: 0.75rem;
+}
+
+.required {
+  color: rgb(239, 68, 68);
+}
+
+.optional {
+  color: rgb(148, 163, 184);
+}
+
+/* Camera Grid */
+.camera-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.75rem;
+}
+
+@media (min-width: 768px) {
+  .camera-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* Camera Card */
+.camera-card {
+  position: relative;
+  padding: 1rem;
+  border-radius: 0.75rem;
+  border: 2px solid rgb(226, 232, 240);
+  background-color: white;
+  transition: all 0.2s;
+  text-align: left;
+  cursor: pointer;
+  width: 100%;
+}
+
+.camera-card:hover {
+  border-color: rgb(203, 213, 225);
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+}
+
+.camera-card--selected {
+  border-color: rgb(37, 99, 235);
+  background-color: rgb(239, 246, 255);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+.camera-card--selected-green {
+  border-color: rgb(22, 163, 74);
+  background-color: rgb(240, 253, 244);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+.camera-card--disabled {
+  border-color: rgb(226, 232, 240);
+  background-color: rgb(248, 250, 252);
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.camera-card-content {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+}
+
+/* Camera Icon */
+.camera-icon {
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 0.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  background-color: rgb(241, 245, 249);
+}
+
+.camera-icon .icon {
+  width: 1.25rem;
+  height: 1.25rem;
+  color: rgb(71, 85, 105);
+}
+
+.camera-icon--selected {
+  background-color: rgb(37, 99, 235);
+}
+
+.camera-icon--selected .icon {
+  color: white;
+}
+
+.camera-icon--selected-green {
+  background-color: rgb(22, 163, 74);
+}
+
+.camera-icon--selected-green .icon {
+  color: white;
+}
+
+.camera-icon--disabled {
+  background-color: rgb(226, 232, 240);
+}
+
+.camera-icon--disabled .icon {
+  color: rgb(148, 163, 184);
+}
+
+/* Camera Info */
+.camera-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.camera-name-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.25rem;
+}
+
+.camera-name {
+  font-weight: 600;
+  color: rgb(15, 23, 42);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.camera-name--disabled {
+  color: rgb(148, 163, 184);
+}
+
+.dino-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.125rem 0.5rem;
+  border-radius: 0.25rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  background-color: rgb(243, 232, 255);
+  color: rgb(126, 34, 206);
+}
+
+.dino-badge--disabled {
+  background-color: rgb(226, 232, 240);
+  color: rgb(148, 163, 184);
+}
+
+.camera-details {
+  font-size: 0.75rem;
+  color: rgb(100, 116, 139);
+}
+
+.camera-details--disabled {
+  color: rgb(148, 163, 184);
+}
+
+/* Check Icon */
+.check-icon {
+  position: absolute;
+  top: 0.75rem;
+  right: 0.75rem;
+}
+
+.check-icon .icon {
+  width: 1.25rem;
+  height: 1.25rem;
+  color: rgb(37, 99, 235);
+}
+
+.check-icon--green .icon {
+  color: rgb(22, 163, 74);
+}
+
+/* Helper Text */
+.helper-text {
+  font-size: 0.75rem;
+  color: rgb(100, 116, 139);
+  margin-top: 0.5rem;
+  margin-left: 0.25rem;
+}
+
+/* Summary Box */
+.summary-box {
+  background-color: rgb(248, 250, 252);
+  border-radius: 0.75rem;
+  padding: 1rem;
+  margin-bottom: 1.5rem;
+  border: 1px solid rgb(226, 232, 240);
+}
+
+.summary-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: rgb(71, 85, 105);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 0.75rem;
+}
+
+.summary-content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.summary-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+}
+
+.summary-key {
+  color: rgb(71, 85, 105);
+}
+
+.summary-value {
+  font-weight: 500;
+  color: rgb(15, 23, 42);
+}
+
+/* Buttons */
+.btn {
+  border: none;
+  cursor: pointer;
+  font-weight: 600;
+  transition: all 0.2s;
+  border-radius: 0.5rem;
+}
+
+.btn-primary {
+  background-color: rgb(15, 23, 42);
+  color: white;
+  padding: 0.75rem 1.5rem;
+  font-weight: 500;
+}
+
+.btn-primary:hover {
+  background-color: rgb(30, 41, 59);
+}
+
+.btn-connect {
+  width: 100%;
+  padding: 1rem;
+  border-radius: 0.75rem;
+  font-size: 1rem;
+  background-color: rgb(15, 23, 42);
+  color: white;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+}
+
+.btn-connect:hover {
+  background-color: rgb(30, 41, 59);
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+}
+
+.btn-connect--disabled {
+  background-color: rgb(226, 232, 240);
+  color: rgb(148, 163, 184);
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.btn-connect--disabled:hover {
+  background-color: rgb(226, 232, 240);
+  box-shadow: none;
+}
+
+.btn-content {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.btn-spinner {
+  width: 1.25rem;
+  height: 1.25rem;
+  border: 2px solid white;
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
