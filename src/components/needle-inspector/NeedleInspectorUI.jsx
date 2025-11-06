@@ -6,7 +6,6 @@ import NeedleCheckPanel from "./NeedleCheckPanel"
 import NeedleCheckPanelV4Multi from "./NeedleCheckPanelV4Multi"
 import ModePanel from "./ModePanel"
 import JudgePanel from "./JudgePanel" // Import JudgePanel
-import CameraSelector from "./CameraSelector" // Import CameraSelector
 import { useAuth } from "../../hooks/useAuth.jsx" // Firebase 사용자 정보
 import "../../css/NeedleInspector.css"
 
@@ -29,7 +28,7 @@ export default function NeedleInspectorUI() {
   const { user } = useAuth()
   
   // 비디오 서버 URL (실제 환경에 맞게 수정 필요)
-  const videoServerUrl = "http://localhost:5000"
+  const videoServerUrl = "http://127.0.0.1:5000"
   
   // 모터 관련 상태
   const [ws, setWs] = useState(null)
@@ -101,7 +100,6 @@ export default function NeedleInspectorUI() {
   
   // 카메라 서버 준비 상태
   const [isCameraServerReady, setIsCameraServerReady] = useState(false) // 카메라 서버 준비 완료 여부
-  const [showCameraSelector, setShowCameraSelector] = useState(false) // 카메라 선택 UI 표시 여부
 
   // 저항 측정 상태 (MTR 4.0에서만 사용)
   const [resistance1, setResistance1] = useState(NaN)
@@ -1633,32 +1631,27 @@ useEffect(() => {
 }, [lines1, lines2]);
 
 
-  // 컴포넌트 마운트 시 WebSocket 연결 및 카메라 선택 UI 표시
+  // 컴포넌트 마운트 시 WebSocket 연결
   useEffect(() => {
     console.log("🚀 컴포넌트 마운트 - WebSocket 연결 시작")
     connectWebSocket()
     
-    // localStorage에서 카메라 연결 상태 확인
-    const cameraConnected = localStorage.getItem('cameraConnected')
-    const cameraConnectedTime = localStorage.getItem('cameraConnectedTime')
+    // Electron main에서 카메라 서버 준비 완료 이벤트 대기
+    console.log("🚀 컴포넌트 마운트 - 카메라 서버 자동 시작 완료 대기 중")
     
-    if (cameraConnected === 'true' && cameraConnectedTime) {
-      const timeDiff = Date.now() - parseInt(cameraConnectedTime)
-      // 연결된 지 10분 이내라면 카메라 셀렉터 건너뛰기
-      if (timeDiff < 10 * 60 * 1000) {
-        console.log("🚀 컴포넌트 마운트 - 카메라 이미 연결됨, 셀렉터 건너뛰기")
-        setShowCameraSelector(false)
-        setIsCameraServerReady(true)
-        return
-      } else {
-        // 10분이 지났다면 연결 상태 초기화
-        localStorage.removeItem('cameraConnected')
-        localStorage.removeItem('cameraConnectedTime')
-      }
+    const handleCameraServerReady = () => {
+      console.log("✅ 카메라 서버 준비 완료 이벤트 수신")
+      setIsCameraServerReady(true)
     }
     
-    console.log("🚀 컴포넌트 마운트 - 카메라 선택 UI 표시")
-    setShowCameraSelector(true)
+    // Electron API가 있으면 이벤트 리스너 등록
+    if (window.electronAPI && window.electronAPI.onCameraServerReady) {
+      window.electronAPI.onCameraServerReady(handleCameraServerReady)
+    } else {
+      // 웹 브라우저 환경이면 즉시 준비 완료로 설정
+      console.log("⚠️ Electron API 없음 - 즉시 준비 완료로 설정")
+      setIsCameraServerReady(true)
+    }
     
     // 컴포넌트 언마운트 시 정리
     return () => {
@@ -2278,30 +2271,9 @@ useEffect(() => {
   };
 }, [videoServerUrl, lines1, lines2]); // lines1, lines2 의존성 추가
 
-  // 카메라 선택 완료 핸들러
-  const handleCamerasSelected = () => {
-    console.log("✅ 카메라 선택 완료 - 카메라 서버 준비 완료")
-    setShowCameraSelector(false)
-    setIsCameraServerReady(true)
-  }
-
-  // 카메라 재선택 함수
-  const handleResetCameras = () => {
-    console.log("🔄 카메라 재설정 - 카메라 선택 UI 표시")
-    // localStorage에서 카메라 연결 상태 초기화
-    localStorage.removeItem('cameraConnected')
-    localStorage.removeItem('cameraConnectedTime')
-    setShowCameraSelector(true)
-    setIsCameraServerReady(false)
-    // WebSocket 연결은 유지 (카메라와 무관하게 동작)
-  }
 
   return (
     <div className="bg-[#000000] min-h-screen text-white font-sans p-4 flex flex-col gap-4">
-      {/* 카메라 선택 UI */}
-      {showCameraSelector && (
-        <CameraSelector onCamerasSelected={handleCamerasSelected} />
-      )}
       {/* 디버깅 패널 - 디버깅 모드가 ON일 때만 표시 */}
       {isDebugMode && (
         <div 
@@ -2494,7 +2466,7 @@ useEffect(() => {
           <CameraView 
             title="Camera 1" 
             cameraId={1}
-            videoServerUrl={videoServerUrl}
+            videoServerUrl={isCameraServerReady ? videoServerUrl : null}
             videoEndpoint="/video"
             drawMode={drawMode1}
             onDrawModeToggle={() => setDrawMode1(!drawMode1)}
@@ -2515,7 +2487,7 @@ useEffect(() => {
           <CameraView 
             title="Camera 2" 
             cameraId={2}
-            videoServerUrl={videoServerUrl}
+            videoServerUrl={isCameraServerReady ? videoServerUrl : null}
             videoEndpoint="/video2"
             drawMode={drawMode2}
             onDrawModeToggle={() => setDrawMode2(!drawMode2)}
@@ -2663,7 +2635,6 @@ useEffect(() => {
             onDebugModeChange={setIsDebugMode} // 디버깅 모드 변경 콜백 전달
             dataSettings={dataSettings} // 데이터 설정 전달
             onWorkStatusChange={setWorkStatus} // 작업 상태 변경 콜백 전달 (EEPROM 실패 시 사용)
-            onResetCameras={handleResetCameras} // 카메라 재설정 함수 전달
             />
           </div>
         </div>

@@ -4,6 +4,11 @@
 
 이 프로젝트는 Python 스크립트를 실행 파일로 번들링하여 사용자가 Python을 설치하지 않아도 프로그램을 사용할 수 있도록 합니다.
 
+### 🆕 카메라 선택 시스템
+- 프로그램 시작 시 카메라 선택 UI가 표시됩니다
+- 사용자가 카메라를 선택하면 `camera_server.exe` 또는 `camera_server.py`가 시작됩니다
+- 카메라 인덱스는 `--camera1`, `--camera2` 인자로 전달됩니다
+
 ## 🛠 빌드 전 준비사항
 
 ### 1. Python 설치 (개발자용)
@@ -74,10 +79,11 @@ needle-inspector-winpi-dev/
 4. 사용자 배포용
 
 ### 자동 감지 로직
-`electron/main.js`의 `startBackendServer()` 함수가:
+`electron/main.js`의 `start-camera-server` IPC 핸들러가:
 1. 먼저 `backend/dist/camera_server.exe` 확인
 2. exe가 있으면 → exe 실행 (프로덕션)
 3. exe가 없으면 → Python 스크립트 실행 (개발)
+4. 카메라 인덱스를 `--camera1 X --camera2 Y` 형식으로 전달
 
 ## 🔧 문제 해결
 

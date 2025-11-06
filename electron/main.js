@@ -15,6 +15,7 @@ let win = null;
 let serverProcess = null;
 let serverStarted = false;
 let serverUrl = "ws://localhost:8765";
+let cameraServerReady = false; // 카메라 서버 준비 상태
 
 // electron-store 초기화
 const store = new Store({
@@ -548,12 +549,37 @@ function registerIpcHandlers() {
   ipcMain.handle('camera-led-list-devices', async (event) => {
     try {
       const backendPath = getBackendPath();
+      const exePath = path.join(backendPath, 'dist', 'camera_led_control.exe');
       const scriptPath = path.join(backendPath, 'camera_led_control.py');
       
-      const { stdout, stderr } = await execFileAsync('python', [scriptPath, 'list'], {
-        cwd: backendPath,
-        timeout: 10000
-      });
+      console.log('[INFO] LED 디바이스 목록 조회 중...');
+      
+      let stdout, stderr;
+      
+      // exe 파일 우선 실행 (프로덕션)
+      if (fs.existsSync(exePath)) {
+        console.log('[INFO] 📦 프로덕션 모드: camera_led_control.exe 실행');
+        const result = await execFileAsync(exePath, ['list'], {
+          cwd: path.join(backendPath, 'dist'),
+          timeout: 10000
+        });
+        stdout = result.stdout;
+        stderr = result.stderr;
+      } 
+      // Python 스크립트 fallback (개발)
+      else {
+        console.log('[INFO] 🔧 개발 모드: camera_led_control.py 실행');
+        const pythonCmd = await checkPythonAvailability();
+        if (!pythonCmd) {
+          throw new Error('Python을 찾을 수 없습니다.');
+        }
+        const result = await execFileAsync(pythonCmd, [scriptPath, 'list'], {
+          cwd: backendPath,
+          timeout: 10000
+        });
+        stdout = result.stdout;
+        stderr = result.stderr;
+      }
       
       if (stderr) {
         console.warn('[WARN] 카메라 디바이스 조회 경고:', stderr);
@@ -573,19 +599,38 @@ function registerIpcHandlers() {
   ipcMain.handle('camera-led-set-state', async (event, deviceIndex, ledState) => {
     try {
       const backendPath = getBackendPath();
+      const exePath = path.join(backendPath, 'dist', 'camera_led_control.exe');
       const scriptPath = path.join(backendPath, 'camera_led_control.py');
       
-      const { stdout, stderr } = await execFileAsync('python', [
-        scriptPath, 
-        'set', 
-        '--device-index', 
-        deviceIndex.toString(), 
-        '--led-state', 
-        ledState.toString()
-      ], {
-        cwd: backendPath,
-        timeout: 10000
-      });
+      console.log(`[INFO] LED 상태 제어: device=${deviceIndex}, state=${ledState}`);
+      
+      const args = ['set', '--device-index', deviceIndex.toString(), '--led-state', ledState.toString()];
+      let stdout, stderr;
+      
+      // exe 파일 우선 실행 (프로덕션)
+      if (fs.existsSync(exePath)) {
+        console.log('[INFO] 📦 프로덕션 모드: camera_led_control.exe 실행');
+        const result = await execFileAsync(exePath, args, {
+          cwd: path.join(backendPath, 'dist'),
+          timeout: 10000
+        });
+        stdout = result.stdout;
+        stderr = result.stderr;
+      } 
+      // Python 스크립트 fallback (개발)
+      else {
+        console.log('[INFO] 🔧 개발 모드: camera_led_control.py 실행');
+        const pythonCmd = await checkPythonAvailability();
+        if (!pythonCmd) {
+          throw new Error('Python을 찾을 수 없습니다.');
+        }
+        const result = await execFileAsync(pythonCmd, [scriptPath, ...args], {
+          cwd: backendPath,
+          timeout: 10000
+        });
+        stdout = result.stdout;
+        stderr = result.stderr;
+      }
       
       if (stderr) {
         console.warn('[WARN] 카메라 LED 제어 경고:', stderr);
@@ -626,18 +671,39 @@ function registerIpcHandlers() {
   ipcMain.handle('list-cameras', async (event) => {
     try {
       const backendPath = getBackendPath();
+      const exePath = path.join(backendPath, 'dist', 'camera_list.exe');
       const scriptPath = path.join(backendPath, 'camera_list.py');
-      const pythonCmd = await checkPythonAvailability();
-      
-      if (!pythonCmd) {
-        throw new Error('Python을 찾을 수 없습니다.');
-      }
       
       console.log('[INFO] 카메라 목록 조회 중...');
-      const { stdout, stderr } = await execFileAsync(pythonCmd, [scriptPath], {
-        cwd: backendPath,
-        timeout: 30000
-      });
+      
+      let stdout, stderr;
+      
+      // exe 파일 우선 실행 (프로덕션)
+      if (fs.existsSync(exePath)) {
+        console.log('[INFO] 📦 프로덕션 모드: camera_list.exe 실행');
+        const result = await execFileAsync(exePath, [], {
+          cwd: path.join(backendPath, 'dist'),
+          timeout: 30000
+        });
+        stdout = result.stdout;
+        stderr = result.stderr;
+      } 
+      // Python 스크립트 fallback (개발)
+      else {
+        console.log('[INFO] 🔧 개발 모드: camera_list.py 실행');
+        const pythonCmd = await checkPythonAvailability();
+        
+        if (!pythonCmd) {
+          throw new Error('Python을 찾을 수 없습니다.');
+        }
+        
+        const result = await execFileAsync(pythonCmd, [scriptPath], {
+          cwd: backendPath,
+          timeout: 30000
+        });
+        stdout = result.stdout;
+        stderr = result.stderr;
+      }
       
       if (stderr) {
         console.warn('[WARN] 카메라 목록 조회 경고:', stderr);
@@ -675,19 +741,38 @@ function registerIpcHandlers() {
       console.log(`[INFO] 카메라 서버 시작 요청: Camera 1=${camera1Index}, Camera 2=${camera2Index}`);
       
       const backendPath = getBackendPath();
+      const exePath = path.join(backendPath, 'dist', 'camera_server.exe');
       const serverScriptPath = path.join(backendPath, 'camera_server.py');
-      const pythonCmd = await checkPythonAvailability();
       
-      if (!pythonCmd) {
-        throw new Error('Python을 찾을 수 없습니다.');
+      const args = ['--camera1', camera1Index.toString(), '--camera2', camera2Index.toString()];
+      
+      // exe 파일 우선 실행 (프로덕션)
+      if (fs.existsSync(exePath)) {
+        console.log('[INFO] 📦 프로덕션 모드: camera_server.exe 실행');
+        console.log(`[INFO] exe 경로: ${exePath}`);
+        
+        serverProcess = spawn(exePath, args, {
+          cwd: path.join(backendPath, 'dist'),
+          env: process.env
+        });
+      } 
+      // Python 스크립트 fallback (개발)
+      else {
+        console.log('[INFO] 🔧 개발 모드: camera_server.py 실행');
+        const pythonCmd = await checkPythonAvailability();
+        
+        if (!pythonCmd) {
+          throw new Error('Python을 찾을 수 없습니다.');
+        }
+        
+        console.log(`[INFO] Python 명령어: ${pythonCmd}`);
+        console.log(`[INFO] 스크립트 경로: ${serverScriptPath}`);
+        
+        serverProcess = spawn(pythonCmd, [serverScriptPath, ...args], {
+          cwd: backendPath,
+          env: process.env
+        });
       }
-      
-      const args = [serverScriptPath, '--camera1', camera1Index.toString(), '--camera2', camera2Index.toString()];
-      
-      serverProcess = spawn(pythonCmd, args, {
-        cwd: backendPath,
-        env: process.env
-      });
       
       console.log(`[INFO] 서버 프로세스 PID: ${serverProcess.pid}`);
 
@@ -831,13 +916,130 @@ async function createWindow() {
     });
     
     console.log('[OK] ========== 창 생성 완료 ==========');
+    
+    // 윈도우가 준비되고 카메라 서버도 준비되었으면 이벤트 전송
+    if (cameraServerReady) {
+      console.log('[OK] 카메라 서버 이미 준비됨 - 렌더러 프로세스에 이벤트 전송');
+      // 약간의 딜레이 후 이벤트 전송 (윈도우가 완전히 로드될 때까지)
+      setTimeout(() => {
+        if (win && win.webContents) {
+          win.webContents.send('camera-server-ready');
+        }
+      }, 1000);
+    }
   } catch (err) {
     console.error('[ERROR] 앱 시작 오류:', err);
     dialog.showErrorBox('오류', `앱 시작 중 오류가 발생했습니다:\n${err.message}`);
   }
 }
 
-app.whenReady().then(createWindow);
+app.whenReady().then(async () => {
+  // 카메라 자동 검색 및 서버 시작
+  try {
+    console.log('[INFO] Dino 카메라 자동 검색 중...');
+    
+    const backendPath = getBackendPath();
+    const exePath = path.join(backendPath, 'dist', 'camera_list.exe');
+    const scriptPath = path.join(backendPath, 'camera_list.py');
+    
+    let cameraListOutput = '';
+    
+    // exe 파일이 있으면 실행, 없으면 Python 스크립트 실행
+    if (fs.existsSync(exePath)) {
+      console.log('[INFO] camera_list.exe 실행');
+      const result = await exec(`"${exePath}"`);
+      cameraListOutput = result.stdout;
+    } else if (fs.existsSync(scriptPath)) {
+      console.log('[INFO] camera_list.py 실행');
+      const pythonCmd = await checkPythonAvailability();
+      const result = await exec(`${pythonCmd} "${scriptPath}"`);
+      cameraListOutput = result.stdout;
+    } else {
+      throw new Error('camera_list 실행 파일을 찾을 수 없습니다.');
+    }
+    
+    const cameraListResult = JSON.parse(cameraListOutput);
+    
+    if (cameraListResult.success && cameraListResult.cameras.length >= 2) {
+      const camera1Index = cameraListResult.cameras[0].index;
+      const camera2Index = cameraListResult.cameras[1].index;
+      
+      console.log(`[INFO] Dino 카메라 2개 감지됨: Camera1=${camera1Index}, Camera2=${camera2Index}`);
+      console.log('[INFO] 카메라 서버 자동 시작 중...');
+      
+      // 카메라 서버 시작 (start-camera-server IPC 핸들러 로직 사용)
+      const serverExePath = path.join(backendPath, 'dist', 'camera_server.exe');
+      const serverScriptPath = path.join(backendPath, 'camera_server.py');
+      
+      if (fs.existsSync(serverExePath)) {
+        console.log('[INFO] camera_server.exe 실행');
+        serverProcess = spawn(serverExePath, ['--camera1', camera1Index.toString(), '--camera2', camera2Index.toString()], {
+          cwd: path.dirname(serverExePath),
+          env: { ...process.env }
+        });
+      } else if (fs.existsSync(serverScriptPath)) {
+        console.log('[INFO] camera_server.py 실행');
+        const pythonCmd = await checkPythonAvailability();
+        serverProcess = spawn(pythonCmd, [serverScriptPath, '--camera1', camera1Index.toString(), '--camera2', camera2Index.toString()], {
+          cwd: path.dirname(serverScriptPath),
+          env: { ...process.env }
+        });
+      } else {
+        throw new Error('camera_server 실행 파일을 찾을 수 없습니다.');
+      }
+      
+      // 서버 로그 모니터링
+      serverProcess.stdout.on('data', (data) => {
+        const output = data.toString();
+        console.log('[Camera Server]', output);
+        
+        // 서버가 준비되면 플래그 설정
+        if (output.includes('Running on http://127.0.0.1:5000') || output.includes('LISTENING')) {
+          console.log('[OK] 카메라 서버 준비 완료');
+          cameraServerReady = true;
+          
+          // 윈도우가 이미 생성되어 있으면 즉시 이벤트 전송
+          if (win && win.webContents) {
+            console.log('[OK] 렌더러 프로세스에 camera-server-ready 이벤트 전송');
+            win.webContents.send('camera-server-ready');
+          }
+        }
+      });
+      
+      serverProcess.stderr.on('data', (data) => {
+        const output = data.toString();
+        console.error('[Camera Server Error]', output);
+        
+        // Flask는 stderr로도 출력하므로 여기서도 체크
+        if (output.includes('Running on http://127.0.0.1:5000') || output.includes('LISTENING')) {
+          console.log('[OK] 카메라 서버 준비 완료 (stderr)');
+          cameraServerReady = true;
+          
+          // 윈도우가 이미 생성되어 있으면 즉시 이벤트 전송
+          if (win && win.webContents) {
+            console.log('[OK] 렌더러 프로세스에 camera-server-ready 이벤트 전송');
+            win.webContents.send('camera-server-ready');
+          }
+        }
+      });
+      
+      serverProcess.on('close', (code) => {
+        console.log(`[INFO] 카메라 서버 프로세스 종료됨 (코드: ${code})`);
+        serverProcess = null;
+      });
+      
+      console.log('[OK] 카메라 서버 시작됨');
+    } else {
+      console.warn('[WARN] Dino 카메라를 2개 찾지 못했습니다. 수동 연결이 필요합니다.');
+    }
+  } catch (error) {
+    console.error('[ERROR] 카메라 자동 시작 실패:', error.message);
+    console.warn('[WARN] 수동 연결 모드로 시작합니다.');
+  }
+  
+  // 윈도우 생성
+  createWindow();
+});
 
 app.on('window-all-closed', async () => {
   if (process.platform !== 'darwin') {

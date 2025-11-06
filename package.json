@@ -8,6 +8,8 @@
     "dev": "concurrently --kill-others \"npm run dev:react\" \"wait-on tcp:5173 && electron electron/main.js\"",
     "dev:react": "vite",
     "start": "electron electron/main.js",
+    "build:python": "node scripts/build-python.js",
+    "test:build": "node scripts/test-build.js",
     "prebuild:win": "node scripts/check-backend.js",
     "build:win": "vite build && electron-builder --win",
     "build": "vite build && electron-builder",
@@ -61,9 +63,19 @@
         "to": "backend",
         "filter": [
           "**/*",
+          "!**/dist/**",
           "!**/__pycache__",
           "!**/build",
-          "!**/*.pyc"
+          "!**/*.pyc",
+          "!**/*.py",
+          "!**/*.spec"
+        ]
+      },
+      {
+        "from": "backend/dist",
+        "to": "backend/dist",
+        "filter": [
+          "**/*"
         ]
       }
     ],

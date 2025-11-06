@@ -220,3 +220,38 @@
   border-color: #3B82F6;
   background-color: #1F2937;
 }
+
+/* 카메라 로딩 화면 스타일 */
+.camera-loading {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  background-color: #171C26;
+  color: #9CA3AF;
+  z-index: 5;
+}
+
+.camera-loading p {
+  margin-top: 1rem;
+  font-size: 0.875rem;
+  color: #9CA3AF;
+}
+
+.loading-spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid #374151;
+  border-top-color: #3B82F6;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}

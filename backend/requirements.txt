@@ -4,3 +4,5 @@ opencv-python
 websockets
 pyserial
 bcrypt
+pyinstaller
+pillow

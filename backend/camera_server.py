@@ -122,14 +122,6 @@ def filter_cameras_by_manufacturer(target_vids=None):
                     else:
                         # VID가 매칭되지 않는 경우
                         print(f"[SKIP] 카메라 인덱스 {i}: VID 매칭 실패 - 필터링됨")
-                        # 디버깅을 위해 모든 장치의 VID 출력
-                        print(f"[DEBUG] 사용 가능한 VID들:")
-                        for device in devices:
-                            device_id = device.get('DeviceID', '')
-                            if 'VID_' in device_id.upper():
-                                vid_part = device_id.upper().split('VID_')[1].split('&')[0] if 'VID_' in device_id.upper() else 'None'
-                                print(f"[DEBUG]   - {device.get('Name', 'Unknown')}: VID_{vid_part}")
-                        print(f"[DEBUG] 찾고 있는 VID: {target_vids}")
                 else:
                     print(f"[SKIP] 카메라 인덱스 {i}: 프레임 읽기 실패")
             else:
@@ -166,8 +158,9 @@ def initialize_cameras():
     # 기존 카메라가 있다면 먼저 해제
     cleanup_cameras()
     
-    # 잠시 대기 (리소스 해제 시간)
-    time.sleep(1)
+    # 잠시 대기 (리소스 완전 해제 시간 - DirectShow가 리소스를 해제하는 데 시간이 필요)
+    print("[DEBUG] 카메라 리소스 해제 후 대기 중...")
+    time.sleep(2.0)
     
     try:
         # 첫 번째 카메라 초기화
@@ -247,39 +240,42 @@ def cleanup_cameras():
     try:
         # 첫 번째 카메라 해제
         if cap is not None:
-            if cap.isOpened():
-                print("[DEBUG] 첫 번째 카메라 해제 시도...")
-                cap.release()
-                print("[OK] 첫 번째 카메라 해제 완료")
-            cap = None
+            try:
+                if cap.isOpened():
+                    print("[DEBUG] 첫 번째 카메라 해제 시도...")
+                    cap.release()
+                    print("[OK] 첫 번째 카메라 해제 완료")
+            except Exception as e:
+                print(f"[WARN] 첫 번째 카메라 해제 중 오류: {e}")
+            finally:
+                cap = None
+        
+        # 리소스 해제 대기
+        time.sleep(0.3)
         
         # 두 번째 카메라 해제
         if cap2 is not None:
-            if cap2.isOpened():
-                print("[DEBUG] 두 번째 카메라 해제 시도...")
-                cap2.release()
-                print("[OK] 두 번째 카메라 해제 완료")
-            cap2 = None
+            try:
+                if cap2.isOpened():
+                    print("[DEBUG] 두 번째 카메라 해제 시도...")
+                    cap2.release()
+                    print("[OK] 두 번째 카메라 해제 완료")
+            except Exception as e:
+                print(f"[WARN] 두 번째 카메라 해제 중 오류: {e}")
+            finally:
+                cap2 = None
         
-        # OpenCV 윈도우 정리
-        cv2.destroyAllWindows()
-        
-        # 리소스 완전 해제를 위한 대기 시간 증가
+        # OpenCV 리소스 완전 해제를 위한 대기
         print("[DEBUG] 카메라 리소스 완전 해제 대기 중...")
-        time.sleep(2.0)  # 2초로 증가
-        
-        # 강제 가비지 컬렉션
-        import gc
-        gc.collect()
-        
-        # 추가 대기 시간으로 완전한 리소스 해제 보장
+        time.sleep(0.5)
         print("[DEBUG] 카메라 리소스 완전 해제 대기 중...")
-        time.sleep(1.0)  # 1초 대기로 충분
+        time.sleep(0.5)
+        
+        # cv2.destroyAllWindows()는 GUI 관련이므로 서버에서는 불필요
         
         print("[OK] 카메라 리소스 정리 완료")
-        
     except Exception as e:
-        print(f"[ERROR] 카메라 정리 오류: {e}")
+        print(f"[ERROR] 카메라 리소스 정리 중 오류: {e}")
         # 오류가 발생해도 강제로 None 할당
         cap = None
         cap2 = None

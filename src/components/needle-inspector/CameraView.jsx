@@ -337,12 +337,17 @@ const CameraView = forwardRef(({
         ref={videoContainerRef} 
         className="camera-feed-container"
       >
-        {videoServerUrl && videoEndpoint && (
+        {videoServerUrl && videoEndpoint ? (
           <img 
             src={`${videoServerUrl}${videoEndpoint}`} 
             alt={title} 
             className="camera-image"
           />
+        ) : (
+          <div className="camera-loading">
+            <div className="loading-spinner"></div>
+            <p>카메라 서버 준비 중...</p>
+          </div>
         )}
         <canvas 
           ref={canvasRef} 
