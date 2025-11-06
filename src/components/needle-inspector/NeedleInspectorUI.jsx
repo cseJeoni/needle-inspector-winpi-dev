@@ -1638,6 +1638,25 @@ useEffect(() => {
     console.log("🚀 컴포넌트 마운트 - WebSocket 연결 시작")
     connectWebSocket()
     
+    // localStorage에서 카메라 연결 상태 확인
+    const cameraConnected = localStorage.getItem('cameraConnected')
+    const cameraConnectedTime = localStorage.getItem('cameraConnectedTime')
+    
+    if (cameraConnected === 'true' && cameraConnectedTime) {
+      const timeDiff = Date.now() - parseInt(cameraConnectedTime)
+      // 연결된 지 10분 이내라면 카메라 셀렉터 건너뛰기
+      if (timeDiff < 10 * 60 * 1000) {
+        console.log("🚀 컴포넌트 마운트 - 카메라 이미 연결됨, 셀렉터 건너뛰기")
+        setShowCameraSelector(false)
+        setIsCameraServerReady(true)
+        return
+      } else {
+        // 10분이 지났다면 연결 상태 초기화
+        localStorage.removeItem('cameraConnected')
+        localStorage.removeItem('cameraConnectedTime')
+      }
+    }
+    
     console.log("🚀 컴포넌트 마운트 - 카메라 선택 UI 표시")
     setShowCameraSelector(true)
     
@@ -2269,6 +2288,9 @@ useEffect(() => {
   // 카메라 재선택 함수
   const handleResetCameras = () => {
     console.log("🔄 카메라 재설정 - 카메라 선택 UI 표시")
+    // localStorage에서 카메라 연결 상태 초기화
+    localStorage.removeItem('cameraConnected')
+    localStorage.removeItem('cameraConnectedTime')
     setShowCameraSelector(true)
     setIsCameraServerReady(false)
     // WebSocket 연결은 유지 (카메라와 무관하게 동작)

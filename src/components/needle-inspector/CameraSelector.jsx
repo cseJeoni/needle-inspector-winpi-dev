@@ -23,7 +23,11 @@ const CameraSelector = ({ onCamerasSelected }) => {
       const handleCameraServerReady = () => {
         console.log("[CameraSelector] 카메라 서버 준비 완료")
         if (shouldReloadOnReady) {
-          console.log("[CameraSelector] 페이지 새로고침 시작")
+          console.log("[CameraSelector] 카메라 연결 완료 - 상태 저장 후 페이지 새로고침")
+          // 카메라 연결 완료 상태를 localStorage에 저장
+          localStorage.setItem('cameraConnected', 'true')
+          localStorage.setItem('cameraConnectedTime', Date.now().toString())
+          // 페이지 새로고침으로 카메라 화면 초기화
           window.location.reload()
         }
       }
@@ -182,7 +186,20 @@ const CameraSelector = ({ onCamerasSelected }) => {
   }
 
   if (connecting) {
-    return null
+    return (
+      <div className="camera-selector-overlay">
+        <div className="camera-selector-loading">
+          <div className="loading-spinner-container">
+            <div className="loading-spinner-track"></div>
+            <div className="loading-spinner"></div>
+          </div>
+          <div className="loading-text">
+            <p className="loading-title">카메라 로딩 중</p>
+            <p className="loading-subtitle">카메라 서버를 시작하고 있습니다</p>
+          </div>
+        </div>
+      </div>
+    )
   }
 
   return (
