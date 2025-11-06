@@ -42,6 +42,7 @@ METHOD_SIGNATURES: dict = {
 
 class DNX64:
     
+    
     def __init__(self, dll_path: str) -> None:
         """
         Initialize the DNX64 class.

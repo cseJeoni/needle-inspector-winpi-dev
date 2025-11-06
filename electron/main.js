@@ -960,21 +960,36 @@ app.whenReady().then(async () => {
     
     const cameraListResult = JSON.parse(cameraListOutput);
     
-    if (cameraListResult.success && cameraListResult.cameras.length >= 2) {
-      const camera1Index = cameraListResult.cameras[0].index;
-      const camera2Index = cameraListResult.cameras[1].index;
-      
-      console.log(`[INFO] Dino 카메라 2개 감지됨: Camera1=${camera1Index}, Camera2=${camera2Index}`);
-      console.log('[INFO] 카메라 서버 자동 시작 중...');
-      
-      // 카메라 서버 시작 (start-camera-server IPC 핸들러 로직 사용)
-      const serverExePath = path.join(backendPath, 'dist', 'camera_server.exe');
-      const serverScriptPath = path.join(backendPath, 'camera_server.py');
-      
-      if (fs.existsSync(serverExePath)) {
-        console.log('[INFO] camera_server.exe 실행');
-        serverProcess = spawn(serverExePath, ['--camera1', camera1Index.toString(), '--camera2', camera2Index.toString()], {
-          cwd: path.dirname(serverExePath),
+    // SDK 실패 체크
+    if (!cameraListResult.success) {
+      console.error(`[ERROR] Dino 카메라 감지 실패: ${cameraListResult.error}`);
+      throw new Error(cameraListResult.error || "Dino 카메라를 찾을 수 없습니다");
+    }
+    
+    if (cameraListResult.cameras.length < 2) {
+      console.error(`[ERROR] Dino 카메라가 2개 필요하지만 ${cameraListResult.cameras.length}개만 발견`);
+      throw new Error(`Dino 카메라가 ${cameraListResult.cameras.length}개만 감지됨`);
+    }
+    
+    // cameras 배열이 숫자 배열인지 객체 배열인지 확인
+    const camera1Index = typeof cameraListResult.cameras[0] === 'number' 
+      ? cameraListResult.cameras[0] 
+      : cameraListResult.cameras[0].index;
+    const camera2Index = typeof cameraListResult.cameras[1] === 'number'
+      ? cameraListResult.cameras[1]
+      : cameraListResult.cameras[1].index;
+    
+    console.log(`[INFO] Dino 카메라 2개 감지됨: Camera1=${camera1Index}, Camera2=${camera2Index}`);
+    console.log('[INFO] 카메라 서버 자동 시작 중...');
+    
+    // 카메라 서버 시작 (start-camera-server IPC 핸들러 로직 사용)
+    const serverExePath = path.join(backendPath, 'dist', 'camera_server.exe');
+    const serverScriptPath = path.join(backendPath, 'camera_server.py');
+    
+    if (fs.existsSync(serverExePath)) {
+      console.log('[INFO] camera_server.exe 실행');
+      serverProcess = spawn(serverExePath, ['--camera1', camera1Index.toString(), '--camera2', camera2Index.toString()], {
+        cwd: path.dirname(serverExePath),
           env: { ...process.env }
         });
       } else if (fs.existsSync(serverScriptPath)) {
@@ -1029,9 +1044,6 @@ app.whenReady().then(async () => {
       });
       
       console.log('[OK] 카메라 서버 시작됨');
-    } else {
-      console.warn('[WARN] Dino 카메라를 2개 찾지 못했습니다. 수동 연결이 필요합니다.');
-    }
   } catch (error) {
     console.error('[ERROR] 카메라 자동 시작 실패:', error.message);
     console.warn('[WARN] 수동 연결 모드로 시작합니다.');

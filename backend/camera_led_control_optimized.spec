@@ -4,10 +4,15 @@ import os
 block_cipher = None
 
 # DNX64 SDK 파일들을 데이터로 포함
-datas = [
-    ('pyDnx64v2/DNX64.dll', 'pyDnx64v2'),
-    ('pyDnx64v2/dnx64.py', 'pyDnx64v2'),
-]
+spec_dir = os.path.dirname(os.path.abspath(SPEC))
+sdk_path = os.path.join(spec_dir, 'pyDnx64v2')
+
+datas = []
+binaries = []
+
+# SDK 전체 폴더를 포함
+if os.path.exists(sdk_path):
+    datas.append((sdk_path, 'pyDnx64v2'))
 
 hiddenimports = [
     'ctypes',
@@ -17,8 +22,6 @@ hiddenimports = [
     'os',
     'argparse',
 ]
-
-binaries = []
 
 a = Analysis(
     ['camera_led_control.py'],

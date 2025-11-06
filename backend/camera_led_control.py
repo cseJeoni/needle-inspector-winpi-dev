@@ -9,8 +9,17 @@ import os
 import argparse
 import json
 
-# DNX64 SDK 경로 추가
-sys.path.append(os.path.join(os.path.dirname(__file__), 'pyDnx64v2'))
+# PyInstaller 번들 환경 확인
+if getattr(sys, 'frozen', False):
+    # 번들된 실행파일에서 실행 중
+    application_path = sys._MEIPASS
+    # SDK 경로 추가
+    sys.path.append(os.path.join(application_path, 'pyDnx64v2'))
+else:
+    # 개발 환경에서 실행 중
+    application_path = os.path.dirname(os.path.abspath(__file__))
+    # SDK 경로 추가
+    sys.path.append(os.path.join(application_path, 'pyDnx64v2'))
 
 try:
     from dnx64 import DNX64
@@ -25,8 +34,13 @@ def get_camera_devices():
         return {"success": False, "error": "DNX64 SDK를 사용할 수 없습니다"}
     
     try:
-        # DNX64 DLL 경로 (상대 경로로 설정)
-        dll_path = os.path.join(os.path.dirname(__file__), 'pyDnx64v2', 'DNX64.dll')
+        # DNX64 DLL 경로 설정
+        if getattr(sys, 'frozen', False):
+            # 번들된 실행파일 환경
+            dll_path = os.path.join(sys._MEIPASS, 'pyDnx64v2', 'DNX64.dll')
+        else:
+            # 개발 환경
+            dll_path = os.path.join(os.path.dirname(__file__), 'pyDnx64v2', 'DNX64.dll')
         
         if not os.path.exists(dll_path):
             return {"success": False, "error": f"DNX64.dll을 찾을 수 없습니다: {dll_path}"}
@@ -68,8 +82,13 @@ def set_led_state(device_index, led_state):
         return {"success": False, "error": "DNX64 SDK를 사용할 수 없습니다"}
     
     try:
-        # DNX64 DLL 경로
-        dll_path = os.path.join(os.path.dirname(__file__), 'pyDnx64v2', 'DNX64.dll')
+        # DNX64 DLL 경로 설정
+        if getattr(sys, 'frozen', False):
+            # 번들된 실행파일 환경
+            dll_path = os.path.join(sys._MEIPASS, 'pyDnx64v2', 'DNX64.dll')
+        else:
+            # 개발 환경
+            dll_path = os.path.join(os.path.dirname(__file__), 'pyDnx64v2', 'DNX64.dll')
         
         if not os.path.exists(dll_path):
             return {"success": False, "error": f"DNX64.dll을 찾을 수 없습니다: {dll_path}"}

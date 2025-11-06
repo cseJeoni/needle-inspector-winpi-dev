@@ -1,18 +1,28 @@
 # -*- mode: python ; coding: utf-8 -*-
 
+import os
+
 block_cipher = None
 
 hiddenimports = [
     'cv2',
     'json',
     'sys',
-    'subprocess',
-    'platform',
     'numpy',
+    'ctypes',
+    'dnx64',
 ]
+
+# SDK 포함
+spec_dir = os.path.dirname(os.path.abspath(SPEC))
+sdk_path = os.path.join(spec_dir, 'pyDnx64v2')
 
 datas = []
 binaries = []
+
+# SDK 전체 폴더를 포함
+if os.path.exists(sdk_path):
+    datas.append((sdk_path, 'pyDnx64v2'))
 
 a = Analysis(
     ['camera_list.py'],
