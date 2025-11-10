@@ -111,9 +111,11 @@ export default function NeedleInspectorUI() {
   // 명령어 큐 상태 (디버깅용)
   const [commandQueueSize, setCommandQueueSize] = useState(0)
 
+
   // 카메라 관련
   const [referenceNaturalWidth1, setReferenceNaturalWidth1] = useState(1920);
   const [referenceNaturalWidth2, setReferenceNaturalWidth2] = useState(1920);
+
 
   // 니들팁 연결 상태에 따른 작업 상태 업데이트
   useEffect(() => {
@@ -131,13 +133,17 @@ export default function NeedleInspectorUI() {
     }
   }, [needleTipConnected]); // workStatus 의존성 제거
   
-  // workStatus 변경 시 LED 제어 (모터 오류 시 RED LED)
+  // workStatus 변경 시 LED 제어 (오류 사운드는 StatusPanel에서 처리)
   useEffect(() => {
     if (!ws || !isWsConnected) return;
     
-    // motor_error 상태일 때 LED RED 켜기
-    if (workStatus === 'motor_error') {
-      console.log('🔴 모터 오류 발생 - LED RED 켜기');
+    // 오류 상황들에서 LED RED 켜기
+    const errorStatuses = ['motor_error', 'needle_short', 'write_failed', 'read_failed', 'resistance_abnormal'];
+    
+    if (errorStatuses.includes(workStatus)) {
+      console.log(`🔴 오류 발생 (${workStatus}) - LED RED 켜기`);
+      
+      // LED RED 켜기
       ws.send(JSON.stringify({
         cmd: "led_control",
         type: "red"

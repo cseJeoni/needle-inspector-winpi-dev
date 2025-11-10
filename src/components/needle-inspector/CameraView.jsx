@@ -39,8 +39,8 @@ const CameraView = forwardRef(({
   onLineColorChange,
   workStatus = 'waiting' // 작업 상태 (니들 쇼트, 저장 실패 등)
 }, ref) => {
-  // LED 상태 관리 (작업 시 LED를 끄고 하므로 기본 OFF 상태)
-  const [ledState, setLedState] = useState(false); // false: OFF, true: ON
+  // LED 상태 관리 (카메라가 켜져있으므로 기본 ON 상태)
+  const [ledState, setLedState] = useState(true); // false: OFF, true: ON
   const [deviceIndex, setDeviceIndex] = useState(null); // 카메라 디바이스 인덱스
   const [cameraDevices, setCameraDevices] = useState([]);
 
@@ -63,16 +63,16 @@ const CameraView = forwardRef(({
               setDeviceIndex(targetIndex);
               console.log(`[${title}] 디바이스 인덱스 설정: ${targetIndex}`);
               
-              // 컴포넌트 마운트 시 LED를 OFF로 설정
+              // 컴포넌트 마운트 시 LED를 ON으로 설정
               setTimeout(async () => {
                 try {
                   if (window.electronAPI && window.electronAPI.setCameraLED) {
-                    const result = await window.electronAPI.setCameraLED(targetIndex, 0); // OFF
+                    const result = await window.electronAPI.setCameraLED(targetIndex, 1); // ON
                     if (result.success) {
-                      setLedState(false);
-                      console.log(`[${title}] 초기 LED OFF 설정 완료`);
+                      setLedState(true);
+                      console.log(`[${title}] 초기 LED ON 설정 완료`);
                     } else {
-                      console.warn(`[${title}] 초기 LED OFF 설정 실패:`, result.error);
+                      console.warn(`[${title}] 초기 LED ON 설정 실패:`, result.error);
                     }
                   }
                 } catch (error) {

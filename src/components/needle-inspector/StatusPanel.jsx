@@ -3,6 +3,7 @@ import Panel from "./Panel"
 import { Input } from "./Input"
 import { Button } from "./Button"
 import { useAuth } from "../../hooks/useAuth.jsx"
+import errorAudio from "../../assets/audio/error.mp3"
 
 export default function StatusPanel({ mode, workStatus = 'waiting', needleTipConnected = false, isWaitingEepromRead = false }) {
   // CSV 기반 Authentication 훅 사용
@@ -14,6 +15,45 @@ export default function StatusPanel({ mode, workStatus = 'waiting', needleTipCon
   const [isLoggingIn, setIsLoggingIn] = useState(false)
   const [loginMessage, setLoginMessage] = useState('')
   
+  // 오디오 객체 (오류 사운드용)
+  const errorAudioRef = useRef(null)
+  const prevWorkStatusRef = useRef(workStatus) // 이전 상태 추적용
+  
+  // 오디오 객체 초기화
+  useEffect(() => {
+    errorAudioRef.current = new Audio(errorAudio)
+    errorAudioRef.current.preload = 'auto'
+    
+    return () => {
+      if (errorAudioRef.current) {
+        errorAudioRef.current.pause()
+        errorAudioRef.current = null
+      }
+    }
+  }, [])
+
+  // 오류 사운드 재생 함수
+  const playErrorSound = () => {
+    if (errorAudioRef.current) {
+      errorAudioRef.current.currentTime = 0 // 처음부터 재생
+      errorAudioRef.current.play().catch(console.error)
+      console.log('[MP3] 오류 발생 - error.mp3 재생')
+    }
+  }
+
+  // workStatus 변경 감지 및 오류 사운드 재생
+  useEffect(() => {
+    const errorStatuses = ['motor_error', 'needle_short', 'write_failed', 'read_failed', 'resistance_abnormal']
+    
+    // 상태가 변경되었고, 새 상태가 오류 상태인 경우에만 사운드 재생
+    if (prevWorkStatusRef.current !== workStatus && errorStatuses.includes(workStatus)) {
+      console.log(`🔊 오류 상태 감지 (${workStatus}) - error.mp3 재생`)
+      playErrorSound()
+    }
+    
+    // 이전 상태 업데이트
+    prevWorkStatusRef.current = workStatus
+  }, [workStatus])
 
   // 로그인 처리 함수 (CSV 기반)
   const handleLogin = async () => {

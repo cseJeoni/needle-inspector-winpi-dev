@@ -5,6 +5,7 @@ import { useState, useRef, useEffect, forwardRef, useImperativeHandle } from "re
 import { getId } from '../../utils/csvCache'
 import successAudio from "../../assets/audio/success.mp3"
 import failAudio from "../../assets/audio/fail.mp3"
+import errorAudio from "../../assets/audio/error.mp3"
 
 const JudgePanel = forwardRef(function JudgePanel({ onJudge, isStarted, onReset, camera1Ref, camera2Ref, hasNeedleTip = true, websocket, isWsConnected, onCaptureMergedImage, eepromData, generateUserBasedPath, isWaitingEepromRead = false, onWaitingEepromReadChange, isResistanceAbnormal = false, isNeedleShortFixed = false, needleOffset1, needleOffset2, needleSpeed1, needleSpeed2, workStatus = 'waiting', onDebugModeChange, dataSettings, onWorkStatusChange, onResetCameras }, ref) {
   // 사용자 정보 가져오기
@@ -13,6 +14,7 @@ const JudgePanel = forwardRef(function JudgePanel({ onJudge, isStarted, onReset,
   // 오디오 객체를 useRef로 캐싱
   const successAudioRef = useRef(null)
   const failAudioRef = useRef(null)
+  const errorAudioRef = useRef(null)
   
   // 일일 시리얼 번호 관리
   const [dailySerialNumber, setDailySerialNumber] = useState(1)
@@ -21,10 +23,12 @@ const JudgePanel = forwardRef(function JudgePanel({ onJudge, isStarted, onReset,
   useEffect(() => {
     successAudioRef.current = new Audio(successAudio)
     failAudioRef.current = new Audio(failAudio)
+    errorAudioRef.current = new Audio(errorAudio)
     
     // 오디오 미리 로드
     successAudioRef.current.preload = 'auto'
     failAudioRef.current.preload = 'auto'
+    errorAudioRef.current.preload = 'auto'
     
     return () => {
       // 컴포넌트 언마운트 시 정리
@@ -35,6 +39,10 @@ const JudgePanel = forwardRef(function JudgePanel({ onJudge, isStarted, onReset,
       if (failAudioRef.current) {
         failAudioRef.current.pause()
         failAudioRef.current = null
+      }
+      if (errorAudioRef.current) {
+        errorAudioRef.current.pause()
+        errorAudioRef.current = null
       }
     }
   }, [])
@@ -53,6 +61,14 @@ const JudgePanel = forwardRef(function JudgePanel({ onJudge, isStarted, onReset,
       failAudioRef.current.currentTime = 0 // 처음부터 재생
       failAudioRef.current.play().catch(console.error)
       console.log('[MP3] NG 판정 완료 - fail.mp3 재생')
+    }
+  }
+
+  const playErrorSound = () => {
+    if (errorAudioRef.current) {
+      errorAudioRef.current.currentTime = 0 // 처음부터 재생
+      errorAudioRef.current.play().catch(console.error)
+      console.log('[MP3] 오류 발생 - error.mp3 재생')
     }
   }
 
@@ -413,12 +429,14 @@ const JudgePanel = forwardRef(function JudgePanel({ onJudge, isStarted, onReset,
           console.log('🔴 EEPROM 실패 - LED RED 켜기');
         }
         
-        // 2) WorkStatus를 'write_failed'로 변경하여 판정 버튼 비활성화
+        // 2) 오류 사운드는 StatusPanel에서 workStatus 변경 감지로 자동 재생됨
+        
+        // 3) WorkStatus를 'write_failed'로 변경하여 판정 버튼 비활성화
         if (onWorkStatusChange) {
           onWorkStatusChange('write_failed');
         }
         
-        // 3) 에러 로그 및 사이클 즉시 종료 (캡처 진행하지 않음)
+        // 4) 에러 로그 및 사이클 즉시 종료 (캡처 진행하지 않음)
         console.error('⛔ EEPROM 쓰기/읽기 실패로 사이클 중지');
         return; // early return - 캡처 및 다른 작업 진행하지 않음
       }
