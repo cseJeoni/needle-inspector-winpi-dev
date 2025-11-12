@@ -744,7 +744,7 @@ function registerIpcHandlers() {
       const exePath = path.join(backendPath, 'dist', 'camera_server.exe');
       const serverScriptPath = path.join(backendPath, 'camera_server.py');
       
-      const args = ['--camera1', camera1Index.toString(), '--camera2', camera2Index.toString()];
+      const args = ['--cam1', camera1Index.toString(), '--cam2', camera2Index.toString()];
       
       // exe 파일 우선 실행 (프로덕션)
       if (fs.existsSync(exePath)) {
@@ -988,14 +988,14 @@ app.whenReady().then(async () => {
     
     if (fs.existsSync(serverExePath)) {
       console.log('[INFO] camera_server.exe 실행');
-      serverProcess = spawn(serverExePath, ['--camera1', camera1Index.toString(), '--camera2', camera2Index.toString()], {
+      serverProcess = spawn(serverExePath, ['--cam1', camera1Index.toString(), '--cam2', camera2Index.toString()], {
         cwd: path.dirname(serverExePath),
           env: { ...process.env }
         });
       } else if (fs.existsSync(serverScriptPath)) {
         console.log('[INFO] camera_server.py 실행');
         const pythonCmd = await checkPythonAvailability();
-        serverProcess = spawn(pythonCmd, [serverScriptPath, '--camera1', camera1Index.toString(), '--camera2', camera2Index.toString()], {
+        serverProcess = spawn(pythonCmd, [serverScriptPath, '--cam1', camera1Index.toString(), '--cam2', camera2Index.toString()], {
           cwd: path.dirname(serverScriptPath),
           env: { ...process.env }
         });
