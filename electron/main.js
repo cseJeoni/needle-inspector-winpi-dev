@@ -964,43 +964,57 @@ app.whenReady().then(async () => {
     }
     
     const cameraListResult = JSON.parse(cameraListOutput);
-    
+
     // SDK 실패 체크
     if (!cameraListResult.success) {
       console.error(`[ERROR] Dino 카메라 감지 실패: ${cameraListResult.error}`);
       throw new Error(cameraListResult.error || "Dino 카메라를 찾을 수 없습니다");
     }
-    
-    if (cameraListResult.cameras.length < 2) {
-      console.error(`[ERROR] Dino 카메라가 2개 필요하지만 ${cameraListResult.cameras.length}개만 발견`);
-      throw new Error(`Dino 카메라가 ${cameraListResult.cameras.length}개만 감지됨`);
+
+    if (cameraListResult.cameras.length === 0) {
+      console.error(`[ERROR] Dino 카메라를 찾을 수 없음`);
+      throw new Error(`Dino 카메라를 찾을 수 없습니다`);
     }
-    
+
     // cameras 배열이 숫자 배열인지 객체 배열인지 확인
-    const camera1Index = typeof cameraListResult.cameras[0] === 'number' 
-      ? cameraListResult.cameras[0] 
+    const camera1Index = typeof cameraListResult.cameras[0] === 'number'
+      ? cameraListResult.cameras[0]
       : cameraListResult.cameras[0].index;
-    const camera2Index = typeof cameraListResult.cameras[1] === 'number'
-      ? cameraListResult.cameras[1]
-      : cameraListResult.cameras[1].index;
-    
-    console.log(`[INFO] Dino 카메라 2개 감지됨: Camera1=${camera1Index}, Camera2=${camera2Index}`);
+
+    let camera2Index = null;
+    if (cameraListResult.cameras.length >= 2) {
+      camera2Index = typeof cameraListResult.cameras[1] === 'number'
+        ? cameraListResult.cameras[1]
+        : cameraListResult.cameras[1].index;
+    }
+
+    if (camera2Index !== null) {
+      console.log(`[INFO] Dino 카메라 2개 감지됨: Camera1=${camera1Index}, Camera2=${camera2Index} (2-카메라 모드)`);
+    } else {
+      console.log(`[INFO] Dino 카메라 1개 감지됨: Camera1=${camera1Index} (단일 카메라 모드)`);
+    }
     console.log('[INFO] 카메라 서버 자동 시작 중...');
-    
+
     // 카메라 서버 시작 (start-camera-server IPC 핸들러 로직 사용)
     const serverExePath = path.join(backendPath, 'dist', 'camera_server.exe');
     const serverScriptPath = path.join(backendPath, 'camera_server.py');
-    
+
+    // args 생성: camera2가 있으면 추가
+    const serverArgs = ['--camera1', camera1Index.toString()];
+    if (camera2Index !== null) {
+      serverArgs.push('--camera2', camera2Index.toString());
+    }
+
     if (fs.existsSync(serverExePath)) {
       console.log('[INFO] camera_server.exe 실행');
-      serverProcess = spawn(serverExePath, ['--camera1', camera1Index.toString(), '--camera2', camera2Index.toString()], {
+      serverProcess = spawn(serverExePath, serverArgs, {
         cwd: path.dirname(serverExePath),
           env: { ...process.env }
         });
       } else if (fs.existsSync(serverScriptPath)) {
         console.log('[INFO] camera_server.py 실행');
         const pythonCmd = await checkPythonAvailability();
-        serverProcess = spawn(pythonCmd, [serverScriptPath, '--camera1', camera1Index.toString(), '--camera2', camera2Index.toString()], {
+        serverProcess = spawn(pythonCmd, [serverScriptPath, ...serverArgs], {
           cwd: path.dirname(serverScriptPath),
           env: { ...process.env }
         });
