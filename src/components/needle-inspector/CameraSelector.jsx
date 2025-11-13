@@ -101,7 +101,7 @@ const CameraSelector = ({ onCamerasSelected }) => {
         `[CameraSelector] 카메라 서버 시작: Camera 1=${selectedCamera1}, Camera 2=${selectedCamera2 || "None"}`,
       )
 
-      const result = await window.electronAPI.startCameraServer(selectedCamera1, selectedCamera2 || selectedCamera1)
+      const result = await window.electronAPI.startCameraServer(selectedCamera1, selectedCamera2 || null)
 
       if (result.success) {
         console.log("[CameraSelector] 카메라 서버 시작 성공 - 서버 준비 대기 중...")

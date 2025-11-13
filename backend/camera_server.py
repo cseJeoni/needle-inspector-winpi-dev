@@ -510,17 +510,20 @@ def capture2():
 
 if __name__ == '__main__':
     # 커맨드라인 인수 파싱
-    parser = argparse.ArgumentParser(description='Camera Server')
-    parser.add_argument('--camera1', type=int, help='First camera index')
-    parser.add_argument('--camera2', type=int, help='Second camera index')
+    parser = argparse.ArgumentParser(description='Camera Server (1 or 2 cameras supported)')
+    parser.add_argument('--camera1', type=int, required=True, help='First camera index (required)')
+    parser.add_argument('--camera2', type=int, default=None, help='Second camera index (optional)')
     args = parser.parse_args()
-    
+
     # 전역 변수에 카메라 인덱스 설정
     camera_index_1 = args.camera1
     camera_index_2 = args.camera2
-    
+
     print(f"[INFO] 카메라 서버 시작...")
-    print(f"[INFO] 선택된 카메라 인덱스: Camera 1={camera_index_1}, Camera 2={camera_index_2}")
+    if camera_index_2 is not None:
+        print(f"[INFO] 선택된 카메라 인덱스: Camera 1={camera_index_1}, Camera 2={camera_index_2} (2-카메라 모드)")
+    else:
+        print(f"[INFO] 선택된 카메라 인덱스: Camera 1={camera_index_1} (단일 카메라 모드)")
     
     # 카메라 초기화
     initialize_cameras()
