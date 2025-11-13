@@ -1072,30 +1072,108 @@ app.whenReady().then(async () => {
   createWindow();
 });
 
-app.on('window-all-closed', async () => {
-  if (process.platform !== 'darwin') {
-    if (serverProcess) {
-      console.log('[INFO] 카메라 서버에 안전 종료 요청 시도...');
-      try {
-        await axios.post('http://127.0.0.1:5000/shutdown', {}, { timeout: 3000 });
-        console.log('[OK] 카메라 서버에 종료 요청 성공');
-        await new Promise(resolve => setTimeout(resolve, 500));
-      } catch (error) {
-        console.warn('[WARN] 카메라 서버 종료 요청 실패:', error.message);
-        
-        if (process.platform === 'win32') {
-          try {
-            await exec(`taskkill /F /PID ${serverProcess.pid} /T`);
-            console.log('[OK] 서버 프로세스 강제 종료 완료');
-          } catch (killError) {
-            console.warn('[WARN] 서버 프로세스 강제 종료 실패:', killError.message);
+// 프로그램 종료 전 LED를 끄는 함수
+async function turnOffAllCameraLEDs() {
+  console.log('[INFO] 모든 카메라 LED 끄는 중...');
+  try {
+    const backendPath = getBackendPath();
+    const exePath = path.join(backendPath, 'dist', 'camera_led_control.exe');
+    const scriptPath = path.join(backendPath, 'camera_led_control.py');
+
+    // 카메라 디바이스 목록 가져오기
+    let devicesResult;
+    if (fs.existsSync(exePath)) {
+      const result = await execFileAsync(exePath, ['list'], {
+        cwd: path.join(backendPath, 'dist'),
+        timeout: 5000
+      });
+      devicesResult = JSON.parse(result.stdout);
+    } else if (fs.existsSync(scriptPath)) {
+      const pythonCmd = await checkPythonAvailability();
+      const result = await execFileAsync(pythonCmd, [scriptPath, 'list'], {
+        cwd: backendPath,
+        timeout: 5000
+      });
+      devicesResult = JSON.parse(result.stdout);
+    }
+
+    // 모든 디바이스 LED 끄기
+    if (devicesResult && devicesResult.success && devicesResult.devices) {
+      for (const device of devicesResult.devices) {
+        try {
+          const args = ['set', '--device-index', device.index.toString(), '--led-state', '0'];
+          if (fs.existsSync(exePath)) {
+            await execFileAsync(exePath, args, {
+              cwd: path.join(backendPath, 'dist'),
+              timeout: 3000
+            });
+          } else if (fs.existsSync(scriptPath)) {
+            const pythonCmd = await checkPythonAvailability();
+            await execFileAsync(pythonCmd, [scriptPath, ...args], {
+              cwd: backendPath,
+              timeout: 3000
+            });
           }
-        } else {
-          serverProcess.kill('SIGKILL');
+          console.log(`[OK] 카메라 ${device.index} LED OFF 완료`);
+        } catch (ledError) {
+          console.warn(`[WARN] 카메라 ${device.index} LED 끄기 실패:`, ledError.message);
         }
       }
     }
-    
+  } catch (error) {
+    console.warn('[WARN] 카메라 LED 끄기 실패:', error.message);
+  }
+}
+
+// 정리 작업 완료 플래그
+let isCleanupDone = false;
+
+// before-quit 이벤트: 프로그램 종료 전에 LED 끄기
+app.on('before-quit', async (event) => {
+  // 이미 정리 작업을 완료했으면 앱 종료 허용
+  if (isCleanupDone) {
+    return;
+  }
+
+  event.preventDefault();
+
+  console.log('[INFO] 프로그램 종료 전 정리 작업 시작...');
+
+  // LED 끄기
+  await turnOffAllCameraLEDs();
+
+  // 카메라 서버 종료
+  if (serverProcess) {
+    console.log('[INFO] 카메라 서버에 안전 종료 요청 시도...');
+    try {
+      await axios.post('http://127.0.0.1:5000/shutdown', {}, { timeout: 3000 });
+      console.log('[OK] 카메라 서버에 종료 요청 성공');
+      await new Promise(resolve => setTimeout(resolve, 500));
+    } catch (error) {
+      console.warn('[WARN] 카메라 서버 종료 요청 실패:', error.message);
+
+      if (process.platform === 'win32') {
+        try {
+          await exec(`taskkill /F /PID ${serverProcess.pid} /T`);
+          console.log('[OK] 서버 프로세스 강제 종료 완료');
+        } catch (killError) {
+          console.warn('[WARN] 서버 프로세스 강제 종료 실패:', killError.message);
+        }
+      } else {
+        serverProcess.kill('SIGKILL');
+      }
+    }
+  }
+
+  console.log('[OK] 정리 작업 완료, 프로그램 종료');
+  isCleanupDone = true;
+  app.quit();
+});
+
+app.on('window-all-closed', () => {
+  // before-quit 이벤트에서 이미 정리 작업을 수행하므로
+  // macOS가 아닌 경우만 앱 종료
+  if (process.platform !== 'darwin') {
     app.quit();
   }
 });
