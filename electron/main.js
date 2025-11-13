@@ -738,13 +738,18 @@ function registerIpcHandlers() {
         serverStarted = false;
       }
       
-      console.log(`[INFO] 카메라 서버 시작 요청: Camera 1=${camera1Index}, Camera 2=${camera2Index}`);
-      
       const backendPath = getBackendPath();
       const exePath = path.join(backendPath, 'dist', 'camera_server.exe');
       const serverScriptPath = path.join(backendPath, 'camera_server.py');
-      
-      const args = ['--camera1', camera1Index.toString(), '--camera2', camera2Index.toString()];
+
+      // args 생성: camera2가 있으면 추가, 없으면 camera1만
+      const args = ['--camera1', camera1Index.toString()];
+      if (camera2Index !== null && camera2Index !== undefined) {
+        args.push('--camera2', camera2Index.toString());
+        console.log(`[INFO] 카메라 서버 시작 요청: Camera 1=${camera1Index}, Camera 2=${camera2Index} (2-카메라 모드)`);
+      } else {
+        console.log(`[INFO] 카메라 서버 시작 요청: Camera 1=${camera1Index} (단일 카메라 모드)`);
+      }
       
       // exe 파일 우선 실행 (프로덕션)
       if (fs.existsSync(exePath)) {

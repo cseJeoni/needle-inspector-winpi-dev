@@ -201,29 +201,41 @@ export default function NeedleInspectorUI() {
   const dragTempLines1 = useRef(null)
   const dragTempLines2 = useRef(null)
 
-  // 두 카메라 이미지를 가로로 합쳐서 캡처하는 함수
+  // 카메라 이미지를 캡처하는 함수 (1개 또는 2개 카메라 지원)
   const captureMergedImage = async (judgeResult = null, eepromData = null) => {
     try {
-      console.log('🔄 두 카메라 이미지 병합 캡처 시작...');
-      
+      console.log('🔄 카메라 이미지 캡처 시작...');
+
       // 니들 타입에 따른 저항 데이터 준비
       const isMultiNeedle = mtrVersion === '4.0' && selectedNeedleType && selectedNeedleType.startsWith('MULTI');
       const resistanceData = isMultiNeedle ? {
         resistance1: resistance1,
         resistance2: resistance2
       } : null; // 일반 니들은 저항 데이터 제외
-      
+
       console.log(`🔍 니들 타입: ${selectedNeedleType}, MTR: ${mtrVersion}, 저항 데이터 포함: ${isMultiNeedle}`);
-      
-      // 두 카메라에서 개별 이미지 캡처 (정보 오버레이 없이)
+
+      // 카메라 이미지 캡처 (정보 오버레이 없이)
       const camera1Image = await cameraViewRef1.current?.captureImage(null, null, null); // 정보 없이 순수 이미지만
-      const camera2Image = await cameraViewRef2.current?.captureImage(null, null, null); // 정보 없이 순수 이미지만
-      
-      if (!camera1Image || !camera2Image) {
-        console.error('❌ 카메라 이미지 캡처 실패');
+
+      if (!camera1Image) {
+        console.error('❌ Camera 1 이미지 캡처 실패');
         return null;
       }
-      
+
+      // Camera 2 이미지 캡처 시도 (선택적)
+      let camera2Image = null;
+      try {
+        camera2Image = await cameraViewRef2.current?.captureImage(null, null, null);
+        if (camera2Image) {
+          console.log('✅ Camera 2 이미지 캡처 성공');
+        } else {
+          console.log('ℹ️ Camera 2 이미지 없음 (단일 카메라 모드)');
+        }
+      } catch (err) {
+        console.log('ℹ️ Camera 2 캡처 실패 또는 미연결 (단일 카메라 모드)');
+      }
+
       // 이미지 로드를 위한 Promise 생성
       const loadImage = (dataURL) => {
         return new Promise((resolve, reject) => {
@@ -233,32 +245,42 @@ export default function NeedleInspectorUI() {
           img.src = dataURL;
         });
       };
-      
-      // 두 이미지 로드
-      const [img1, img2] = await Promise.all([
-        loadImage(camera1Image),
-        loadImage(camera2Image)
-      ]);
+
+      // 이미지 로드
+      const img1 = await loadImage(camera1Image);
+      let img2 = null;
+      if (camera2Image) {
+        img2 = await loadImage(camera2Image);
+      }
       
       // 정보 표시용 상단 프레임 높이 계산 (저항 정보까지 포함하여 충분한 공간 확보)
       const infoFrameHeight = 100; // 상단 정보 프레임 높이
-      
-      // 병합용 캔버스 생성 (상단 프레임 + 두 이미지 가로 배치)
+
+      // 캔버스 생성 (상단 프레임 + 이미지)
       const mergedCanvas = document.createElement('canvas');
       const ctx = mergedCanvas.getContext('2d');
-      
-      // 캔버스 크기 설정 (상단 프레임 + 두 이미지를 가로로 배치)
-      mergedCanvas.width = img1.width + img2.width;
-      mergedCanvas.height = Math.max(img1.height, img2.height) + infoFrameHeight;
-      
+
+      // 캔버스 크기 설정
+      if (img2) {
+        // 2-카메라 모드: 두 이미지를 가로로 배치
+        mergedCanvas.width = img1.width + img2.width;
+        mergedCanvas.height = Math.max(img1.height, img2.height) + infoFrameHeight;
+        console.log('✅ 2-카메라 모드로 캔버스 생성');
+      } else {
+        // 단일 카메라 모드: 한 이미지만 사용
+        mergedCanvas.width = img1.width;
+        mergedCanvas.height = img1.height + infoFrameHeight;
+        console.log('✅ 단일 카메라 모드로 캔버스 생성');
+      }
+
       // 전체 배경을 검은색으로 채우기
       ctx.fillStyle = 'black';
       ctx.fillRect(0, 0, mergedCanvas.width, mergedCanvas.height);
-      
+
       // 상단 정보 프레임 영역 (더 진한 검은색 배경)
       ctx.fillStyle = '#000000';
       ctx.fillRect(0, 0, mergedCanvas.width, infoFrameHeight);
-      
+
       // 상단 프레임과 이미지 영역 구분선
       ctx.strokeStyle = 'white';
       ctx.lineWidth = 2;
@@ -266,20 +288,23 @@ export default function NeedleInspectorUI() {
       ctx.moveTo(0, infoFrameHeight);
       ctx.lineTo(mergedCanvas.width, infoFrameHeight);
       ctx.stroke();
-      
-      // 첫 번째 이미지 그리기 (왼쪽, 상단 프레임 아래)
+
+      // 첫 번째 이미지 그리기 (왼쪽 또는 전체, 상단 프레임 아래)
       ctx.drawImage(img1, 0, infoFrameHeight);
-      
-      // 두 번째 이미지 그리기 (오른쪽, 상단 프레임 아래)
-      ctx.drawImage(img2, img1.width, infoFrameHeight);
-      
-      // 이미지 간 구분선 그리기
-      ctx.strokeStyle = 'white';
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.moveTo(img1.width, infoFrameHeight);
-      ctx.lineTo(img1.width, mergedCanvas.height);
-      ctx.stroke();
+
+      // 두 번째 이미지가 있으면 그리기
+      if (img2) {
+        // 두 번째 이미지 그리기 (오른쪽, 상단 프레임 아래)
+        ctx.drawImage(img2, img1.width, infoFrameHeight);
+
+        // 이미지 간 구분선 그리기
+        ctx.strokeStyle = 'white';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(img1.width, infoFrameHeight);
+        ctx.lineTo(img1.width, mergedCanvas.height);
+        ctx.stroke();
+      }
       
       // 상단 프레임에 통합 정보 표시
       if (judgeResult) {
@@ -350,10 +375,10 @@ export default function NeedleInspectorUI() {
         console.log('✅ 상단 프레임에 통합 정보 표시 완료');
       }
       
-      // 병합된 이미지 데이터 생성
+      // 이미지 데이터 생성
       const mergedDataURL = mergedCanvas.toDataURL('image/png');
-      
-      console.log('✅ 두 카메라 이미지 병합 완료');
+
+      console.log(`✅ 카메라 이미지 캡처 완료 (${img2 ? '2-카메라' : '단일 카메라'} 모드)`);
       return mergedDataURL;
       
     } catch (error) {
