@@ -191,35 +191,43 @@ def map_dino_to_opencv_indices(dino_count):
     return dino_indices
 
 def main():
-    """메인 함수"""
+    """메인 함수 - 1개 또는 2개 카메라 지원"""
     try:
         # 1. WMI로 VID_A168 카메라만 찾기
         dino_cameras = find_dino_cameras_from_wmi()
-        
+
         if len(dino_cameras) == 0:
             raise Exception("WMI에서 Dino 카메라(VID_A168)를 찾을 수 없음")
-        
-        if len(dino_cameras) < 2:
-            raise Exception(f"Dino 카메라 {len(dino_cameras)}개만 발견 (2개 필요)")
-        
+
         debug_print(f"[SUCCESS] WMI에서 {len(dino_cameras)}개의 Dino 카메라 확인")
-        
-        # 2. OpenCV 인덱스로 매핑 (Dino 개수만큼만)
-        opencv_indices = map_dino_to_opencv_indices(min(len(dino_cameras), 2))
-        
-        if len(opencv_indices) < 2:
-            raise Exception(f"OpenCV에서 {len(opencv_indices)}개만 매핑됨 (2개 필요)")
-        
-        # 3. 결과 반환
+
+        # 2. OpenCV 인덱스로 매핑
+        camera_count = min(len(dino_cameras), 2)  # 최대 2개까지만
+        opencv_indices = map_dino_to_opencv_indices(camera_count)
+
+        if len(opencv_indices) == 0:
+            raise Exception(f"OpenCV에서 카메라를 매핑할 수 없음")
+
+        # 3. 결과 반환 (1개 또는 2개)
+        cameras = []
+        if len(opencv_indices) >= 1:
+            cameras.append(opencv_indices[0])
+        if len(opencv_indices) >= 2:
+            cameras.append(opencv_indices[1])
+
         result = {
             "success": True,
-            "cameras": [opencv_indices[0], opencv_indices[1]],
-            "count": 2
+            "cameras": cameras,
+            "count": len(cameras)
         }
-        
-        debug_print(f"[SUCCESS] Dino 카메라 2개 최종 매핑: Camera1={opencv_indices[0]}, Camera2={opencv_indices[1]}")
+
+        if len(cameras) == 1:
+            debug_print(f"[SUCCESS] Dino 카메라 1개 매핑: Camera1={opencv_indices[0]} (단일 카메라 모드)")
+        else:
+            debug_print(f"[SUCCESS] Dino 카메라 2개 매핑: Camera1={opencv_indices[0]}, Camera2={opencv_indices[1]} (2-카메라 모드)")
+
         print(json.dumps(result))
-        
+
     except Exception as e:
         debug_print(f"[FATAL] 치명적 오류: {e}")
         error_result = {
