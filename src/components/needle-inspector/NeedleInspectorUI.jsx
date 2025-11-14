@@ -654,23 +654,12 @@ const drawLineHandles = (ctx, line, canvas) => {
     ctx.strokeRect(x - handleHalfSize, y - handleHalfSize, HANDLE_SIZE, HANDLE_SIZE);
   };
 
-  // 중간 핸들 그리기 함수 (40px 원형, #a855f7)
-  const drawMidHandle = (x, y) => {
-    ctx.beginPath();
-    ctx.arc(x, y, midHandleHalfSize, 0, 2 * Math.PI);
-    ctx.fillStyle = 'rgba(168, 85, 247, 0.3)'; // 반투명 보라색 내부
-    ctx.fill();
-    ctx.strokeStyle = '#a855f7'; // 진한 보라색 테두리
-    ctx.lineWidth = 3;
-    ctx.stroke();
-  };
-
   // 시작점, 끝점 핸들 그리기
   drawHandle(x1, y1); // 시작점
   drawHandle(x2, y2); // 끝점
 
   // 중간점 핸들 그리기 (40px 원형)
-  drawMidHandle(midX, midY);
+  drawHandle(midX, midY);
 };
 
 // 핸들 클릭 감지 함수 (어떤 핸들을 클릭했는지 반환)
