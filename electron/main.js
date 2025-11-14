@@ -605,12 +605,12 @@ function registerIpcHandlers() {
       const backendPath = getBackendPath();
       const exePath = path.join(backendPath, 'dist', 'camera_led_control.exe');
       const scriptPath = path.join(backendPath, 'camera_led_control.py');
-      
+
       console.log(`[INFO] LED 상태 제어: device=${deviceIndex}, state=${ledState}`);
-      
+
       const args = ['set', '--device-index', deviceIndex.toString(), '--led-state', ledState.toString()];
       let stdout, stderr;
-      
+
       // exe 파일 우선 실행 (프로덕션)
       if (fs.existsSync(exePath)) {
         console.log('[INFO] 📦 프로덕션 모드: camera_led_control.exe 실행');
@@ -620,7 +620,7 @@ function registerIpcHandlers() {
         });
         stdout = result.stdout;
         stderr = result.stderr;
-      } 
+      }
       // Python 스크립트 fallback (개발)
       else {
         console.log('[INFO] 🔧 개발 모드: camera_led_control.py 실행');
@@ -635,18 +635,122 @@ function registerIpcHandlers() {
         stdout = result.stdout;
         stderr = result.stderr;
       }
-      
+
       if (stderr) {
         console.warn('[WARN] 카메라 LED 제어 경고:', stderr);
       }
-      
+
       const result = JSON.parse(stdout.trim());
       return result;
     } catch (error) {
       console.error('[ERROR] 카메라 LED 제어 실패:', error);
-      return { 
-        success: false, 
-        error: `카메라 LED 제어 실패: ${error.message}` 
+      return {
+        success: false,
+        error: `카메라 LED 제어 실패: ${error.message}`
+      };
+    }
+  });
+
+  // Auto Exposure 상태 조회 핸들러
+  ipcMain.handle('camera-ae-get-state', async (event, deviceIndex) => {
+    try {
+      const backendPath = getBackendPath();
+      const exePath = path.join(backendPath, 'dist', 'camera_ae_control.exe');
+      const scriptPath = path.join(backendPath, 'camera_ae_control.py');
+
+      console.log(`[INFO] AE 상태 조회: device=${deviceIndex}`);
+
+      const args = ['get', '--device-index', deviceIndex.toString()];
+      let stdout, stderr;
+
+      // exe 파일 우선 실행 (프로덕션)
+      if (fs.existsSync(exePath)) {
+        console.log('[INFO] 📦 프로덕션 모드: camera_ae_control.exe 실행');
+        const result = await execFileAsync(exePath, args, {
+          cwd: path.join(backendPath, 'dist'),
+          timeout: 10000
+        });
+        stdout = result.stdout;
+        stderr = result.stderr;
+      }
+      // Python 스크립트 fallback (개발)
+      else {
+        console.log('[INFO] 🔧 개발 모드: camera_ae_control.py 실행');
+        const pythonCmd = await checkPythonAvailability();
+        if (!pythonCmd) {
+          throw new Error('Python을 찾을 수 없습니다.');
+        }
+        const result = await execFileAsync(pythonCmd, [scriptPath, ...args], {
+          cwd: backendPath,
+          timeout: 10000
+        });
+        stdout = result.stdout;
+        stderr = result.stderr;
+      }
+
+      if (stderr) {
+        console.warn('[WARN] 카메라 AE 상태 조회 경고:', stderr);
+      }
+
+      const result = JSON.parse(stdout.trim());
+      return result;
+    } catch (error) {
+      console.error('[ERROR] 카메라 AE 상태 조회 실패:', error);
+      return {
+        success: false,
+        error: `카메라 AE 상태 조회 실패: ${error.message}`
+      };
+    }
+  });
+
+  // Auto Exposure 상태 설정 핸들러
+  ipcMain.handle('camera-ae-set-state', async (event, deviceIndex, aeState) => {
+    try {
+      const backendPath = getBackendPath();
+      const exePath = path.join(backendPath, 'dist', 'camera_ae_control.exe');
+      const scriptPath = path.join(backendPath, 'camera_ae_control.py');
+
+      console.log(`[INFO] AE 상태 제어: device=${deviceIndex}, state=${aeState}`);
+
+      const args = ['set', '--device-index', deviceIndex.toString(), '--ae-state', aeState.toString()];
+      let stdout, stderr;
+
+      // exe 파일 우선 실행 (프로덕션)
+      if (fs.existsSync(exePath)) {
+        console.log('[INFO] 📦 프로덕션 모드: camera_ae_control.exe 실행');
+        const result = await execFileAsync(exePath, args, {
+          cwd: path.join(backendPath, 'dist'),
+          timeout: 10000
+        });
+        stdout = result.stdout;
+        stderr = result.stderr;
+      }
+      // Python 스크립트 fallback (개발)
+      else {
+        console.log('[INFO] 🔧 개발 모드: camera_ae_control.py 실행');
+        const pythonCmd = await checkPythonAvailability();
+        if (!pythonCmd) {
+          throw new Error('Python을 찾을 수 없습니다.');
+        }
+        const result = await execFileAsync(pythonCmd, [scriptPath, ...args], {
+          cwd: backendPath,
+          timeout: 10000
+        });
+        stdout = result.stdout;
+        stderr = result.stderr;
+      }
+
+      if (stderr) {
+        console.warn('[WARN] 카메라 AE 제어 경고:', stderr);
+      }
+
+      const result = JSON.parse(stdout.trim());
+      return result;
+    } catch (error) {
+      console.error('[ERROR] 카메라 AE 제어 실패:', error);
+      return {
+        success: false,
+        error: `카메라 AE 제어 실패: ${error.message}`
       };
     }
   });

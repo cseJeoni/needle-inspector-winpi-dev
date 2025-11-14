@@ -50,6 +50,9 @@ const CameraView = forwardRef(({
   const [deviceIndex, setDeviceIndex] = useState(null); // 카메라 디바이스 인덱스
   const [cameraDevices, setCameraDevices] = useState([]);
 
+  // Auto Exposure 상태 관리 (기본 OFF 상태)
+  const [aeState, setAeState] = useState(false); // false: OFF, true: ON
+
   // 선 옵션 패널 표시 상태
   const [showLineOptions, setShowLineOptions] = useState(false);
   const lineOptionsRef = useRef(null);
@@ -142,6 +145,35 @@ const CameraView = forwardRef(({
     } catch (error) {
       console.error(`[${title}] LED 토글 오류:`, error);
       alert(`LED 제어 오류: ${error.message}`);
+    }
+  };
+
+  // AE (Auto Exposure) 토글 핸들러
+  const handleAEToggle = async () => {
+    if (deviceIndex === null) {
+      console.warn(`[${title}] 디바이스 인덱스가 설정되지 않음`);
+      alert('카메라 디바이스를 찾을 수 없습니다.');
+      return;
+    }
+
+    try {
+      const newAeState = !aeState;
+      console.log(`[${title}] AE 상태 변경 시도: ${aeState ? 'ON' : 'OFF'} -> ${newAeState ? 'ON' : 'OFF'}`);
+
+      if (window.electronAPI && window.electronAPI.setCameraAutoExposure) {
+        const result = await window.electronAPI.setCameraAutoExposure(deviceIndex, newAeState ? 1 : 0);
+
+        if (result.success) {
+          setAeState(newAeState);
+          console.log(`[${title}] AE 상태 변경 성공:`, result.message);
+        } else {
+          console.error(`[${title}] AE 상태 변경 실패:`, result.error);
+          alert(`Auto Exposure 제어 실패: ${result.error}`);
+        }
+      }
+    } catch (error) {
+      console.error(`[${title}] AE 토글 오류:`, error);
+      alert(`Auto Exposure 제어 오류: ${error.message}`);
     }
   };
 
@@ -416,10 +448,10 @@ const CameraView = forwardRef(({
           >
             전체 삭제
           </button>
-          <button 
+          <button
             onClick={handleLEDToggle}
             className={`control-button led-button ${ledState ? 'led-on' : 'led-off'}`}
-            style={{ 
+            style={{
               color: '#000000',
               backgroundColor: ledState ? '#FFD700' : '#9E9E9E', // 노란색(ON) / 회색(OFF)
               border: `2px solid ${ledState ? '#FFC107' : '#757575'}`,
@@ -429,6 +461,20 @@ const CameraView = forwardRef(({
             title={`카메라 LED ${ledState ? '켜짐' : '꺼짐'} - 클릭하여 ${ledState ? '끄기' : '켜기'}`}
           >
             LED
+          </button>
+          <button
+            onClick={handleAEToggle}
+            className={`control-button ae-button ${aeState ? 'ae-on' : 'ae-off'}`}
+            style={{
+              color: '#000000',
+              backgroundColor: aeState ? '#00BCD4' : '#9E9E9E', // 청록색(ON) / 회색(OFF)
+              border: `2px solid ${aeState ? '#0097A7' : '#757575'}`,
+              fontWeight: 'bold',
+              minWidth: '50px'
+            }}
+            title={`Auto Exposure ${aeState ? '켜짐' : '꺼짐'} - 클릭하여 ${aeState ? '끄기' : '켜기'}`}
+          >
+            AE
           </button>
           <div className="calibration-container">
             <label className="calibration-label">스케일 (px/mm):</label>

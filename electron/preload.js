@@ -117,11 +117,20 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getCameraDevices: () => {
     return ipcRenderer.invoke('camera-led-list-devices');
   },
-  
+
   setCameraLED: (deviceIndex, ledState) => {
     return ipcRenderer.invoke('camera-led-set-state', deviceIndex, ledState);
   },
-  
+
+  // 카메라 Auto Exposure 제어 API
+  getCameraAutoExposure: (deviceIndex) => {
+    return ipcRenderer.invoke('camera-ae-get-state', deviceIndex);
+  },
+
+  setCameraAutoExposure: (deviceIndex, aeState) => {
+    return ipcRenderer.invoke('camera-ae-set-state', deviceIndex, aeState);
+  },
+
   // 일일 시리얼 번호 저장/로드 API
   setStoredValue: (key, value) => {
     return ipcRenderer.invoke('set-stored-value', key, value);

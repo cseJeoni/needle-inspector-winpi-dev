@@ -627,8 +627,7 @@ const drawLineWithInfo = (ctx, line, color, showText, calibrationValue = 19.8, i
 }
 
 // 선택된 선에 편집 핸들 그리기 (양 끝 + 중간)
-const HANDLE_SIZE = 8;
-const MID_HANDLE_SIZE = 40; // 중간 핸들 크기
+const HANDLE_SIZE = 10; // 모든 핸들을 10px로 통일
 const drawLineHandles = (ctx, line, canvas) => {
   const { relX1, relY1, relX2, relY2 } = line;
   const isRelative = relX1 !== undefined;
@@ -643,9 +642,8 @@ const drawLineHandles = (ctx, line, canvas) => {
   const midY = (y1 + y2) / 2;
 
   const handleHalfSize = HANDLE_SIZE / 2;
-  const midHandleHalfSize = MID_HANDLE_SIZE / 2;
 
-  // 일반 핸들 그리기 함수 (보라색 테두리, 빈 내부)
+  // 핸들 그리기 함수 (10px x 10px 사각형, 보라색 테두리, 빈 내부)
   const drawHandle = (x, y) => {
     ctx.strokeStyle = '#9333ea'; // 보라색
     ctx.lineWidth = 2;
@@ -654,12 +652,10 @@ const drawLineHandles = (ctx, line, canvas) => {
     ctx.strokeRect(x - handleHalfSize, y - handleHalfSize, HANDLE_SIZE, HANDLE_SIZE);
   };
 
-  // 시작점, 끝점 핸들 그리기
+  // 시작점, 끝점, 중간점 핸들 그리기 (모두 동일한 10px 사각형)
   drawHandle(x1, y1); // 시작점
   drawHandle(x2, y2); // 끝점
-
-  // 중간점 핸들 그리기 (40px 원형)
-  drawHandle(midX, midY);
+  drawHandle(midX, midY); // 중간점
 };
 
 // 핸들 클릭 감지 함수 (어떤 핸들을 클릭했는지 반환)
@@ -676,21 +672,19 @@ const checkHandleClick = (pos, line, canvas) => {
   const midY = (y1 + y2) / 2;
 
   const handleHalfSize = HANDLE_SIZE / 2;
-  const midHandleHalfSize = MID_HANDLE_SIZE / 2;
 
-  // 시작점 핸들 체크
+  // 시작점 핸들 체크 (사각형)
   if (Math.abs(pos.x - x1) <= handleHalfSize && Math.abs(pos.y - y1) <= handleHalfSize) {
     return 'start';
   }
 
-  // 끝점 핸들 체크
+  // 끝점 핸들 체크 (사각형)
   if (Math.abs(pos.x - x2) <= handleHalfSize && Math.abs(pos.y - y2) <= handleHalfSize) {
     return 'end';
   }
 
-  // 중간점 핸들 체크 (원형, 40px 크기)
-  const distToMid = Math.sqrt(Math.pow(pos.x - midX, 2) + Math.pow(pos.y - midY, 2));
-  if (distToMid <= midHandleHalfSize) {
+  // 중간점 핸들 체크 (사각형, 10px 크기로 통일)
+  if (Math.abs(pos.x - midX) <= handleHalfSize && Math.abs(pos.y - midY) <= handleHalfSize) {
     return 'mid';
   }
 
@@ -712,11 +706,10 @@ const isPointOnMiddleHandle = (pos, line, canvas) => {
   const midX = (x1 + x2) / 2;
   const midY = (y1 + y2) / 2;
 
-  const midHandleHalfSize = MID_HANDLE_SIZE / 2;
+  const handleHalfSize = HANDLE_SIZE / 2;
 
-  // 중간점 핸들 체크 (원형, 40px 크기)
-  const distToMid = Math.sqrt(Math.pow(pos.x - midX, 2) + Math.pow(pos.y - midY, 2));
-  return distToMid <= midHandleHalfSize;
+  // 중간점 핸들 체크 (사각형, 10px 크기로 통일)
+  return Math.abs(pos.x - midX) <= handleHalfSize && Math.abs(pos.y - midY) <= handleHalfSize;
 };
 
 // 기존 선의 모든 점에 스냅하는 함수 (canvas 인자 추가)
@@ -940,6 +933,9 @@ const isPointOnMiddleHandle = (pos, line, canvas) => {
 
       // 핸들 드래그 중인 경우
       if (isDraggingHandle1 && draggingHandleLineIndex1 >= 0) {
+        // 드래그 중에는 grabbing 커서로 변경
+        canvas.style.cursor = 'grabbing';
+
         // 드래그 시작 시 한 번만 임시 배열 생성
         if (!dragTempLines1.current) {
           dragTempLines1.current = [...lines1];
@@ -1014,9 +1010,10 @@ const isPointOnMiddleHandle = (pos, line, canvas) => {
         return;
       }
 
-      // 선택된 선의 중간 핸들 위에 마우스가 있으면 grab 커서 표시
+      // 선택된 선의 핸들(시작, 끝, 중간) 위에 마우스가 있으면 grab 커서 표시
       if (selectedIndex1 >= 0 && selectedIndex1 < lines1.length) {
-        if (isPointOnMiddleHandle(currentPos, lines1[selectedIndex1], canvas)) {
+        const handleType = checkHandleClick(currentPos, lines1[selectedIndex1], canvas);
+        if (handleType) {
           canvas.style.cursor = 'grab';
         } else {
           canvas.style.cursor = 'default';
@@ -1233,6 +1230,9 @@ const isPointOnMiddleHandle = (pos, line, canvas) => {
 
       // 핸들 드래그 중인 경우
       if (isDraggingHandle2 && draggingHandleLineIndex2 >= 0) {
+        // 드래그 중에는 grabbing 커서로 변경
+        canvas.style.cursor = 'grabbing';
+
         // 드래그 시작 시 한 번만 임시 배열 생성
         if (!dragTempLines2.current) {
           dragTempLines2.current = [...lines2];
@@ -1307,9 +1307,10 @@ const isPointOnMiddleHandle = (pos, line, canvas) => {
         return;
       }
 
-      // 선택된 선의 중간 핸들 위에 마우스가 있으면 grab 커서 표시
+      // 선택된 선의 핸들(시작, 끝, 중간) 위에 마우스가 있으면 grab 커서 표시
       if (selectedIndex2 >= 0 && selectedIndex2 < lines2.length) {
-        if (isPointOnMiddleHandle(currentPos, lines2[selectedIndex2], canvas)) {
+        const handleType = checkHandleClick(currentPos, lines2[selectedIndex2], canvas);
+        if (handleType) {
           canvas.style.cursor = 'grab';
         } else {
           canvas.style.cursor = 'default';
