@@ -574,7 +574,7 @@ const drawLineWithInfo = (ctx, line, color, showText, calibrationValue = 19.8, i
       if (Object.is(angle, -0)) {
         angle = 0;
       }
-      const text = `${length_abs.toFixed(1)}px / ${mm.toFixed(2)}mm (${angle.toFixed(1)}°)`;
+      const text = `${mm.toFixed(2)}mm (${angle.toFixed(1)}°)`;
       
       const textX = (isRelative && relLabelX !== undefined)
         ? (relLabelX * canvas.width)
@@ -835,21 +835,24 @@ const drawLineWithInfo = (ctx, line, color, showText, calibrationValue = 19.8, i
       
       // 선 그리기 모드
       if (!drawMode1 || !isDrawing1 || !startPoint1) return;
-      
+
       // 2. 헬퍼 함수에 canvas 전달
       const lineSnappedPos = snapToExistingLines(currentPos, lines1, 15, canvas);
       const snappedPos = snapAngle(startPoint1, lineSnappedPos);
-      
+
       const ctx = canvas.getContext('2d');
       ctx.clearRect(0, 0, canvas.width, canvas.height);
-      
+
+      // 이미지 원본 크기 가져오기
+      const img = videoContainerRef1.current?.querySelector('.camera-image');
+      const naturalWidth = img?.naturalWidth || referenceNaturalWidth1;
+
       // 기존 선들 그리기
-      drawLines(ctx, lines1, selectedIndex1, calibrationValue1);
-      
-      // 임시 선 그리기 (H 형태) - 절대 좌표 사용
+      drawLines(ctx, lines1, selectedIndex1, calibrationValue1, naturalWidth, selectedLineStyle1, selectedLineWidth1, selectedLineColor1);
+
+      // 임시 선 그리기 - 현재 선택된 스타일과 굵기 사용
       const tempLine = { x1: startPoint1.x, y1: startPoint1.y, x2: snappedPos.x, y2: snappedPos.y };
-      ctx.lineWidth = 2;
-      drawLineWithInfo(ctx, tempLine, selectedLineColor1, true, calibrationValue1);
+      drawLineWithInfo(ctx, tempLine, selectedLineColor1, true, calibrationValue1, false, naturalWidth, selectedLineStyle1, selectedLineWidth1);
       
       // 스냅 포인트 표시 (작은 원으로 표시)
       if (lineSnappedPos.x !== currentPos.x || lineSnappedPos.y !== currentPos.y) {
@@ -931,9 +934,11 @@ const drawLineWithInfo = (ctx, line, color, showText, calibrationValue = 19.8, i
       setStartPoint1(null);
       setDrawMode1(false);
       setSelectedIndex1(newLines.length - 1);
-      
-      // 4. 정보 계산 시 { canvas: canvas }와 새 상대좌표 line 전달
-      const lineData = drawLineWithInfo({ canvas: canvas }, newLine, selectedLineColor1, false, calibrationValue1);
+
+      // 4. 정보 계산 시 { canvas: canvas }와 새 상대좌표 line 전달 - 이미지 원본 크기 사용
+      const img = videoContainerRef1.current?.querySelector('.camera-image');
+      const naturalWidth = img?.naturalWidth || referenceNaturalWidth1;
+      const lineData = drawLineWithInfo({ canvas: canvas }, newLine, selectedLineColor1, false, calibrationValue1, false, naturalWidth, selectedLineStyle1, selectedLineWidth1);
       setLineInfo1(`선 ${newLines.length}: ${lineData.mm}mm (${lineData.angle}°)`);
     },
     handleDeleteLine: () => {
@@ -1051,21 +1056,24 @@ const drawLineWithInfo = (ctx, line, color, showText, calibrationValue = 19.8, i
       
       // 선 그리기 모드
       if (!drawMode2 || !isDrawing2 || !startPoint2) return;
-      
+
       // 2. 헬퍼 함수에 canvas 전달
       const lineSnappedPos = snapToExistingLines(currentPos, lines2, 15, canvas);
       const snappedPos = snapAngle(startPoint2, lineSnappedPos);
-      
+
       const ctx = canvas.getContext('2d');
       ctx.clearRect(0, 0, canvas.width, canvas.height);
-      
+
+      // 이미지 원본 크기 가져오기
+      const img = videoContainerRef2.current?.querySelector('.camera-image');
+      const naturalWidth = img?.naturalWidth || referenceNaturalWidth2;
+
       // 기존 선들 그리기
-      drawLines(ctx, lines2, selectedIndex2, calibrationValue2);
-      
-      // 임시 선 그리기 (H 형태) - 절대 좌표 사용
+      drawLines(ctx, lines2, selectedIndex2, calibrationValue2, naturalWidth, selectedLineStyle2, selectedLineWidth2, selectedLineColor2);
+
+      // 임시 선 그리기 - 현재 선택된 스타일과 굵기 사용
       const tempLine = { x1: startPoint2.x, y1: startPoint2.y, x2: snappedPos.x, y2: snappedPos.y };
-      ctx.lineWidth = 2;
-      drawLineWithInfo(ctx, tempLine, selectedLineColor2, true, calibrationValue2);
+      drawLineWithInfo(ctx, tempLine, selectedLineColor2, true, calibrationValue2, false, naturalWidth, selectedLineStyle2, selectedLineWidth2);
       
       // 스냅 포인트 표시 (작은 원으로 표시)
       if (lineSnappedPos.x !== currentPos.x || lineSnappedPos.y !== currentPos.y) {
@@ -1147,9 +1155,11 @@ const drawLineWithInfo = (ctx, line, color, showText, calibrationValue = 19.8, i
       setStartPoint2(null);
       setDrawMode2(false);
       setSelectedIndex2(newLines.length - 1);
-      
-      // 4. 정보 계산 시 { canvas: canvas }와 새 상대좌표 line 전달
-      const lineData = drawLineWithInfo({ canvas: canvas }, newLine, selectedLineColor2, false, calibrationValue2);
+
+      // 4. 정보 계산 시 { canvas: canvas }와 새 상대좌표 line 전달 - 이미지 원본 크기 사용
+      const img = videoContainerRef2.current?.querySelector('.camera-image');
+      const naturalWidth = img?.naturalWidth || referenceNaturalWidth2;
+      const lineData = drawLineWithInfo({ canvas: canvas }, newLine, selectedLineColor2, false, calibrationValue2, false, naturalWidth, selectedLineStyle2, selectedLineWidth2);
       setLineInfo2(`선 ${newLines.length}: ${lineData.mm}mm (${lineData.angle}°)`);
     },
     handleDeleteLine: () => {
