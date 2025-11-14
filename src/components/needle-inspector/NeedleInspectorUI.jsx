@@ -909,13 +909,15 @@ const drawLineWithInfo = (ctx, line, color, showText, calibrationValue = 19.8, i
         return;
       }
       
-      // 6. 새 선을 상대 좌표로 변환하여 저장
-      const newLine = { 
-        relX1: startPoint1.x / canvas.width, 
-        relY1: startPoint1.y / canvas.height, 
-        relX2: snappedPos.x / canvas.width, 
-        relY2: snappedPos.y / canvas.height, 
-        color: selectedLineColor1 
+      // 6. 새 선을 상대 좌표로 변환하여 저장 (현재 선택된 스타일과 굵기 포함)
+      const newLine = {
+        relX1: startPoint1.x / canvas.width,
+        relY1: startPoint1.y / canvas.height,
+        relX2: snappedPos.x / canvas.width,
+        relY2: snappedPos.y / canvas.height,
+        color: selectedLineColor1,
+        style: selectedLineStyle1,
+        width: selectedLineWidth1
       };
       const newLines = [...lines1, newLine];
       setLines1(newLines);
@@ -1123,13 +1125,15 @@ const drawLineWithInfo = (ctx, line, color, showText, calibrationValue = 19.8, i
         return;
       }
       
-      // 6. 새 선을 상대 좌표로 변환하여 저장
-      const newLine = { 
-        relX1: startPoint2.x / canvas.width, 
-        relY1: startPoint2.y / canvas.height, 
-        relX2: snappedPos.x / canvas.width, 
-        relY2: snappedPos.y / canvas.height, 
-        color: selectedLineColor2 
+      // 6. 새 선을 상대 좌표로 변환하여 저장 (현재 선택된 스타일과 굵기 포함)
+      const newLine = {
+        relX1: startPoint2.x / canvas.width,
+        relY1: startPoint2.y / canvas.height,
+        relX2: snappedPos.x / canvas.width,
+        relY2: snappedPos.y / canvas.height,
+        color: selectedLineColor2,
+        style: selectedLineStyle2,
+        width: selectedLineWidth2
       };
       const newLines = [...lines2, newLine];
       setLines2(newLines);
@@ -1184,8 +1188,11 @@ const drawLineWithInfo = (ctx, line, color, showText, calibrationValue = 19.8, i
 const drawLines = (ctx, lines, selectedIndex, calibrationValue, imageNaturalWidth, lineStyle = 'capped', lineWidth = 'medium', selectedLineColor = 'red') => {
   lines.forEach((line, index) => {
     const isSelected = index === selectedIndex;
+    // 각 선의 개별 속성 사용, 없으면 기본값 사용
     const lineColor = line.color || selectedLineColor;
-    drawLineWithInfo(ctx, line, lineColor, true, calibrationValue, isSelected, imageNaturalWidth, lineStyle, lineWidth);
+    const lineStyleToUse = line.style || lineStyle;
+    const lineWidthToUse = line.width || lineWidth;
+    drawLineWithInfo(ctx, line, lineColor, true, calibrationValue, isSelected, imageNaturalWidth, lineStyleToUse, lineWidthToUse);
   });
 };
 
@@ -1512,49 +1519,31 @@ const handleCalibrationChange2 = (newValue) => {
   }
 };
 
-  // 선 색상 변경 및 저장 함수들
+  // 선 색상 변경 함수들 (새로 추가할 선에만 적용, 기존 선은 유지)
   const handleLineColorChange1 = (newColor) => {
     setSelectedLineColor1(newColor);
-    setTimeout(() => {
-      saveCameraLinesData(1, lines1, calibrationValue1, newColor, selectedLineStyle1, selectedLineWidth1);
-    }, 100);
   };
 
   const handleLineColorChange2 = (newColor) => {
     setSelectedLineColor2(newColor);
-    setTimeout(() => {
-      saveCameraLinesData(2, lines2, calibrationValue2, newColor, selectedLineStyle2, selectedLineWidth2);
-    }, 100);
   };
 
-  // 선 스타일 변경 및 저장 함수들
+  // 선 스타일 변경 함수들 (새로 추가할 선에만 적용, 기존 선은 유지)
   const handleLineStyleChange1 = (newStyle) => {
     setSelectedLineStyle1(newStyle);
-    setTimeout(() => {
-      saveCameraLinesData(1, lines1, calibrationValue1, selectedLineColor1, newStyle, selectedLineWidth1);
-    }, 100);
   };
 
   const handleLineStyleChange2 = (newStyle) => {
     setSelectedLineStyle2(newStyle);
-    setTimeout(() => {
-      saveCameraLinesData(2, lines2, calibrationValue2, selectedLineColor2, newStyle, selectedLineWidth2);
-    }, 100);
   };
 
-  // 선 굵기 변경 및 저장 함수들
+  // 선 굵기 변경 함수들 (새로 추가할 선에만 적용, 기존 선은 유지)
   const handleLineWidthChange1 = (newWidth) => {
     setSelectedLineWidth1(newWidth);
-    setTimeout(() => {
-      saveCameraLinesData(1, lines1, calibrationValue1, selectedLineColor1, selectedLineStyle1, newWidth);
-    }, 100);
   };
 
   const handleLineWidthChange2 = (newWidth) => {
     setSelectedLineWidth2(newWidth);
-    setTimeout(() => {
-      saveCameraLinesData(2, lines2, calibrationValue2, selectedLineColor2, selectedLineStyle2, newWidth);
-    }, 100);
   };
 
 useEffect(() => {

@@ -43,6 +43,12 @@
   flex-wrap: wrap;
 }
 
+/* 선 옵션 wrapper */
+.line-options-wrapper {
+  position: relative; /* 패널의 절대 위치 기준점 */
+  display: inline-block;
+}
+
 /* 선 옵션 토글 버튼 */
 .line-options-button {
   background-color: #6B7280;
@@ -60,8 +66,9 @@
 /* 선 옵션 패널 (3x3 그리드) */
 .line-options-panel {
   position: absolute;
-  top: 3rem; /* camera-header 아래에 위치 */
-  left: 0.75rem; /* camera-view의 padding과 동일 */
+  top: 100%; /* 버튼 바로 아래 */
+  left: 0;
+  margin-top: 0.25rem; /* 버튼과의 간격 */
   width: 8rem; /* 선 옵션 버튼 width(4rem) * 2 */
   background-color: #374151;
   border-radius: 0.375rem;
