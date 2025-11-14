@@ -19,24 +19,26 @@ import './CameraView.css';
  * @param {Object} props.videoContainerRef - 비디오 컨테이너 ref
  * @returns {React.Component} React 컴포넌트
  */
-const CameraView = forwardRef(({ 
-  title, 
-  cameraId, 
-  videoServerUrl, 
-  videoEndpoint, 
-  drawMode, 
-  onDrawModeToggle, 
-  onDeleteLine, 
+const CameraView = forwardRef(({
+  title,
+  cameraId,
+  videoServerUrl,
+  videoEndpoint,
+  drawMode,
+  onDrawModeToggle,
+  onDeleteLine,
   onDeleteAllLines,
-  selectedIndex, 
-  lineInfo, 
-  handlers, 
-  canvasRef, 
+  selectedIndex,
+  lineInfo,
+  handlers,
+  canvasRef,
   videoContainerRef,
   calibrationValue,
   onCalibrationChange,
   selectedLineColor,
   onLineColorChange,
+  onManualSave, // 수동 저장 핸들러
+  onManualLoad, // 수동 로드 핸들러
   workStatus = 'waiting' // 작업 상태 (니들 쇼트, 저장 실패 등)
 }, ref) => {
   // LED 상태 관리 (카메라가 켜져있으므로 기본 ON 상태)
@@ -269,18 +271,34 @@ const CameraView = forwardRef(({
         </div>
         <div className="controls-container">
           <div className="color-selection-container">
-            <button 
+            <button
               onClick={() => onLineColorChange('red')}
               className={`color-button red-button ${selectedLineColor === 'red' ? 'selected' : ''}`}
               title="빨간색 선"
             />
-            <button 
+            <button
               onClick={() => onLineColorChange('cyan')}
               className={`color-button cyan-button ${selectedLineColor === 'cyan' ? 'selected' : ''}`}
               title="민트색 선"
             />
           </div>
-          <button 
+          <button
+            onClick={onManualLoad}
+            className="control-button load-button"
+            style={{ color: '#000000' }}
+            title="저장된 선 불러오기"
+          >
+            선 불러오기
+          </button>
+          <button
+            onClick={onManualSave}
+            className="control-button save-button"
+            style={{ color: '#000000' }}
+            title="현재 선 저장하기"
+          >
+            선 저장하기
+          </button>
+          <button
             onClick={onDrawModeToggle}
             className={`control-button draw-button ${drawMode ? 'active' : ''}`}
             style={{ color: '#000000' }}
