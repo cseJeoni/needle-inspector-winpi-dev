@@ -6,6 +6,7 @@
   display: flex;
   flex-direction: column;
   height: 100%;
+  position: relative; /* 선 옵션 패널의 절대 위치 기준점 */
 }
 
 .camera-header {
@@ -58,24 +59,29 @@
 
 /* 선 옵션 패널 (3x3 그리드) */
 .line-options-panel {
+  position: absolute;
+  top: 3rem; /* camera-header 아래에 위치 */
+  left: 0.75rem; /* camera-view의 padding과 동일 */
+  width: 8rem; /* 선 옵션 버튼 width(4rem) * 2 */
   background-color: #374151;
   border-radius: 0.375rem;
   padding: 0.5rem;
-  margin-top: 0.5rem;
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
+  z-index: 1000; /* 다른 요소들 위에 표시 */
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -1px rgba(0, 0, 0, 0.2); /* 그림자 추가 */
 }
 
 .line-options-row {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 0.5rem;
+  gap: 0.25rem; /* 간격 축소 */
 }
 
 .line-option-item {
   width: 100%;
-  height: 40px;
+  height: 30px; /* 높이 축소 */
   padding: 0.25rem;
   background-color: #4B5563;
   border: 2px solid #6B7280;
@@ -167,8 +173,8 @@
 
 /* 선 색상 미리보기 */
 .line-color-preview {
-  width: 24px;
-  height: 24px;
+  width: 20px; /* 크기 축소 */
+  height: 20px; /* 크기 축소 */
   border-radius: 50%;
   border: 2px solid #1F2937;
 }
