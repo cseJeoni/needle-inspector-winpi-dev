@@ -41,6 +41,8 @@ const CameraView = forwardRef(({
   onLineStyleChange,
   selectedLineWidth,
   onLineWidthChange,
+  onManualSave,
+  onManualLoad,
   workStatus = 'waiting' // 작업 상태 (니들 쇼트, 저장 실패 등)
 }, ref) => {
   // LED 상태 관리 (카메라가 켜져있으므로 기본 ON 상태)
@@ -290,6 +292,20 @@ const CameraView = forwardRef(({
           <h2 className="camera-title">{title}</h2>
         </div>
         <div className="controls-container">
+          <button
+            onClick={onManualLoad}
+            className="control-button"
+            style={{ color: '#000000' }}
+          >
+            선 불러오기
+          </button>
+          <button
+            onClick={onManualSave}
+            className="control-button"
+            style={{ color: '#000000' }}
+          >
+            선 저장하기
+          </button>
           <div className="line-options-wrapper" ref={lineOptionsRef}>
             <button
               onClick={() => setShowLineOptions(!showLineOptions)}

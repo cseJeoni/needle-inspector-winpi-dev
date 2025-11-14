@@ -628,6 +628,7 @@ const drawLineWithInfo = (ctx, line, color, showText, calibrationValue = 19.8, i
 
 // 선택된 선에 편집 핸들 그리기 (양 끝 + 중간)
 const HANDLE_SIZE = 8;
+const MID_HANDLE_SIZE = 40; // 중간 핸들 크기
 const drawLineHandles = (ctx, line, canvas) => {
   const { relX1, relY1, relX2, relY2 } = line;
   const isRelative = relX1 !== undefined;
@@ -642,8 +643,9 @@ const drawLineHandles = (ctx, line, canvas) => {
   const midY = (y1 + y2) / 2;
 
   const handleHalfSize = HANDLE_SIZE / 2;
+  const midHandleHalfSize = MID_HANDLE_SIZE / 2;
 
-  // 핸들 그리기 함수 (보라색 테두리, 빈 내부)
+  // 일반 핸들 그리기 함수 (보라색 테두리, 빈 내부)
   const drawHandle = (x, y) => {
     ctx.strokeStyle = '#9333ea'; // 보라색
     ctx.lineWidth = 2;
@@ -652,10 +654,23 @@ const drawLineHandles = (ctx, line, canvas) => {
     ctx.strokeRect(x - handleHalfSize, y - handleHalfSize, HANDLE_SIZE, HANDLE_SIZE);
   };
 
-  // 시작점, 끝점, 중간점 핸들 그리기
+  // 중간 핸들 그리기 함수 (40px 원형, #a855f7)
+  const drawMidHandle = (x, y) => {
+    ctx.beginPath();
+    ctx.arc(x, y, midHandleHalfSize, 0, 2 * Math.PI);
+    ctx.fillStyle = 'rgba(168, 85, 247, 0.3)'; // 반투명 보라색 내부
+    ctx.fill();
+    ctx.strokeStyle = '#a855f7'; // 진한 보라색 테두리
+    ctx.lineWidth = 3;
+    ctx.stroke();
+  };
+
+  // 시작점, 끝점 핸들 그리기
   drawHandle(x1, y1); // 시작점
   drawHandle(x2, y2); // 끝점
-  drawHandle(midX, midY); // 중간점
+
+  // 중간점 핸들 그리기 (40px 원형)
+  drawMidHandle(midX, midY);
 };
 
 // 핸들 클릭 감지 함수 (어떤 핸들을 클릭했는지 반환)
@@ -672,6 +687,7 @@ const checkHandleClick = (pos, line, canvas) => {
   const midY = (y1 + y2) / 2;
 
   const handleHalfSize = HANDLE_SIZE / 2;
+  const midHandleHalfSize = MID_HANDLE_SIZE / 2;
 
   // 시작점 핸들 체크
   if (Math.abs(pos.x - x1) <= handleHalfSize && Math.abs(pos.y - y1) <= handleHalfSize) {
@@ -683,12 +699,35 @@ const checkHandleClick = (pos, line, canvas) => {
     return 'end';
   }
 
-  // 중간점 핸들 체크
-  if (Math.abs(pos.x - midX) <= handleHalfSize && Math.abs(pos.y - midY) <= handleHalfSize) {
+  // 중간점 핸들 체크 (원형, 40px 크기)
+  const distToMid = Math.sqrt(Math.pow(pos.x - midX, 2) + Math.pow(pos.y - midY, 2));
+  if (distToMid <= midHandleHalfSize) {
     return 'mid';
   }
 
   return null;
+};
+
+// 중간 핸들 위에 마우스가 있는지 체크하는 함수
+const isPointOnMiddleHandle = (pos, line, canvas) => {
+  const { relX1, relY1, relX2, relY2 } = line;
+  const isRelative = relX1 !== undefined;
+
+  if (!isRelative || !canvas) return false;
+
+  const x1 = relX1 * canvas.width;
+  const y1 = relY1 * canvas.height;
+  const x2 = relX2 * canvas.width;
+  const y2 = relY2 * canvas.height;
+
+  const midX = (x1 + x2) / 2;
+  const midY = (y1 + y2) / 2;
+
+  const midHandleHalfSize = MID_HANDLE_SIZE / 2;
+
+  // 중간점 핸들 체크 (원형, 40px 크기)
+  const distToMid = Math.sqrt(Math.pow(pos.x - midX, 2) + Math.pow(pos.y - midY, 2));
+  return distToMid <= midHandleHalfSize;
 };
 
 // 기존 선의 모든 점에 스냅하는 함수 (canvas 인자 추가)
@@ -970,22 +1009,33 @@ const checkHandleClick = (pos, line, canvas) => {
         if (!dragTempLines1.current) {
           dragTempLines1.current = [...lines1];
         }
-        
+
         const newLabelX_abs = currentPos.x - labelDragOffset1.x; // 새 절대 X
         const newLabelY_abs = currentPos.y - labelDragOffset1.y; // 새 절대 Y
-        
+
         // 5. 임시 배열의 라벨 위치만 업데이트
         dragTempLines1.current[draggingLabelIndex1] = {
           ...dragTempLines1.current[draggingLabelIndex1],
           relLabelX: newLabelX_abs / canvas.width,
           relLabelY: newLabelY_abs / canvas.height
         };
-        
+
         // 드래그 중에는 임시 배열로만 그리기 (state 업데이트 없음)
         redrawCanvas1(dragTempLines1.current);
         return;
       }
-      
+
+      // 선택된 선의 중간 핸들 위에 마우스가 있으면 grab 커서 표시
+      if (selectedIndex1 >= 0 && selectedIndex1 < lines1.length) {
+        if (isPointOnMiddleHandle(currentPos, lines1[selectedIndex1], canvas)) {
+          canvas.style.cursor = 'grab';
+        } else {
+          canvas.style.cursor = 'default';
+        }
+      } else {
+        canvas.style.cursor = 'default';
+      }
+
       // 선 그리기 모드
       if (!drawMode1 || !isDrawing1 || !startPoint1) return;
 
@@ -1024,10 +1074,6 @@ const checkHandleClick = (pos, line, canvas) => {
         // 드래그 종료 시 최종 위치를 state에 반영
         if (dragTempLines1.current) {
           setLines1(dragTempLines1.current);
-          // 자동 저장
-          setTimeout(() => {
-            saveCameraLinesData(1, dragTempLines1.current, calibrationValue1, selectedLineColor1, selectedLineStyle1, selectedLineWidth1);
-          }, 100);
           dragTempLines1.current = null; // 임시 데이터 초기화
         }
 
@@ -1042,10 +1088,6 @@ const checkHandleClick = (pos, line, canvas) => {
         // 드래그 종료 시 최종 위치를 state에 반영
         if (dragTempLines1.current) {
           setLines1(dragTempLines1.current);
-          // 자동 저장은 최종 위치로
-          setTimeout(() => {
-            saveCameraLinesData(1, dragTempLines1.current, calibrationValue1, selectedLineColor1, selectedLineStyle1, selectedLineWidth1);
-          }, 100);
           dragTempLines1.current = null; // 임시 데이터 초기화
         }
 
@@ -1095,12 +1137,7 @@ const checkHandleClick = (pos, line, canvas) => {
       };
       const newLines = [...lines1, newLine];
       setLines1(newLines);
-      
-      // 선 추가 후 자동 저장
-      setTimeout(() => {
-        saveCameraLinesData(1, newLines, calibrationValue1, selectedLineColor1, selectedLineStyle1, selectedLineWidth1);
-      }, 100);
-      
+
       setIsDrawing1(false);
       setStartPoint1(null);
       setDrawMode1(false);
@@ -1119,29 +1156,19 @@ const checkHandleClick = (pos, line, canvas) => {
         setSelectedIndex1(-1);
         setLineInfo1('선 정보: 없음');
         redrawCanvas1();
-        
-        // 선 삭제 후 자동 저장
-        setTimeout(() => {
-          saveCameraLinesData(1, newLines, calibrationValue1, selectedLineColor1, selectedLineStyle1, selectedLineWidth1);
-        }, 100);
       }
     },
     handleDeleteAllLines: () => {
       setLines1([]);
       setSelectedIndex1(-1);
       setLineInfo1('선 정보: 없음');
-      
+
       // 캔버스 클리어
       const canvas = canvasRef1.current;
       if (canvas) {
         const ctx = canvas.getContext('2d');
         ctx.clearRect(0, 0, canvas.width, canvas.height);
       }
-      
-      // 전체 삭제 후 자동 저장
-      setTimeout(() => {
-        saveCameraLinesData(1, [], calibrationValue1, selectedLineColor1, selectedLineStyle1, selectedLineWidth1);
-      }, 100);
     }
   }
 
@@ -1275,22 +1302,33 @@ const checkHandleClick = (pos, line, canvas) => {
         if (!dragTempLines2.current) {
           dragTempLines2.current = [...lines2];
         }
-        
+
         const newLabelX_abs = currentPos.x - labelDragOffset2.x; // 새 절대 X
         const newLabelY_abs = currentPos.y - labelDragOffset2.y; // 새 절대 Y
-        
+
         // 5. 임시 배열의 라벨 위치만 업데이트
         dragTempLines2.current[draggingLabelIndex2] = {
           ...dragTempLines2.current[draggingLabelIndex2],
           relLabelX: newLabelX_abs / canvas.width,
           relLabelY: newLabelY_abs / canvas.height
         };
-        
+
         // 드래그 중에는 임시 배열로만 그리기 (state 업데이트 없음)
         redrawCanvas2(dragTempLines2.current);
         return;
       }
-      
+
+      // 선택된 선의 중간 핸들 위에 마우스가 있으면 grab 커서 표시
+      if (selectedIndex2 >= 0 && selectedIndex2 < lines2.length) {
+        if (isPointOnMiddleHandle(currentPos, lines2[selectedIndex2], canvas)) {
+          canvas.style.cursor = 'grab';
+        } else {
+          canvas.style.cursor = 'default';
+        }
+      } else {
+        canvas.style.cursor = 'default';
+      }
+
       // 선 그리기 모드
       if (!drawMode2 || !isDrawing2 || !startPoint2) return;
 
@@ -1329,10 +1367,6 @@ const checkHandleClick = (pos, line, canvas) => {
         // 드래그 종료 시 최종 위치를 state에 반영
         if (dragTempLines2.current) {
           setLines2(dragTempLines2.current);
-          // 자동 저장
-          setTimeout(() => {
-            saveCameraLinesData(2, dragTempLines2.current, calibrationValue2, selectedLineColor2, selectedLineStyle2, selectedLineWidth2);
-          }, 100);
           dragTempLines2.current = null; // 임시 데이터 초기화
         }
 
@@ -1347,13 +1381,9 @@ const checkHandleClick = (pos, line, canvas) => {
         // 드래그 종료 시 최종 위치를 state에 반영
         if (dragTempLines2.current) {
           setLines2(dragTempLines2.current);
-          // 자동 저장은 최종 위치로
-          setTimeout(() => {
-            saveCameraLinesData(2, dragTempLines2.current, calibrationValue2, selectedLineColor2, selectedLineStyle2, selectedLineWidth2);
-          }, 100);
           dragTempLines2.current = null; // 임시 데이터 초기화
         }
-        
+
         setIsDraggingLabel2(false);
         setDraggingLabelIndex2(-1);
         return;
@@ -1400,12 +1430,7 @@ const checkHandleClick = (pos, line, canvas) => {
       };
       const newLines = [...lines2, newLine];
       setLines2(newLines);
-      
-      // 선 추가 후 자동 저장
-      setTimeout(() => {
-        saveCameraLinesData(2, newLines, calibrationValue2, selectedLineColor2, selectedLineStyle2, selectedLineWidth2);
-      }, 100);
-      
+
       setIsDrawing2(false);
       setStartPoint2(null);
       setDrawMode2(false);
@@ -1424,29 +1449,19 @@ const checkHandleClick = (pos, line, canvas) => {
         setSelectedIndex2(-1);
         setLineInfo2('선 정보: 없음');
         redrawCanvas2();
-        
-        // 선 삭제 후 자동 저장
-        setTimeout(() => {
-          saveCameraLinesData(2, newLines, calibrationValue2, selectedLineColor2, selectedLineStyle2, selectedLineWidth2);
-        }, 100);
       }
     },
     handleDeleteAllLines: () => {
       setLines2([]);
       setSelectedIndex2(-1);
       setLineInfo2('선 정보: 없음');
-      
+
       // 캔버스 클리어
       const canvas = canvasRef2.current;
       if (canvas) {
         const ctx = canvas.getContext('2d');
         ctx.clearRect(0, 0, canvas.width, canvas.height);
       }
-      
-      // 전체 삭제 후 자동 저장
-      setTimeout(() => {
-        saveCameraLinesData(2, [], calibrationValue2, selectedLineColor2, selectedLineStyle2, selectedLineWidth2);
-      }, 100);
     }
   }
 
@@ -1749,45 +1764,23 @@ const loadCameraLinesData = async (cameraId) => {
 
 const handleCalibrationChange1 = (newValue) => {
   setCalibrationValue1(newValue);
-  
+
   // 이미지의 natural 크기를 기준으로 설정
   const img = videoContainerRef1.current?.querySelector('.camera-image');
   if (img && img.naturalWidth > 0) {
     const naturalWidth = img.naturalWidth;
     setReferenceNaturalWidth1(naturalWidth);
-    
-    // 현재 캔버스 크기에서 이미지 원본 크기 기준으로 변환
-    const canvas = canvasRef1.current;
-    if (canvas) {
-      const currentToNaturalRatio = naturalWidth / canvas.width;
-      const naturalBasedCalibration = newValue * currentToNaturalRatio;
-      
-      setTimeout(() => {
-        saveCameraLinesData(1, lines1, naturalBasedCalibration, selectedLineColor1, selectedLineStyle1, selectedLineWidth1);
-      }, 500);
-    }
   }
 };
 
 const handleCalibrationChange2 = (newValue) => {
   setCalibrationValue2(newValue);
-  
+
   // 이미지의 natural 크기를 기준으로 설정
   const img = videoContainerRef2.current?.querySelector('.camera-image');
   if (img && img.naturalWidth > 0) {
     const naturalWidth = img.naturalWidth;
     setReferenceNaturalWidth2(naturalWidth);
-    
-    // 현재 캔버스 크기에서 이미지 원본 크기 기준으로 변환
-    const canvas = canvasRef2.current;
-    if (canvas) {
-      const currentToNaturalRatio = naturalWidth / canvas.width;
-      const naturalBasedCalibration = newValue * currentToNaturalRatio;
-      
-      setTimeout(() => {
-        saveCameraLinesData(2, lines2, naturalBasedCalibration, selectedLineColor2, selectedLineStyle2, selectedLineWidth2);
-      }, 500);
-    }
   }
 };
 
@@ -1818,8 +1811,133 @@ const handleCalibrationChange2 = (newValue) => {
     setSelectedLineWidth2(newWidth);
   };
 
+  // 개별 카메라 수동 저장 핸들러
+  const handleManualSave1 = async () => {
+    try {
+      console.log('💾 카메라 1 선 정보 수동 저장 시작...');
+      const result = await saveCameraLinesData(1, lines1, calibrationValue1, selectedLineColor1, selectedLineStyle1, selectedLineWidth1);
+      if (result && result.success) {
+        console.log('✅ 카메라 1 선 정보 저장 완료');
+      } else {
+        console.error('❌ 카메라 1 선 정보 저장 실패');
+      }
+    } catch (error) {
+      console.error('❌ 카메라 1 선 정보 저장 중 오류:', error);
+    }
+  };
+
+  const handleManualSave2 = async () => {
+    try {
+      console.log('💾 카메라 2 선 정보 수동 저장 시작...');
+      const result = await saveCameraLinesData(2, lines2, calibrationValue2, selectedLineColor2, selectedLineStyle2, selectedLineWidth2);
+      if (result && result.success) {
+        console.log('✅ 카메라 2 선 정보 저장 완료');
+      } else {
+        console.error('❌ 카메라 2 선 정보 저장 실패');
+      }
+    } catch (error) {
+      console.error('❌ 카메라 2 선 정보 저장 중 오류:', error);
+    }
+  };
+
+  // 수동 로드 핸들러
+  const handleManualLoad1 = async () => {
+    try {
+      console.log('📂 카메라 1 선 정보 수동 로드 시작...');
+      const camera1Data = await loadCameraLinesData(1);
+
+      if (camera1Data.lines && camera1Data.lines.length > 0) {
+        if (camera1Data.lines[0].relX1 !== undefined) {
+          setLines1([...camera1Data.lines]);
+          console.log('✅ 카메라 1 선 정보 로드 완료');
+        }
+      }
+
+      if (camera1Data.calibrationValue) {
+        setCalibrationValue1(camera1Data.calibrationValue);
+      }
+
+      if (camera1Data.referenceNaturalWidth) {
+        setReferenceNaturalWidth1(camera1Data.referenceNaturalWidth);
+      } else {
+        const img = videoContainerRef1.current?.querySelector('.camera-image');
+        if (img && img.naturalWidth > 0) {
+          setReferenceNaturalWidth1(img.naturalWidth);
+        }
+      }
+
+      if (camera1Data.selectedLineColor) {
+        setSelectedLineColor1(camera1Data.selectedLineColor);
+      }
+
+      if (camera1Data.selectedLineStyle) {
+        setSelectedLineStyle1(camera1Data.selectedLineStyle);
+      }
+
+      if (camera1Data.selectedLineWidth) {
+        setSelectedLineWidth1(camera1Data.selectedLineWidth);
+      }
+
+      // 로드 후 그리기
+      setTimeout(() => {
+        redrawCanvas1();
+        console.log('✅ 카메라 1 Canvas 그리기 완료');
+      }, 100);
+    } catch (error) {
+      console.error('❌ 카메라 1 선 정보 로드 중 오류:', error);
+    }
+  };
+
+  const handleManualLoad2 = async () => {
+    try {
+      console.log('📂 카메라 2 선 정보 수동 로드 시작...');
+      const camera2Data = await loadCameraLinesData(2);
+
+      if (camera2Data.lines && camera2Data.lines.length > 0) {
+        if (camera2Data.lines[0].relX1 !== undefined) {
+          setLines2([...camera2Data.lines]);
+          console.log('✅ 카메라 2 선 정보 로드 완료');
+        }
+      }
+
+      if (camera2Data.calibrationValue) {
+        setCalibrationValue2(camera2Data.calibrationValue);
+      }
+
+      if (camera2Data.referenceNaturalWidth) {
+        setReferenceNaturalWidth2(camera2Data.referenceNaturalWidth);
+      } else {
+        const img = videoContainerRef2.current?.querySelector('.camera-image');
+        if (img && img.naturalWidth > 0) {
+          setReferenceNaturalWidth2(img.naturalWidth);
+        }
+      }
+
+      if (camera2Data.selectedLineColor) {
+        setSelectedLineColor2(camera2Data.selectedLineColor);
+      }
+
+      if (camera2Data.selectedLineStyle) {
+        setSelectedLineStyle2(camera2Data.selectedLineStyle);
+      }
+
+      if (camera2Data.selectedLineWidth) {
+        setSelectedLineWidth2(camera2Data.selectedLineWidth);
+      }
+
+      // 로드 후 그리기
+      setTimeout(() => {
+        redrawCanvas2();
+        console.log('✅ 카메라 2 Canvas 그리기 완료');
+      }, 100);
+    } catch (error) {
+      console.error('❌ 카메라 2 선 정보 로드 중 오류:', error);
+    }
+  };
+
+// Canvas 크기 설정 useEffect
 useEffect(() => {
-  const loadAllSavedLines = async () => {
+  const setupCanvas = async () => {
     try {
       // 이미지가 완전히 로드되고 DOM에 렌더링될 때까지 대기
       const waitForImages = async () => {
@@ -1854,103 +1972,38 @@ useEffect(() => {
         console.warn('⚠️ 이미지 로드 타임아웃 - 기본값으로 진행');
         return false;
       };
-      
+
       // 이미지 로드 대기
       await waitForImages();
-      
+
       // Canvas 크기 설정 (이미지가 로드된 후)
       const setupCanvasSize = () => {
         const img1 = videoContainerRef1.current?.querySelector('.camera-image');
         const img2 = videoContainerRef2.current?.querySelector('.camera-image');
         const canvas1 = canvasRef1.current;
         const canvas2 = canvasRef2.current;
-        
+
         if (img1 && canvas1) {
           canvas1.width = img1.clientWidth;
           canvas1.height = img1.clientHeight;
           console.log(`📐 Canvas1 크기 설정: ${canvas1.width}x${canvas1.height}`);
         }
-        
+
         if (img2 && canvas2) {
           canvas2.width = img2.clientWidth;
           canvas2.height = img2.clientHeight;
           console.log(`📐 Canvas2 크기 설정: ${canvas2.width}x${canvas2.height}`);
         }
       };
-      
+
       setupCanvasSize();
-      
-      // 카메라 1 선 정보 로드
-      const camera1Data = await loadCameraLinesData(1);
-      if (camera1Data.lines && camera1Data.lines.length > 0) {
-        if (camera1Data.lines[0].relX1 !== undefined) {
-          setLines1([...camera1Data.lines]);
-        } 
-      }
-      if (camera1Data.calibrationValue) {
-        setCalibrationValue1(camera1Data.calibrationValue);
-      }
-      if (camera1Data.referenceNaturalWidth) {
-        setReferenceCanvasWidth1(camera1Data.referenceNaturalWidth);
-      } else {
-        const img = videoContainerRef1.current?.querySelector('.camera-image');
-        if (img && img.naturalWidth > 0) {
-          setReferenceNaturalWidth1(img.naturalWidth);
-        }
-      }
-      if (camera1Data.selectedLineColor) {
-        setSelectedLineColor1(camera1Data.selectedLineColor);
-      }
-      if (camera1Data.selectedLineStyle) {
-        setSelectedLineStyle1(camera1Data.selectedLineStyle);
-      }
-      if (camera1Data.selectedLineWidth) {
-        setSelectedLineWidth1(camera1Data.selectedLineWidth);
-      }
-
-      // 카메라 2 선 정보 로드
-      const camera2Data = await loadCameraLinesData(2);
-      if (camera2Data.lines && camera2Data.lines.length > 0) {
-        if (camera2Data.lines[0].relX1 !== undefined) {
-          setLines2([...camera2Data.lines]);
-        } 
-      }
-      if (camera2Data.calibrationValue) {
-        setCalibrationValue2(camera2Data.calibrationValue);
-      }
-      if (camera2Data.referenceNaturalWidth) {
-        setReferenceNaturalWidth2(camera2Data.referenceNaturalWidth);
-      } else {
-        const img = videoContainerRef2.current?.querySelector('.camera-image');
-        if (img && img.naturalWidth > 0) {
-          setReferenceNaturalWidth2(img.naturalWidth);
-        }
-      }
-
-
-
-      if (camera2Data.selectedLineColor) {
-        setSelectedLineColor2(camera2Data.selectedLineColor);
-      }
-      if (camera2Data.selectedLineStyle) {
-        setSelectedLineStyle2(camera2Data.selectedLineStyle);
-      }
-      if (camera2Data.selectedLineWidth) {
-        setSelectedLineWidth2(camera2Data.selectedLineWidth);
-      }
-
-      // 로드 후 그리기 지연 실행 (Canvas가 준비된 후)
-      setTimeout(() => {
-        redrawCanvas1();
-        redrawCanvas2();
-        console.log('✅ 초기 Canvas 그리기 완료');
-      }, 100);
+      console.log('✅ Canvas 초기화 완료');
     } catch (error) {
-      console.error('❌ 저장된 카메라 선 정보 로드 실패:', error);
+      console.error('❌ Canvas 설정 실패:', error);
     }
   };
 
-  loadAllSavedLines();
+  setupCanvas();
 }, []);
 
 // Window resize 이벤트 처리
@@ -2852,6 +2905,8 @@ useEffect(() => {
             onLineStyleChange={handleLineStyleChange1}
             selectedLineWidth={selectedLineWidth1}
             onLineWidthChange={handleLineWidthChange1}
+            onManualSave={handleManualSave1}
+            onManualLoad={handleManualLoad1}
             workStatus={workStatus} // 작업 상태 전달
             ref={cameraViewRef1} // CameraView ref 추가
           />
@@ -2877,6 +2932,8 @@ useEffect(() => {
             onLineStyleChange={handleLineStyleChange2}
             selectedLineWidth={selectedLineWidth2}
             onLineWidthChange={handleLineWidthChange2}
+            onManualSave={handleManualSave2}
+            onManualLoad={handleManualLoad2}
             workStatus={workStatus} // 작업 상태 전달
             ref={cameraViewRef2} // CameraView ref 추가
           />
