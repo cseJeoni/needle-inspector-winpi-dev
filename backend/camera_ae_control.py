@@ -100,11 +100,87 @@ def set_ae_state(device_index, ae_state):
     except Exception as e:
         return {"success": False, "error": f"Auto Exposure 제어 실패: {str(e)}"}
 
+def get_ae_target(device_index):
+    """카메라 Auto Exposure Target 값을 가져옵니다."""
+    if not dnx64_available:
+        return {"success": False, "error": "DNX64 SDK를 사용할 수 없습니다"}
+
+    try:
+        # DNX64 DLL 경로 설정
+        if getattr(sys, 'frozen', False):
+            # 번들된 실행파일 환경
+            dll_path = os.path.join(sys._MEIPASS, 'pyDnx64v2', 'DNX64.dll')
+        else:
+            # 개발 환경
+            dll_path = os.path.join(os.path.dirname(__file__), 'pyDnx64v2', 'DNX64.dll')
+
+        if not os.path.exists(dll_path):
+            return {"success": False, "error": f"DNX64.dll을 찾을 수 없습니다: {dll_path}"}
+
+        dnx = DNX64(dll_path)
+
+        # SDK 초기화
+        if not dnx.Init():
+            return {"success": False, "error": "DNX64 SDK 초기화 실패"}
+
+        # AE Target 값 가져오기
+        ae_target = dnx.GetAETarget(device_index)
+
+        return {
+            "success": True,
+            "device_index": device_index,
+            "ae_target": ae_target,
+            "message": f"카메라 {device_index} AE Target 값: {ae_target}"
+        }
+
+    except Exception as e:
+        return {"success": False, "error": f"AE Target 조회 실패: {str(e)}"}
+
+def set_ae_target(device_index, ae_target):
+    """카메라 Auto Exposure Target 값을 설정합니다."""
+    if not dnx64_available:
+        return {"success": False, "error": "DNX64 SDK를 사용할 수 없습니다"}
+
+    try:
+        # DNX64 DLL 경로 설정
+        if getattr(sys, 'frozen', False):
+            # 번들된 실행파일 환경
+            dll_path = os.path.join(sys._MEIPASS, 'pyDnx64v2', 'DNX64.dll')
+        else:
+            # 개발 환경
+            dll_path = os.path.join(os.path.dirname(__file__), 'pyDnx64v2', 'DNX64.dll')
+
+        if not os.path.exists(dll_path):
+            return {"success": False, "error": f"DNX64.dll을 찾을 수 없습니다: {dll_path}"}
+
+        dnx = DNX64(dll_path)
+
+        # SDK 초기화
+        if not dnx.Init():
+            return {"success": False, "error": "DNX64 SDK 초기화 실패"}
+
+        # AE Target 값 설정 (16~220 범위)
+        if ae_target < 16 or ae_target > 220:
+            return {"success": False, "error": f"AE Target 값이 범위를 벗어났습니다 (16~220): {ae_target}"}
+
+        dnx.SetAETarget(device_index, ae_target)
+
+        return {
+            "success": True,
+            "device_index": device_index,
+            "ae_target": ae_target,
+            "message": f"카메라 {device_index} AE Target {ae_target} 설정 완료"
+        }
+
+    except Exception as e:
+        return {"success": False, "error": f"AE Target 제어 실패: {str(e)}"}
+
 def main():
     parser = argparse.ArgumentParser(description='카메라 Auto Exposure 제어')
-    parser.add_argument('command', choices=['get', 'set'], help='실행할 명령')
+    parser.add_argument('command', choices=['get', 'set', 'get-target', 'set-target'], help='실행할 명령')
     parser.add_argument('--device-index', type=int, help='카메라 디바이스 인덱스')
     parser.add_argument('--ae-state', type=int, choices=[0, 1], help='Auto Exposure 상태 (0: OFF, 1: ON)')
+    parser.add_argument('--ae-target', type=int, help='Auto Exposure Target 값 (16~220)')
 
     args = parser.parse_args()
 
@@ -118,6 +194,16 @@ def main():
             result = {"success": False, "error": "set 명령에는 --device-index와 --ae-state가 필요합니다"}
         else:
             result = set_ae_state(args.device_index, args.ae_state)
+    elif args.command == 'get-target':
+        if args.device_index is None:
+            result = {"success": False, "error": "get-target 명령에는 --device-index가 필요합니다"}
+        else:
+            result = get_ae_target(args.device_index)
+    elif args.command == 'set-target':
+        if args.device_index is None or args.ae_target is None:
+            result = {"success": False, "error": "set-target 명령에는 --device-index와 --ae-target이 필요합니다"}
+        else:
+            result = set_ae_target(args.device_index, args.ae_target)
     else:
         result = {"success": False, "error": "알 수 없는 명령"}
 

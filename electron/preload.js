@@ -131,6 +131,15 @@ contextBridge.exposeInMainWorld('electronAPI', {
     return ipcRenderer.invoke('camera-ae-set-state', deviceIndex, aeState);
   },
 
+  // 카메라 Auto Exposure Target 제어 API
+  getCameraAETarget: (deviceIndex) => {
+    return ipcRenderer.invoke('camera-ae-get-target', deviceIndex);
+  },
+
+  setCameraAETarget: (deviceIndex, aeTarget) => {
+    return ipcRenderer.invoke('camera-ae-set-target', deviceIndex, aeTarget);
+  },
+
   // 일일 시리얼 번호 저장/로드 API
   setStoredValue: (key, value) => {
     return ipcRenderer.invoke('set-stored-value', key, value);

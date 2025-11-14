@@ -52,10 +52,15 @@ const CameraView = forwardRef(({
 
   // Auto Exposure 상태 관리 (기본 OFF 상태)
   const [aeState, setAeState] = useState(false); // false: OFF, true: ON
+  const [aeTarget, setAeTarget] = useState(128); // AE Target 값 (16~220, 기본값 128)
 
   // 선 옵션 패널 표시 상태
   const [showLineOptions, setShowLineOptions] = useState(false);
   const lineOptionsRef = useRef(null);
+
+  // AE 옵션 패널 표시 상태
+  const [showAEOptions, setShowAEOptions] = useState(false);
+  const aeOptionsRef = useRef(null);
 
   // 선 옵션 패널 외부 클릭 시 닫기
   useEffect(() => {
@@ -70,6 +75,20 @@ const CameraView = forwardRef(({
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, [showLineOptions]);
+
+  // AE 옵션 패널 외부 클릭 시 닫기
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (showAEOptions && aeOptionsRef.current && !aeOptionsRef.current.contains(event.target)) {
+        setShowAEOptions(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showAEOptions]);
 
   // 컴포넌트 마운트 시 카메라 디바이스 목록 가져오기
   useEffect(() => {
@@ -148,8 +167,8 @@ const CameraView = forwardRef(({
     }
   };
 
-  // AE (Auto Exposure) 토글 핸들러
-  const handleAEToggle = async () => {
+  // AE (Auto Exposure) 상태 변경 핸들러
+  const handleAEStateChange = async (newState) => {
     if (deviceIndex === null) {
       console.warn(`[${title}] 디바이스 인덱스가 설정되지 않음`);
       alert('카메라 디바이스를 찾을 수 없습니다.');
@@ -157,14 +176,13 @@ const CameraView = forwardRef(({
     }
 
     try {
-      const newAeState = !aeState;
-      console.log(`[${title}] AE 상태 변경 시도: ${aeState ? 'ON' : 'OFF'} -> ${newAeState ? 'ON' : 'OFF'}`);
+      console.log(`[${title}] AE 상태 변경 시도: ${aeState ? 'ON' : 'OFF'} -> ${newState ? 'ON' : 'OFF'}`);
 
       if (window.electronAPI && window.electronAPI.setCameraAutoExposure) {
-        const result = await window.electronAPI.setCameraAutoExposure(deviceIndex, newAeState ? 1 : 0);
+        const result = await window.electronAPI.setCameraAutoExposure(deviceIndex, newState ? 1 : 0);
 
         if (result.success) {
-          setAeState(newAeState);
+          setAeState(newState);
           console.log(`[${title}] AE 상태 변경 성공:`, result.message);
         } else {
           console.error(`[${title}] AE 상태 변경 실패:`, result.error);
@@ -172,8 +190,33 @@ const CameraView = forwardRef(({
         }
       }
     } catch (error) {
-      console.error(`[${title}] AE 토글 오류:`, error);
+      console.error(`[${title}] AE 상태 변경 오류:`, error);
       alert(`Auto Exposure 제어 오류: ${error.message}`);
+    }
+  };
+
+  // AE Target 값 변경 핸들러
+  const handleAETargetChange = async (newTarget) => {
+    if (deviceIndex === null) {
+      console.warn(`[${title}] 디바이스 인덱스가 설정되지 않음`);
+      return;
+    }
+
+    try {
+      console.log(`[${title}] AE Target 변경 시도: ${aeTarget} -> ${newTarget}`);
+
+      if (window.electronAPI && window.electronAPI.setCameraAETarget) {
+        const result = await window.electronAPI.setCameraAETarget(deviceIndex, newTarget);
+
+        if (result.success) {
+          setAeTarget(newTarget);
+          console.log(`[${title}] AE Target 변경 성공:`, result.message);
+        } else {
+          console.error(`[${title}] AE Target 변경 실패:`, result.error);
+        }
+      }
+    } catch (error) {
+      console.error(`[${title}] AE Target 변경 오류:`, error);
     }
   };
 
@@ -462,20 +505,65 @@ const CameraView = forwardRef(({
           >
             LED
           </button>
-          <button
-            onClick={handleAEToggle}
-            className={`control-button ae-button ${aeState ? 'ae-on' : 'ae-off'}`}
-            style={{
-              color: '#000000',
-              backgroundColor: aeState ? '#00BCD4' : '#9E9E9E', // 청록색(ON) / 회색(OFF)
-              border: `2px solid ${aeState ? '#0097A7' : '#757575'}`,
-              fontWeight: 'bold',
-              minWidth: '50px'
-            }}
-            title={`Auto Exposure ${aeState ? '켜짐' : '꺼짐'} - 클릭하여 ${aeState ? '끄기' : '켜기'}`}
-          >
-            AE
-          </button>
+          <div className="ae-options-wrapper" ref={aeOptionsRef}>
+            <button
+              onClick={() => setShowAEOptions(!showAEOptions)}
+              className={`control-button ae-button ${showAEOptions ? 'active' : ''}`}
+              style={{
+                color: '#000000',
+                backgroundColor: aeState ? '#00BCD4' : '#9E9E9E', // 청록색(ON) / 회색(OFF)
+                border: `2px solid ${aeState ? '#0097A7' : '#757575'}`,
+                fontWeight: 'bold',
+                minWidth: '50px'
+              }}
+              title="Auto Exposure 설정"
+            >
+              AE
+            </button>
+            {/* AE 옵션 패널 */}
+            {showAEOptions && (
+              <div className="ae-options-panel">
+                {/* Row 1: AE 상태 (ON/OFF) */}
+                <div className="ae-options-row">
+                  <label className="ae-option-label">AE 상태:</label>
+                  <div className="ae-state-buttons">
+                    <button
+                      onClick={() => handleAEStateChange(true)}
+                      className={`ae-state-button ${aeState === true ? 'selected' : ''}`}
+                      title="Auto Exposure ON"
+                    >
+                      ON
+                    </button>
+                    <button
+                      onClick={() => handleAEStateChange(false)}
+                      className={`ae-state-button ${aeState === false ? 'selected' : ''}`}
+                      title="Auto Exposure OFF"
+                    >
+                      OFF
+                    </button>
+                  </div>
+                </div>
+
+                {/* Row 2: AE Target 슬라이더 */}
+                <div className="ae-options-row">
+                  <label className="ae-option-label">AE Target:</label>
+                  <div className="ae-target-slider-container">
+                    <input
+                      type="range"
+                      min="16"
+                      max="220"
+                      value={aeTarget}
+                      onChange={(e) => handleAETargetChange(parseInt(e.target.value))}
+                      disabled={!aeState}
+                      className="ae-target-slider"
+                      title={`AE Target: ${aeTarget}`}
+                    />
+                    <span className="ae-target-value">{aeTarget}</span>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
           <div className="calibration-container">
             <label className="calibration-label">스케일 (px/mm):</label>
             <input 
