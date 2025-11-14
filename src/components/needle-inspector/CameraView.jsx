@@ -1,4 +1,4 @@
-import React, { useImperativeHandle, forwardRef, useState, useEffect } from 'react';
+import React, { useImperativeHandle, forwardRef, useState, useEffect, useRef } from 'react';
 import './CameraView.css';
 
 /**
@@ -50,6 +50,21 @@ const CameraView = forwardRef(({
 
   // 선 옵션 패널 표시 상태
   const [showLineOptions, setShowLineOptions] = useState(false);
+  const lineOptionsRef = useRef(null);
+
+  // 선 옵션 패널 외부 클릭 시 닫기
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (showLineOptions && lineOptionsRef.current && !lineOptionsRef.current.contains(event.target)) {
+        setShowLineOptions(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showLineOptions]);
 
   // 컴포넌트 마운트 시 카메라 디바이스 목록 가져오기
   useEffect(() => {
@@ -275,7 +290,7 @@ const CameraView = forwardRef(({
           <h2 className="camera-title">{title}</h2>
         </div>
         <div className="controls-container">
-          <div className="line-options-wrapper">
+          <div className="line-options-wrapper" ref={lineOptionsRef}>
             <button
               onClick={() => setShowLineOptions(!showLineOptions)}
               className={`control-button line-options-button ${showLineOptions ? 'active' : ''}`}

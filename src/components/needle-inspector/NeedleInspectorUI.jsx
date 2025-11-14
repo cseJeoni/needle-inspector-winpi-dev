@@ -616,6 +616,37 @@ const drawLineWithInfo = (ctx, line, color, showText, calibrationValue = 19.8, i
   return { length: length.toFixed(1), mm: mm.toFixed(2), angle: angle.toFixed(1) };
 }
 
+// 선택된 선에 편집 핸들 그리기 (양 끝 + 중간)
+const drawLineHandles = (ctx, line, canvas) => {
+  const { relX1, relY1, relX2, relY2 } = line;
+  const isRelative = relX1 !== undefined;
+
+  const x1 = isRelative ? relX1 * canvas.width : line.x1;
+  const y1 = isRelative ? relY1 * canvas.height : line.y1;
+  const x2 = isRelative ? relX2 * canvas.width : line.x2;
+  const y2 = isRelative ? relY2 * canvas.height : line.y2;
+
+  // 중간점 계산
+  const midX = (x1 + x2) / 2;
+  const midY = (y1 + y2) / 2;
+
+  const handleSize = 8; // 핸들 크기
+  const handleHalfSize = handleSize / 2;
+
+  // 핸들 그리기 함수 (보라색 테두리, 빈 내부)
+  const drawHandle = (x, y) => {
+    ctx.strokeStyle = '#9333ea'; // 보라색
+    ctx.lineWidth = 2;
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.8)'; // 반투명 흰색 내부
+    ctx.fillRect(x - handleHalfSize, y - handleHalfSize, handleSize, handleSize);
+    ctx.strokeRect(x - handleHalfSize, y - handleHalfSize, handleSize, handleSize);
+  };
+
+  // 시작점, 끝점, 중간점 핸들 그리기
+  drawHandle(x1, y1); // 시작점
+  drawHandle(x2, y2); // 끝점
+  drawHandle(midX, midY); // 중간점
+};
 
 // 기존 선의 모든 점에 스냅하는 함수 (canvas 인자 추가)
   const snapToExistingLines = (pos, lines, snapDistance = 15, canvas) => {
@@ -1196,6 +1227,8 @@ const drawLineWithInfo = (ctx, line, color, showText, calibrationValue = 19.8, i
   }
 
 const drawLines = (ctx, lines, selectedIndex, calibrationValue, imageNaturalWidth, lineStyle = 'capped', lineWidth = 'medium', selectedLineColor = 'red') => {
+  const canvas = ctx.canvas;
+
   lines.forEach((line, index) => {
     const isSelected = index === selectedIndex;
     // 각 선의 개별 속성 사용, 없으면 기본값 사용
@@ -1203,6 +1236,11 @@ const drawLines = (ctx, lines, selectedIndex, calibrationValue, imageNaturalWidt
     const lineStyleToUse = line.style || lineStyle;
     const lineWidthToUse = line.width || lineWidth;
     drawLineWithInfo(ctx, line, lineColor, true, calibrationValue, isSelected, imageNaturalWidth, lineStyleToUse, lineWidthToUse);
+
+    // 선택된 선에 편집 핸들 그리기
+    if (isSelected) {
+      drawLineHandles(ctx, line, canvas);
+    }
   });
 };
 
