@@ -156,7 +156,9 @@ export default function NeedleInspectorUI() {
   const [selectedIndex1, setSelectedIndex1] = useState(-1)
   const [lineInfo1, setLineInfo1] = useState('선 정보: 없음')
   const [calibrationValue1, setCalibrationValue1] = useState(19.8) // 실측 캘리브레이션 값 (99px = 5mm)
-  const [selectedLineColor1, setSelectedLineColor1] = useState('red') // 선택된 선 색상 (red, cyan)
+  const [selectedLineColor1, setSelectedLineColor1] = useState('red') // 선택된 선 색상 (red, cyan, lime)
+  const [selectedLineStyle1, setSelectedLineStyle1] = useState('capped') // 선택된 선 스타일 (standard, capped)
+  const [selectedLineWidth1, setSelectedLineWidth1] = useState('medium') // 선택된 선 굵기 (thin, medium, thick)
   const canvasRef1 = useRef(null)
   const videoContainerRef1 = useRef(null)
   const cameraViewRef1 = useRef(null) // CameraView ref 추가
@@ -174,7 +176,9 @@ export default function NeedleInspectorUI() {
   const [selectedIndex2, setSelectedIndex2] = useState(-1)
   const [lineInfo2, setLineInfo2] = useState('선 정보: 없음')
   const [calibrationValue2, setCalibrationValue2] = useState(19.8) // 실측 캘리브레이션 값 (99px = 5mm)
-  const [selectedLineColor2, setSelectedLineColor2] = useState('red') // 선택된 선 색상 (red, cyan)
+  const [selectedLineColor2, setSelectedLineColor2] = useState('red') // 선택된 선 색상 (red, cyan, lime)
+  const [selectedLineStyle2, setSelectedLineStyle2] = useState('capped') // 선택된 선 스타일 (standard, capped)
+  const [selectedLineWidth2, setSelectedLineWidth2] = useState('medium') // 선택된 선 굵기 (thin, medium, thick)
   const canvasRef2 = useRef(null)
   const videoContainerRef2 = useRef(null)
   const cameraViewRef2 = useRef(null) // CameraView ref 추가
@@ -496,7 +500,7 @@ export default function NeedleInspectorUI() {
   }
 
 
-const drawLineWithInfo = (ctx, line, color, showText, calibrationValue = 19.8, isSelected = false, imageNaturalWidth = 1920) => {
+const drawLineWithInfo = (ctx, line, color, showText, calibrationValue = 19.8, isSelected = false, imageNaturalWidth = 1920, lineStyle = 'capped', lineWidth = 'medium') => {
   const canvas = ctx.canvas;
   if (!canvas) {
     console.error("drawLineWithInfo: 캔버스 객체를 찾을 수 없습니다.", ctx);
@@ -507,7 +511,7 @@ const drawLineWithInfo = (ctx, line, color, showText, calibrationValue = 19.8, i
   const scaleRatio = canvas.width / imageNaturalWidth;
   // 조정된 캘리브레이션 값 계산
   const adjustedCalibration = calibrationValue * scaleRatio;
-  
+
   const { relX1, relY1, relX2, relY2, relLabelX, relLabelY } = line;
   const isRelative = relX1 !== undefined;
 
@@ -515,11 +519,27 @@ const drawLineWithInfo = (ctx, line, color, showText, calibrationValue = 19.8, i
   const y1 = isRelative ? relY1 * canvas.height : line.y1;
   const x2 = isRelative ? relX2 * canvas.width : line.x2;
   const y2 = isRelative ? relY2 * canvas.height : line.y2;
-  
+
   if (ctx && ctx.moveTo) {
-    const lineColor = isSelected ? '#ffff00' : color;
+    // 색상 매핑
+    const colorMap = {
+      'red': '#dc2626',
+      'cyan': '#06b6d4',
+      'lime': '#39FF14'
+    };
+    const actualColor = colorMap[color] || color;
+    const lineColor = isSelected ? '#ffff00' : actualColor;
     ctx.strokeStyle = lineColor;
-    
+
+    // 선 굵기 설정
+    const widthMap = {
+      'thin': 1,
+      'medium': 3,
+      'thick': 5
+    };
+    ctx.lineWidth = widthMap[lineWidth] || 3;
+
+    // 선 그리기
     ctx.beginPath();
     ctx.moveTo(x1, y1);
     ctx.lineTo(x2, y2);
@@ -528,20 +548,24 @@ const drawLineWithInfo = (ctx, line, color, showText, calibrationValue = 19.8, i
     const dx_abs = x2 - x1;
     const dy_abs = y2 - y1;
     const length_abs = Math.sqrt(dx_abs * dx_abs + dy_abs * dy_abs);
-    const perpLength = 14;
-    
-    const perpX = length_abs === 0 ? 0 : -dy_abs / length_abs * perpLength;
-    const perpY = length_abs === 0 ? 0 : dx_abs / length_abs * perpLength;
-    
-    ctx.beginPath();
-    ctx.moveTo(x1 - perpX / 2, y1 - perpY / 2);
-    ctx.lineTo(x1 + perpX / 2, y1 + perpY / 2);
-    ctx.stroke();
-    
-    ctx.beginPath();
-    ctx.moveTo(x2 - perpX / 2, y2 - perpY / 2);
-    ctx.lineTo(x2 + perpX / 2, y2 + perpY / 2);
-    ctx.stroke();
+
+    // 끝단 마크 (capped 스타일일 때만)
+    if (lineStyle === 'capped') {
+      const perpLength = 14;
+
+      const perpX = length_abs === 0 ? 0 : -dy_abs / length_abs * perpLength;
+      const perpY = length_abs === 0 ? 0 : dx_abs / length_abs * perpLength;
+
+      ctx.beginPath();
+      ctx.moveTo(x1 - perpX / 2, y1 - perpY / 2);
+      ctx.lineTo(x1 + perpX / 2, y1 + perpY / 2);
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.moveTo(x2 - perpX / 2, y2 - perpY / 2);
+      ctx.lineTo(x2 + perpX / 2, y2 + perpY / 2);
+      ctx.stroke();
+    }
 
     if (showText) {
       // 조정된 캘리브레이션 값 사용
@@ -846,7 +870,7 @@ const drawLineWithInfo = (ctx, line, color, showText, calibrationValue = 19.8, i
           setLines1(dragTempLines1.current);
           // 자동 저장은 최종 위치로
           setTimeout(() => {
-            saveCameraLinesData(1, dragTempLines1.current, calibrationValue1, selectedLineColor1);
+            saveCameraLinesData(1, dragTempLines1.current, calibrationValue1, selectedLineColor1, selectedLineStyle1, selectedLineWidth1);
           }, 100);
           dragTempLines1.current = null; // 임시 데이터 초기화
         }
@@ -898,7 +922,7 @@ const drawLineWithInfo = (ctx, line, color, showText, calibrationValue = 19.8, i
       
       // 선 추가 후 자동 저장
       setTimeout(() => {
-        saveCameraLinesData(1, newLines, calibrationValue1, selectedLineColor1);
+        saveCameraLinesData(1, newLines, calibrationValue1, selectedLineColor1, selectedLineStyle1, selectedLineWidth1);
       }, 100);
       
       setIsDrawing1(false);
@@ -920,7 +944,7 @@ const drawLineWithInfo = (ctx, line, color, showText, calibrationValue = 19.8, i
         
         // 선 삭제 후 자동 저장
         setTimeout(() => {
-          saveCameraLinesData(1, newLines, calibrationValue1, selectedLineColor1);
+          saveCameraLinesData(1, newLines, calibrationValue1, selectedLineColor1, selectedLineStyle1, selectedLineWidth1);
         }, 100);
       }
     },
@@ -938,7 +962,7 @@ const drawLineWithInfo = (ctx, line, color, showText, calibrationValue = 19.8, i
       
       // 전체 삭제 후 자동 저장
       setTimeout(() => {
-        saveCameraLinesData(1, [], calibrationValue1, selectedLineColor1);
+        saveCameraLinesData(1, [], calibrationValue1, selectedLineColor1, selectedLineStyle1, selectedLineWidth1);
       }, 100);
     }
   }
@@ -1060,7 +1084,7 @@ const drawLineWithInfo = (ctx, line, color, showText, calibrationValue = 19.8, i
           setLines2(dragTempLines2.current);
           // 자동 저장은 최종 위치로
           setTimeout(() => {
-            saveCameraLinesData(2, dragTempLines2.current, calibrationValue2, selectedLineColor2);
+            saveCameraLinesData(2, dragTempLines2.current, calibrationValue2, selectedLineColor2, selectedLineStyle2, selectedLineWidth2);
           }, 100);
           dragTempLines2.current = null; // 임시 데이터 초기화
         }
@@ -1112,7 +1136,7 @@ const drawLineWithInfo = (ctx, line, color, showText, calibrationValue = 19.8, i
       
       // 선 추가 후 자동 저장
       setTimeout(() => {
-        saveCameraLinesData(2, newLines, calibrationValue2, selectedLineColor2);
+        saveCameraLinesData(2, newLines, calibrationValue2, selectedLineColor2, selectedLineStyle2, selectedLineWidth2);
       }, 100);
       
       setIsDrawing2(false);
@@ -1134,7 +1158,7 @@ const drawLineWithInfo = (ctx, line, color, showText, calibrationValue = 19.8, i
         
         // 선 삭제 후 자동 저장
         setTimeout(() => {
-          saveCameraLinesData(2, newLines, calibrationValue2, selectedLineColor2);
+          saveCameraLinesData(2, newLines, calibrationValue2, selectedLineColor2, selectedLineStyle2, selectedLineWidth2);
         }, 100);
       }
     },
@@ -1152,54 +1176,53 @@ const drawLineWithInfo = (ctx, line, color, showText, calibrationValue = 19.8, i
       
       // 전체 삭제 후 자동 저장
       setTimeout(() => {
-        saveCameraLinesData(2, [], calibrationValue2, selectedLineColor2);
+        saveCameraLinesData(2, [], calibrationValue2, selectedLineColor2, selectedLineStyle2, selectedLineWidth2);
       }, 100);
     }
   }
 
-const drawLines = (ctx, lines, selectedIndex, calibrationValue, imageNaturalWidth) => {
+const drawLines = (ctx, lines, selectedIndex, calibrationValue, imageNaturalWidth, lineStyle = 'capped', lineWidth = 'medium', selectedLineColor = 'red') => {
   lines.forEach((line, index) => {
     const isSelected = index === selectedIndex;
-    const lineColor = line.color || 'red';
-    ctx.lineWidth = isSelected ? 3 : 2;
-    drawLineWithInfo(ctx, line, lineColor, true, calibrationValue, isSelected, imageNaturalWidth);
+    const lineColor = line.color || selectedLineColor;
+    drawLineWithInfo(ctx, line, lineColor, true, calibrationValue, isSelected, imageNaturalWidth, lineStyle, lineWidth);
   });
 };
 
 const redrawCanvas1 = (customLines = null) => {
   const canvas = canvasRef1.current;
   if (!canvas || canvas.width === 0 || canvas.height === 0) return;
-  
+
   const ctx = canvas.getContext('2d');
   if (!ctx) return;
-  
+
   ctx.clearRect(0, 0, canvas.width, canvas.height);
-  
+
   // 이미지 원본 크기 가져오기
   const img = videoContainerRef1.current?.querySelector('.camera-image');
   const naturalWidth = img?.naturalWidth || referenceNaturalWidth1;
-  
+
   // 드래그 중이면 customLines 사용, 아니면 state의 lines1 사용
   const linesToDraw = customLines || lines1;
-  drawLines(ctx, linesToDraw, selectedIndex1, calibrationValue1, naturalWidth);
+  drawLines(ctx, linesToDraw, selectedIndex1, calibrationValue1, naturalWidth, selectedLineStyle1, selectedLineWidth1, selectedLineColor1);
 };
 
 const redrawCanvas2 = (customLines = null) => {
   const canvas = canvasRef2.current;
   if (!canvas || canvas.width === 0 || canvas.height === 0) return;
-  
+
   const ctx = canvas.getContext('2d');
   if (!ctx) return;
-  
+
   ctx.clearRect(0, 0, canvas.width, canvas.height);
-  
+
   // 이미지 원본 크기 가져오기
   const img = videoContainerRef2.current?.querySelector('.camera-image');
   const naturalWidth = img?.naturalWidth || referenceNaturalWidth2;
-  
+
   // 드래그 중이면 customLines 사용, 아니면 state의 lines2 사용
   const linesToDraw = customLines || lines2;
-  drawLines(ctx, linesToDraw, selectedIndex2, calibrationValue2, naturalWidth);
+  drawLines(ctx, linesToDraw, selectedIndex2, calibrationValue2, naturalWidth, selectedLineStyle2, selectedLineWidth2, selectedLineColor2);
 };
 
 const resizeCanvas = (canvas, container, img) => {
@@ -1377,19 +1400,21 @@ const resizeCanvas = (canvas, container, img) => {
 
 // 카메라 선 정보 저장 함수
 // 캘리브레이션 저장 시 이미지의 natural 크기 사용
-const saveCameraLinesData = async (cameraId, lines, calibrationValue, selectedLineColor) => {
+const saveCameraLinesData = async (cameraId, lines, calibrationValue, selectedLineColor, selectedLineStyle = 'capped', selectedLineWidth = 'medium') => {
   try {
     if (window.electronAPI && window.electronAPI.saveCameraLines) {
       // 이미지의 natural 크기 가져오기
       const container = cameraId === 1 ? videoContainerRef1.current : videoContainerRef2.current;
       const img = container?.querySelector('.camera-image');
       const referenceNaturalWidth = img ? img.naturalWidth : 1920; // 이미지 원본 크기
-      
+
       const linesData = {
         lines: lines,
         calibrationValue: calibrationValue,
         referenceNaturalWidth: referenceNaturalWidth, // 이미지 원본 크기 기준
-        selectedLineColor: selectedLineColor
+        selectedLineColor: selectedLineColor,
+        selectedLineStyle: selectedLineStyle,
+        selectedLineWidth: selectedLineWidth
       };
       
       console.log(`📐 캘리브레이션 저장 - 값: ${calibrationValue}px/mm, 이미지 원본 너비: ${referenceNaturalWidth}px`);
@@ -1435,8 +1460,8 @@ const loadCameraLinesData = async (cameraId) => {
   const saveAllCameraLines = async () => {
     try {
       await Promise.all([
-        saveCameraLinesData(1, lines1, calibrationValue1, selectedLineColor1),
-        saveCameraLinesData(2, lines2, calibrationValue2, selectedLineColor2)
+        saveCameraLinesData(1, lines1, calibrationValue1, selectedLineColor1, selectedLineStyle1, selectedLineWidth1),
+        saveCameraLinesData(2, lines2, calibrationValue2, selectedLineColor2, selectedLineStyle2, selectedLineWidth2)
       ]);
     } catch (error) {
       console.error('❌ 카메라 선 정보 저장 중 오류:', error);
@@ -1459,7 +1484,7 @@ const handleCalibrationChange1 = (newValue) => {
       const naturalBasedCalibration = newValue * currentToNaturalRatio;
       
       setTimeout(() => {
-        saveCameraLinesData(1, lines1, naturalBasedCalibration, selectedLineColor1);
+        saveCameraLinesData(1, lines1, naturalBasedCalibration, selectedLineColor1, selectedLineStyle1, selectedLineWidth1);
       }, 500);
     }
   }
@@ -1481,7 +1506,7 @@ const handleCalibrationChange2 = (newValue) => {
       const naturalBasedCalibration = newValue * currentToNaturalRatio;
       
       setTimeout(() => {
-        saveCameraLinesData(2, lines2, naturalBasedCalibration, selectedLineColor2);
+        saveCameraLinesData(2, lines2, naturalBasedCalibration, selectedLineColor2, selectedLineStyle2, selectedLineWidth2);
       }, 500);
     }
   }
@@ -1491,14 +1516,44 @@ const handleCalibrationChange2 = (newValue) => {
   const handleLineColorChange1 = (newColor) => {
     setSelectedLineColor1(newColor);
     setTimeout(() => {
-      saveCameraLinesData(1, lines1, calibrationValue1, newColor);
+      saveCameraLinesData(1, lines1, calibrationValue1, newColor, selectedLineStyle1, selectedLineWidth1);
     }, 100);
   };
 
   const handleLineColorChange2 = (newColor) => {
     setSelectedLineColor2(newColor);
     setTimeout(() => {
-      saveCameraLinesData(2, lines2, calibrationValue2, newColor);
+      saveCameraLinesData(2, lines2, calibrationValue2, newColor, selectedLineStyle2, selectedLineWidth2);
+    }, 100);
+  };
+
+  // 선 스타일 변경 및 저장 함수들
+  const handleLineStyleChange1 = (newStyle) => {
+    setSelectedLineStyle1(newStyle);
+    setTimeout(() => {
+      saveCameraLinesData(1, lines1, calibrationValue1, selectedLineColor1, newStyle, selectedLineWidth1);
+    }, 100);
+  };
+
+  const handleLineStyleChange2 = (newStyle) => {
+    setSelectedLineStyle2(newStyle);
+    setTimeout(() => {
+      saveCameraLinesData(2, lines2, calibrationValue2, selectedLineColor2, newStyle, selectedLineWidth2);
+    }, 100);
+  };
+
+  // 선 굵기 변경 및 저장 함수들
+  const handleLineWidthChange1 = (newWidth) => {
+    setSelectedLineWidth1(newWidth);
+    setTimeout(() => {
+      saveCameraLinesData(1, lines1, calibrationValue1, selectedLineColor1, selectedLineStyle1, newWidth);
+    }, 100);
+  };
+
+  const handleLineWidthChange2 = (newWidth) => {
+    setSelectedLineWidth2(newWidth);
+    setTimeout(() => {
+      saveCameraLinesData(2, lines2, calibrationValue2, selectedLineColor2, selectedLineStyle2, newWidth);
     }, 100);
   };
 
@@ -1577,6 +1632,12 @@ useEffect(() => {
       if (camera1Data.selectedLineColor) {
         setSelectedLineColor1(camera1Data.selectedLineColor);
       }
+      if (camera1Data.selectedLineStyle) {
+        setSelectedLineStyle1(camera1Data.selectedLineStyle);
+      }
+      if (camera1Data.selectedLineWidth) {
+        setSelectedLineWidth1(camera1Data.selectedLineWidth);
+      }
 
       // 카메라 2 선 정보 로드
       const camera2Data = await loadCameraLinesData(2);
@@ -1601,6 +1662,12 @@ useEffect(() => {
 
       if (camera2Data.selectedLineColor) {
         setSelectedLineColor2(camera2Data.selectedLineColor);
+      }
+      if (camera2Data.selectedLineStyle) {
+        setSelectedLineStyle2(camera2Data.selectedLineStyle);
+      }
+      if (camera2Data.selectedLineWidth) {
+        setSelectedLineWidth2(camera2Data.selectedLineWidth);
       }
 
       // 로드 후 그리기 지연 실행 (Canvas가 준비된 후)
@@ -2494,8 +2561,8 @@ useEffect(() => {
       <main className="flex flex-col flex-1 gap-4 overflow-hidden">
         {/* Top Camera Views */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 h-[60vh]">
-          <CameraView 
-            title="Camera 1" 
+          <CameraView
+            title="Camera 1"
             cameraId={1}
             videoServerUrl={isCameraServerReady ? videoServerUrl : null}
             videoEndpoint="/video"
@@ -2512,11 +2579,15 @@ useEffect(() => {
             onCalibrationChange={handleCalibrationChange1}
             selectedLineColor={selectedLineColor1}
             onLineColorChange={handleLineColorChange1}
+            selectedLineStyle={selectedLineStyle1}
+            onLineStyleChange={handleLineStyleChange1}
+            selectedLineWidth={selectedLineWidth1}
+            onLineWidthChange={handleLineWidthChange1}
             workStatus={workStatus} // 작업 상태 전달
             ref={cameraViewRef1} // CameraView ref 추가
           />
-          <CameraView 
-            title="Camera 2" 
+          <CameraView
+            title="Camera 2"
             cameraId={2}
             videoServerUrl={isCameraServerReady ? videoServerUrl : null}
             videoEndpoint="/video2"
@@ -2533,6 +2604,10 @@ useEffect(() => {
             onCalibrationChange={handleCalibrationChange2}
             selectedLineColor={selectedLineColor2}
             onLineColorChange={handleLineColorChange2}
+            selectedLineStyle={selectedLineStyle2}
+            onLineStyleChange={handleLineStyleChange2}
+            selectedLineWidth={selectedLineWidth2}
+            onLineWidthChange={handleLineWidthChange2}
             workStatus={workStatus} // 작업 상태 전달
             ref={cameraViewRef2} // CameraView ref 추가
           />

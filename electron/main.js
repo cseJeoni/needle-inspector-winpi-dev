@@ -25,12 +25,16 @@ const store = new Store({
       camera1: {
         lines: [],
         calibrationValue: 19.8,
-        selectedLineColor: 'red'
+        selectedLineColor: 'red',
+        selectedLineStyle: 'capped',
+        selectedLineWidth: 'medium'
       },
       camera2: {
         lines: [],
         calibrationValue: 19.8,
-        selectedLineColor: 'red'
+        selectedLineColor: 'red',
+        selectedLineStyle: 'capped',
+        selectedLineWidth: 'medium'
       }
     }
   }

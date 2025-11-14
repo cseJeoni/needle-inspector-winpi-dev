@@ -19,30 +19,37 @@ import './CameraView.css';
  * @param {Object} props.videoContainerRef - 비디오 컨테이너 ref
  * @returns {React.Component} React 컴포넌트
  */
-const CameraView = forwardRef(({ 
-  title, 
-  cameraId, 
-  videoServerUrl, 
-  videoEndpoint, 
-  drawMode, 
-  onDrawModeToggle, 
-  onDeleteLine, 
+const CameraView = forwardRef(({
+  title,
+  cameraId,
+  videoServerUrl,
+  videoEndpoint,
+  drawMode,
+  onDrawModeToggle,
+  onDeleteLine,
   onDeleteAllLines,
-  selectedIndex, 
-  lineInfo, 
-  handlers, 
-  canvasRef, 
+  selectedIndex,
+  lineInfo,
+  handlers,
+  canvasRef,
   videoContainerRef,
   calibrationValue,
   onCalibrationChange,
   selectedLineColor,
   onLineColorChange,
+  selectedLineStyle,
+  onLineStyleChange,
+  selectedLineWidth,
+  onLineWidthChange,
   workStatus = 'waiting' // 작업 상태 (니들 쇼트, 저장 실패 등)
 }, ref) => {
   // LED 상태 관리 (카메라가 켜져있으므로 기본 ON 상태)
   const [ledState, setLedState] = useState(true); // false: OFF, true: ON
   const [deviceIndex, setDeviceIndex] = useState(null); // 카메라 디바이스 인덱스
   const [cameraDevices, setCameraDevices] = useState([]);
+
+  // 선 옵션 패널 표시 상태
+  const [showLineOptions, setShowLineOptions] = useState(false);
 
   // 컴포넌트 마운트 시 카메라 디바이스 목록 가져오기
   useEffect(() => {
@@ -268,19 +275,14 @@ const CameraView = forwardRef(({
           <h2 className="camera-title">{title}</h2>
         </div>
         <div className="controls-container">
-          <div className="color-selection-container">
-            <button 
-              onClick={() => onLineColorChange('red')}
-              className={`color-button red-button ${selectedLineColor === 'red' ? 'selected' : ''}`}
-              title="빨간색 선"
-            />
-            <button 
-              onClick={() => onLineColorChange('cyan')}
-              className={`color-button cyan-button ${selectedLineColor === 'cyan' ? 'selected' : ''}`}
-              title="민트색 선"
-            />
-          </div>
-          <button 
+          <button
+            onClick={() => setShowLineOptions(!showLineOptions)}
+            className={`control-button line-options-button ${showLineOptions ? 'active' : ''}`}
+            style={{ color: '#000000' }}
+          >
+            선 옵션
+          </button>
+          <button
             onClick={onDrawModeToggle}
             className={`control-button draw-button ${drawMode ? 'active' : ''}`}
             style={{ color: '#000000' }}
@@ -331,6 +333,87 @@ const CameraView = forwardRef(({
           </div>
         </div>
       </div>
+
+      {/* 선 옵션 3x3 그리드 패널 */}
+      {showLineOptions && (
+        <div className="line-options-panel">
+          {/* Row 1: 선 스타일 */}
+          <div className="line-options-row">
+            <button
+              onClick={() => onLineStyleChange('standard')}
+              className={`line-option-item line-style-standard ${selectedLineStyle === 'standard' ? 'selected' : ''}`}
+              title="표준 직선"
+            >
+              <div className="line-style-preview standard"></div>
+            </button>
+            <button
+              onClick={() => onLineStyleChange('capped')}
+              className={`line-option-item line-style-capped ${selectedLineStyle === 'capped' ? 'selected' : ''}`}
+              title="끝단 표시선"
+            >
+              <div className="line-style-preview capped"></div>
+            </button>
+            <button
+              className="line-option-item line-style-empty"
+              disabled
+              title="추후 추가 예정"
+            >
+              <div className="line-style-preview empty"></div>
+            </button>
+          </div>
+
+          {/* Row 2: 선 굵기 */}
+          <div className="line-options-row">
+            <button
+              onClick={() => onLineWidthChange('thin')}
+              className={`line-option-item line-width-thin ${selectedLineWidth === 'thin' ? 'selected' : ''}`}
+              title="얇은 선"
+            >
+              <div className="line-width-preview thin"></div>
+            </button>
+            <button
+              onClick={() => onLineWidthChange('medium')}
+              className={`line-option-item line-width-medium ${selectedLineWidth === 'medium' ? 'selected' : ''}`}
+              title="중간 선"
+            >
+              <div className="line-width-preview medium"></div>
+            </button>
+            <button
+              onClick={() => onLineWidthChange('thick')}
+              className={`line-option-item line-width-thick ${selectedLineWidth === 'thick' ? 'selected' : ''}`}
+              title="굵은 선"
+            >
+              <div className="line-width-preview thick"></div>
+            </button>
+          </div>
+
+          {/* Row 3: 선 색상 */}
+          <div className="line-options-row">
+            <button
+              onClick={() => onLineColorChange('red')}
+              className={`line-option-item line-color-item ${selectedLineColor === 'red' ? 'selected' : ''}`}
+              title="빨간색"
+            >
+              <div className="line-color-preview red"></div>
+            </button>
+            <button
+              onClick={() => onLineColorChange('cyan')}
+              className={`line-option-item line-color-item ${selectedLineColor === 'cyan' ? 'selected' : ''}`}
+              title="민트색"
+            >
+              <div className="line-color-preview cyan"></div>
+            </button>
+            <button
+              onClick={() => onLineColorChange('lime')}
+              className={`line-option-item line-color-item ${selectedLineColor === 'lime' ? 'selected' : ''}`}
+              title="형광 초록색"
+            >
+              <div className="line-color-preview lime"></div>
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className="line-info">{lineInfo}</div>
       <div 
         id={`camera-feed-${cameraId}`} 
