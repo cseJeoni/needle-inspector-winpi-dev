@@ -347,21 +347,21 @@ const CameraView = forwardRef(({
                   <button
                     onClick={() => onLineWidthChange('thin')}
                     className={`line-option-item line-width-thin ${selectedLineWidth === 'thin' ? 'selected' : ''}`}
-                    title="얇은 선"
+                    title="0.5px"
                   >
                     <div className="line-width-preview thin"></div>
                   </button>
                   <button
                     onClick={() => onLineWidthChange('medium')}
                     className={`line-option-item line-width-medium ${selectedLineWidth === 'medium' ? 'selected' : ''}`}
-                    title="중간 선"
+                    title="1px"
                   >
                     <div className="line-width-preview medium"></div>
                   </button>
                   <button
                     onClick={() => onLineWidthChange('thick')}
                     className={`line-option-item line-width-thick ${selectedLineWidth === 'thick' ? 'selected' : ''}`}
-                    title="굵은 선"
+                    title="1.5px"
                   >
                     <div className="line-width-preview thick"></div>
                   </button>

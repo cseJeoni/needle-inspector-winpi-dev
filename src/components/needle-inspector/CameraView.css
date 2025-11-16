@@ -167,15 +167,15 @@
 }
 
 .line-width-preview.thin {
-  height: 1px;
+  height: 0.5px;
 }
 
 .line-width-preview.medium {
-  height: 3px;
+  height: 1px;
 }
 
 .line-width-preview.thick {
-  height: 5px;
+  height: 1.5px;
 }
 
 /* 선 색상 미리보기 */
@@ -345,6 +345,7 @@
   font-size: 0.875rem;
   color: #9CA3AF;
 }
+
 
 .loading-spinner {
   width: 40px;
