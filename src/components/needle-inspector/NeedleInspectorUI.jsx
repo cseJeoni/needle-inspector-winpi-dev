@@ -948,21 +948,37 @@ const isPointOnMiddleHandle = (pos, line, canvas) => {
         const relY2 = line.relY2;
 
         if (draggingHandleType1 === 'start') {
-          // 시작점 이동
+          // 시작점 이동 - 끝점을 고정점으로 사용하여 스냅 적용
+          const fixedPoint = { x: relX2 * canvas.width, y: relY2 * canvas.height };
+
+          // 먼저 다른 라인에 스냅
+          const lineSnappedPos = snapToExistingLines(currentPos, lines1, 15, canvas);
+
+          // 그 다음 각도 스냅
+          const snappedPos = snapAngle(fixedPoint, lineSnappedPos);
+
           dragTempLines1.current[draggingHandleLineIndex1] = {
             ...line,
-            relX1: currentPos.x / canvas.width,
-            relY1: currentPos.y / canvas.height
+            relX1: snappedPos.x / canvas.width,
+            relY1: snappedPos.y / canvas.height
           };
         } else if (draggingHandleType1 === 'end') {
-          // 끝점 이동
+          // 끝점 이동 - 시작점을 고정점으로 사용하여 스냅 적용
+          const fixedPoint = { x: relX1 * canvas.width, y: relY1 * canvas.height };
+
+          // 먼저 다른 라인에 스냅
+          const lineSnappedPos = snapToExistingLines(currentPos, lines1, 15, canvas);
+
+          // 그 다음 각도 스냅
+          const snappedPos = snapAngle(fixedPoint, lineSnappedPos);
+
           dragTempLines1.current[draggingHandleLineIndex1] = {
             ...line,
-            relX2: currentPos.x / canvas.width,
-            relY2: currentPos.y / canvas.height
+            relX2: snappedPos.x / canvas.width,
+            relY2: snappedPos.y / canvas.height
           };
         } else if (draggingHandleType1 === 'mid') {
-          // 중간점 이동 -> 전체 선 이동
+          // 중간점 이동 -> 전체 선 이동 (스냅 없음)
           const x1 = relX1 * canvas.width;
           const y1 = relY1 * canvas.height;
           const x2 = relX2 * canvas.width;
@@ -1245,21 +1261,37 @@ const isPointOnMiddleHandle = (pos, line, canvas) => {
         const relY2 = line.relY2;
 
         if (draggingHandleType2 === 'start') {
-          // 시작점 이동
+          // 시작점 이동 - 끝점을 고정점으로 사용하여 스냅 적용
+          const fixedPoint = { x: relX2 * canvas.width, y: relY2 * canvas.height };
+
+          // 먼저 다른 라인에 스냅
+          const lineSnappedPos = snapToExistingLines(currentPos, lines2, 15, canvas);
+
+          // 그 다음 각도 스냅
+          const snappedPos = snapAngle(fixedPoint, lineSnappedPos);
+
           dragTempLines2.current[draggingHandleLineIndex2] = {
             ...line,
-            relX1: currentPos.x / canvas.width,
-            relY1: currentPos.y / canvas.height
+            relX1: snappedPos.x / canvas.width,
+            relY1: snappedPos.y / canvas.height
           };
         } else if (draggingHandleType2 === 'end') {
-          // 끝점 이동
+          // 끝점 이동 - 시작점을 고정점으로 사용하여 스냅 적용
+          const fixedPoint = { x: relX1 * canvas.width, y: relY1 * canvas.height };
+
+          // 먼저 다른 라인에 스냅
+          const lineSnappedPos = snapToExistingLines(currentPos, lines2, 15, canvas);
+
+          // 그 다음 각도 스냅
+          const snappedPos = snapAngle(fixedPoint, lineSnappedPos);
+
           dragTempLines2.current[draggingHandleLineIndex2] = {
             ...line,
-            relX2: currentPos.x / canvas.width,
-            relY2: currentPos.y / canvas.height
+            relX2: snappedPos.x / canvas.width,
+            relY2: snappedPos.y / canvas.height
           };
         } else if (draggingHandleType2 === 'mid') {
-          // 중간점 이동 -> 전체 선 이동
+          // 중간점 이동 -> 전체 선 이동 (스냅 없음)
           const x1 = relX1 * canvas.width;
           const y1 = relY1 * canvas.height;
           const x2 = relX2 * canvas.width;
