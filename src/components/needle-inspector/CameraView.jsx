@@ -185,12 +185,58 @@ const CameraView = forwardRef(({
       console.log(`   - naturalWidth/Height: ${naturalWidth} x ${naturalHeight}`);
       console.log(`   - offsetWidth/Height: ${offsetWidth} x ${offsetHeight}`);
       console.log(`   - 컨테이너 크기: ${containerWidth} x ${containerHeight}`);
-      
+
       // 오버레이 캔버스 크기도 확인
       const overlayRect = overlayCanvas.getBoundingClientRect();
       console.log(`   - 오버레이 캔버스: ${overlayCanvas.width} x ${overlayCanvas.height}`);
       console.log(`   - 오버레이 실제 표시: ${overlayRect.width} x ${overlayRect.height}`);
-      
+
+      // 카메라 연결 확인: naturalWidth가 0이면 카메라 미연결
+      if (naturalWidth === 0 || naturalHeight === 0) {
+        console.log(`⚠️ ${title} 카메라 미연결 감지 (naturalWidth/Height: ${naturalWidth}x${naturalHeight})`);
+        console.log(`🔄 검은색 빈 캔버스 생성 중...`);
+
+        // 기본 크기로 빈 캔버스 생성 (640x480)
+        const defaultWidth = 640;
+        const defaultHeight = 480;
+        captureCanvas.width = defaultWidth;
+        captureCanvas.height = defaultHeight;
+        const ctx = captureCanvas.getContext("2d");
+
+        // 검은색 배경으로 채우기
+        ctx.fillStyle = "black";
+        ctx.fillRect(0, 0, defaultWidth, defaultHeight);
+
+        // 카메라 제목만 오른쪽 하단에 표시
+        const fontSize = 16;
+        ctx.font = `bold ${fontSize}px Arial`;
+        ctx.fillStyle = "yellow";
+        ctx.strokeStyle = "black";
+        ctx.lineWidth = 1;
+
+        const titleMetrics = ctx.measureText(title);
+        const titleX = defaultWidth - titleMetrics.width - 10;
+        const titleY = defaultHeight - 20;
+
+        ctx.strokeText(title, titleX, titleY);
+        ctx.fillText(title, titleX, titleY);
+
+        // 중앙에 "카메라 미연결" 메시지 표시
+        ctx.font = `20px Arial`;
+        ctx.fillStyle = "gray";
+        const message = "카메라 미연결";
+        const messageMetrics = ctx.measureText(message);
+        const messageX = (defaultWidth - messageMetrics.width) / 2;
+        const messageY = defaultHeight / 2;
+
+        ctx.fillText(message, messageX, messageY);
+
+        const dataURL = captureCanvas.toDataURL("image/png");
+        console.log(`✅ ${title} 빈 캔버스 생성 완료 (카메라 미연결)`);
+
+        return dataURL;
+      }
+
       // 원본 비율 유지를 위해 naturalWidth/Height 사용
       captureCanvas.width = naturalWidth;
       captureCanvas.height = naturalHeight;
