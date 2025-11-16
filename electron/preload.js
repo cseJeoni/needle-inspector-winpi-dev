@@ -117,11 +117,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getCameraDevices: () => {
     return ipcRenderer.invoke('camera-led-list-devices');
   },
-  
+
   setCameraLED: (deviceIndex, ledState) => {
     return ipcRenderer.invoke('camera-led-set-state', deviceIndex, ledState);
   },
-  
+
   // 일일 시리얼 번호 저장/로드 API
   setStoredValue: (key, value) => {
     return ipcRenderer.invoke('set-stored-value', key, value);

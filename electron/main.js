@@ -25,12 +25,16 @@ const store = new Store({
       camera1: {
         lines: [],
         calibrationValue: 19.8,
-        selectedLineColor: 'red'
+        selectedLineColor: 'red',
+        selectedLineStyle: 'capped',
+        selectedLineWidth: 'medium'
       },
       camera2: {
         lines: [],
         calibrationValue: 19.8,
-        selectedLineColor: 'red'
+        selectedLineColor: 'red',
+        selectedLineStyle: 'capped',
+        selectedLineWidth: 'medium'
       }
     }
   }
@@ -601,12 +605,12 @@ function registerIpcHandlers() {
       const backendPath = getBackendPath();
       const exePath = path.join(backendPath, 'dist', 'camera_led_control.exe');
       const scriptPath = path.join(backendPath, 'camera_led_control.py');
-      
+
       console.log(`[INFO] LED 상태 제어: device=${deviceIndex}, state=${ledState}`);
-      
+
       const args = ['set', '--device-index', deviceIndex.toString(), '--led-state', ledState.toString()];
       let stdout, stderr;
-      
+
       // exe 파일 우선 실행 (프로덕션)
       if (fs.existsSync(exePath)) {
         console.log('[INFO] 📦 프로덕션 모드: camera_led_control.exe 실행');
@@ -616,7 +620,7 @@ function registerIpcHandlers() {
         });
         stdout = result.stdout;
         stderr = result.stderr;
-      } 
+      }
       // Python 스크립트 fallback (개발)
       else {
         console.log('[INFO] 🔧 개발 모드: camera_led_control.py 실행');
@@ -631,18 +635,18 @@ function registerIpcHandlers() {
         stdout = result.stdout;
         stderr = result.stderr;
       }
-      
+
       if (stderr) {
         console.warn('[WARN] 카메라 LED 제어 경고:', stderr);
       }
-      
+
       const result = JSON.parse(stdout.trim());
       return result;
     } catch (error) {
       console.error('[ERROR] 카메라 LED 제어 실패:', error);
-      return { 
-        success: false, 
-        error: `카메라 LED 제어 실패: ${error.message}` 
+      return {
+        success: false,
+        error: `카메라 LED 제어 실패: ${error.message}`
       };
     }
   });
