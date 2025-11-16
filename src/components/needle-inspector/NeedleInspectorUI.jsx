@@ -543,11 +543,11 @@ const drawLineWithInfo = (ctx, line, color, showText, calibrationValue = 19.8, i
 
     // 선 굵기 설정
     const widthMap = {
-      'thin': 1,
-      'medium': 3,
-      'thick': 5
+      'thin': 0.5,
+      'medium': 1,
+      'thick': 1.5
     };
-    ctx.lineWidth = widthMap[lineWidth] || 3;
+    ctx.lineWidth = widthMap[lineWidth] || 1;
 
     // 선 그리기
     ctx.beginPath();
@@ -793,11 +793,11 @@ const isPointOnMiddleHandle = (pos, line, canvas) => {
     let actualTolerance = tolerance;
     if (width) {
       const lineWidthMap = {
-        'thin': 1,
-        'medium': 3,
-        'thick': 5
+        'thin': 0.5,
+        'medium': 1,
+        'thick': 1.5
       };
-      const lineWidthPx = lineWidthMap[width] || 3;
+      const lineWidthPx = lineWidthMap[width] || 1;
       // 선 굵기의 절반 + 약간의 여유(2px)를 tolerance로 사용
       actualTolerance = (lineWidthPx / 2) + 2;
     }
